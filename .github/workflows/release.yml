@@ -1,0 +1,32 @@
+# Packages the addon and uploads it to CurseForge (and a GitHub release)
+# every time a tag is pushed:  git tag v0.3.0 && git push --tags
+name: Release AddOn
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # lets the packager attach the zip to a GitHub release
+
+env:
+  CF_API_KEY: ${{ secrets.CF_API_KEY }}
+  GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # full history so the packager can read tags
+      # CurseForge shows one changelog per file: send only the newest section
+      # of CHANGELOG.md (the one for this tag), not the whole history.
+      - name: Changelog for this release
+        run: |
+          awk '/^## /{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' CHANGELOG.md > CHANGELOG_LATEST.md
+          grep -q "^## ${GITHUB_REF_NAME#v} " CHANGELOG_LATEST.md || {
+            echo "CHANGELOG.md has no '## ${GITHUB_REF_NAME#v}' section at the end"; exit 1; }
+          cat CHANGELOG_LATEST.md
+      - uses: BigWigsMods/packager@v2

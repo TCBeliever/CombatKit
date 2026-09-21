@@ -1,0 +1,16 @@
+## Interface: 120100
+## Title: |cff66ccffCombat|rKit: Misc
+## Notes: CombatKit module. Small things that do not deserve an addon of their own, each switched on its own. Loaded by CombatKit while at least one of them is on.
+## Notes-zhTW: CombatKit 模組。不值得各自成為一個插件的小功能，各自開關。至少一項啟用時由 CombatKit 載入。
+## Author: Venser
+## Version: 0.3.0
+## LoadOnDemand: 1
+## RequiredDeps: CombatKit
+## SavedVariables: CombatKitMiscDB
+## Category: venMOD
+## X-License: MIT
+
+Locales.lua
+Misc.lua
+RightClick.lua
+CombatAlert.lua

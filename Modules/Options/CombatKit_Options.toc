@@ -1,0 +1,18 @@
+## Interface: 120100
+## Title: |cff66ccffCombat|rKit: Options
+## Notes: The CombatKit settings window. Loaded the first time you open /ck.
+## Notes-zhTW: CombatKit 的設定視窗。第一次開啟 /ck 時才載入。
+## Author: Venser
+## Version: 0.3.0
+## LoadOnDemand: 1
+## RequiredDeps: CombatKit
+## Category: venMOD
+## X-License: MIT
+
+Locales.lua
+Widgets.lua
+Window.lua
+Pages\Loadout.lua
+Pages\Stats.lua
+Pages\Range.lua
+Pages\Misc.lua

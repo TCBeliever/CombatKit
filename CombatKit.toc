@@ -1,0 +1,16 @@
+## Interface: 120100
+## Title: |cff66ccffCombat|rKit
+## Notes: A kit of lightweight combat helpers, one switch each: talents and gear that follow where you are (PvE / PvP, per spec), your stats on a compact HUD, live in combat, range to target and focus, and small extras. What is off is never loaded.
+## Notes-zhTW: 一組輕量的戰鬥小工具，各自一個開關：依所在場景（PvE／PvP，每個專精各自設定）自動切換天賦與裝備、精簡 HUD 上的即時屬性、與目標和專注目標的距離，以及幾個小功能。沒開的完全不載入。
+## Author: Venser
+## Version: 0.3.0
+## SavedVariables: CombatKitDB
+## IconTexture: Interface\Icons\INV_Misc_Gear_01
+## Category: venMOD
+## AddonCompartmentFunc: CombatKit_OnAddonCompartmentClick
+## X-License: MIT
+
+Locales.lua
+Skin.lua
+Core.lua
+HUD.lua

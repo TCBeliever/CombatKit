@@ -1,0 +1,31 @@
+package-as: CombatKit
+
+enable-nolib-creation: no
+
+# Each module is its own load-on-demand addon: a folder next to CombatKit.
+move-folders:
+  CombatKit/Modules/Loadout: CombatKit_Loadout
+  CombatKit/Modules/Stats: CombatKit_Stats
+  CombatKit/Modules/Range: CombatKit_Range
+  CombatKit/Modules/Misc: CombatKit_Misc
+  CombatKit/Modules/Options: CombatKit_Options
+
+ignore:
+  - README.md
+  - README.zhTW.md
+  - CHANGELOG.md
+  - CHANGELOG_LATEST.md
+  - TODO.md
+  - deploy.bat
+  - tests
+  - docs
+  - .gitignore
+  - .pkgmeta
+  - .github
+
+# CHANGELOG_LATEST.md is written by the release workflow (newest section of
+# CHANGELOG.md). No trailing comment on the filename line: the packager's
+# YAML reader keeps it as part of the name.
+manual-changelog:
+  filename: CHANGELOG_LATEST.md
+  markup-type: markdown

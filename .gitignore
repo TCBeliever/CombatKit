@@ -1,0 +1,14 @@
+# OS / editor
+Thumbs.db
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# packager output
+.release/
+*.zip
+CHANGELOG_LATEST.md
+
+# python
+__pycache__/
