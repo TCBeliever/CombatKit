@@ -2,7 +2,7 @@
 
 Newest at the bottom: the release workflow publishes the last section with the file.
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-09-22)
 
 First public release.
 
