@@ -214,11 +214,21 @@ local function BuildLoadout(p)
 	end)
 	p.gear:SetPoint("TOPLEFT", FIELD_X, fieldY - 28)
 
+	-- what the page shows, applied right now: the spec picked above, its talents and gear
+	p.switch = CK.Bind(Skin.Button(editor, "", 110, 22, function()
+		local specs = ShownSpecs()
+		local setup = LO.BuildSetupFor(selectedSpec, specs[selectedSpec])
+		if setup then LO.ApplySetup(setup) end
+		O.Refresh()
+	end), "Switch now")
+	p.switch:SetPoint("TOPLEFT", FIELD_X, fieldY - 28 - 32)
+	Skin.Tooltip(p.switch, "Switch now", "SWITCH_NOW_TIP")
+
 	p.warmode = CK.Bind(Skin.Checkbox(editor, "", function(checked)
 		LO.char.warmodePvP = checked
 		Changed()
 	end), "Open world with War Mode uses PvP")
-	p.warmode:SetPoint("TOPLEFT", 0, fieldY - 28 - 36)
+	p.warmode:SetPoint("TOPLEFT", 0, fieldY - 28 - 32 - 36)
 end
 
 local function RefreshLoadout(p)
@@ -306,6 +316,8 @@ local function RefreshLoadout(p)
 	p.gear:SetDisabled(not usable)
 	p.talents:SetValueText(cell and cell.configName or L["Not set"], not (cell and cell.configID))
 	p.gear:SetValueText(cell and cell.setName or L["Not set"], not (cell and cell.setID))
+	-- nothing to switch to (already there, or nothing set): the button waits
+	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell) == nil)
 
 	local isPvP = isGroup and selected.key == "pvp"
 	p.warmode:SetShown(isPvP)

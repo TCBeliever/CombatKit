@@ -3,7 +3,7 @@
 ## Notes: CombatKit module. Distance to your target, focus and mouseover. Loaded by CombatKit when the module is on.
 ## Notes-zhTW: CombatKit 模組。與目標、專注目標、滑鼠指向單位的距離。模組啟用時由 CombatKit 載入。
 ## Author: Venser
-## Version: 0.3.0
+## Version: 0.3.1
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## SavedVariables: CombatKitRangeDB

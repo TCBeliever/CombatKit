@@ -109,6 +109,32 @@ check(p.warmode:IsShown(), "war mode option lives on the PvP page")
 p.warmode:Click(); eq(C.warmodePvP, true, "war mode option on"); p.warmode:Click()
 eq(#W.log, 0, "editing settings never switches anything")
 
+-- "Switch now": what the page shows, applied on request
+check(not p.switch.disabled, "Havoc PvP shows gear 2 while set 1 is worn: the button is live")
+p.switch:Click(); flush()
+eq(W.log[1], "equip:2", "it equips the set shown")
+fire("EQUIPMENT_SWAP_FINISHED"); flush()
+check(p.switch.disabled, "already there: the button waits")
+W.log = {}
+p.switch:Click()
+eq(#W.log, 0, "and does nothing")
+specButton(VENG):Click()
+check(pick(p.talents, 201), "Vengeance PvP: talents")
+check(not p.switch.disabled, "another spec is picked: live again")
+W.activeConfig[VENG] = nil   -- that spec last used some other loadout
+p.switch:Click(); flush()
+eq(W.log[1], "spec:2", "it asks for the spec first")
+W.specIndex = 2; fire("PLAYER_SPECIALIZATION_CHANGED"); flush()
+check(W.log[2] == "talents:201", "then the talents of that spec")
+W.activeConfig[VENG] = 201; fire("TRAIT_CONFIG_UPDATED"); flush()
+check(not LO.IsApplying(), "done")
+-- back to where the test was
+W.specIndex = 1; fire("PLAYER_SPECIALIZATION_CHANGED"); flush()
+C.groups.pvp.specs[VENG] = nil
+wear(1); W.activeConfig[HAVOC] = 101; fire("PLAYER_EQUIPMENT_CHANGED")
+specButton(HAVOC):Click()
+W.log = {}
+
 -- ---------------------------------------------------------------- splitting
 treeRow("Loadout", "group:pve"):Click()
 p.split:Click()
@@ -211,7 +237,9 @@ section:GetScript("OnDragStart")(section); check(moved, "an unlocked one does, d
 section:GetScript("OnDragStop")(section)
 eq(CK.db.hud.x, 10, "position saved, rounded")
 eq(CK.db.hud.y, -21, "position saved, rounded (y)")
-SlashCmdList.COMBATKIT("reset"); eq(CK.db.hud.y, CK.defaults.hud.y, "/ck reset")
+hudPage.locked:Click()   -- (re)lock for the checks below
+CK.HUD.ResetPosition(); eq(CK.db.hud.y, CK.defaults.hud.y, "reset from the settings")
+hudPage.locked:Click()
 
 CK.HUD.SetScale(5); eq(CK.db.hud.scale, 1.8, "scale is capped")
 CK.HUD.SetScale(0.1); eq(CK.db.hud.scale, 0.6, "scale has a floor")
@@ -312,9 +340,9 @@ CK.SetModuleEnabled("Stats", false)
 
 -- ---------------------------------------------------------------- debug page
 main:Hide()
-SlashCmdList.COMBATKIT("debug")
+CK.OpenOptions("Loadout/debug")
 local dbg = main.bodies.Loadout.pages.debug
-check(main:IsShown() and dbg:IsShown(), "/ck debug opens the debug page")
+check(main:IsShown() and dbg:IsShown(), "the window can be opened straight on the debug page")
 -- a button per scenario and one for "off"; everything else waits behind "Advanced"
 eq(#dbg.scenarioButtons, 7, "off + six scenarios")
 eq(dbg.groupLabels.pve:GetText(), L["GROUP_pve"], "a line per group, named")
@@ -411,8 +439,10 @@ for _, obj in ipairs(T.all) do
 end
 check(true, "only BackdropTemplate is used")
 
-SlashCmdList.COMBATKIT("help")
-SlashCmdList.COMBATKIT("apply")
+local wasShown = main:IsShown()
+SlashCmdList.COMBATKIT("anything at all")
+check(main:IsShown() ~= wasShown, "/ck with any text just toggles the window")
+if main:IsShown() then main:Hide() end
 CombatKit_OnAddonCompartmentClick(); check(main:IsShown(), "compartment click opens the window")
 
 T.releaseChat()

@@ -38,7 +38,6 @@ for _, m in ipairs(ns.MODULES) do
 end
 
 ns.modules = {}   -- loaded module objects, by name
-ns.slash = {}     -- "/ck <word>" handlers added by modules
 
 function ns.NewModule(name, object)
 	object.name = name
@@ -235,7 +234,7 @@ local function RegisterInGameOptions()
 	local panel = CreateFrame("Frame")
 	local title = Skin.Label(panel, "|cff66ccffCombat|rKit", "GameFontHighlightLarge")
 	title:SetPoint("TOPLEFT", 16, -16)
-	local hint = ns.Bind(Skin.Label(panel, "", nil, "dim"), "Slash help")
+	local hint = ns.Bind(Skin.Label(panel, "", nil, "dim"), "Slash hint")
 	hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
 
 	local open = CreateFrame("Button", nil, panel, "BackdropTemplate")
@@ -278,18 +277,7 @@ end)
 
 SLASH_COMBATKIT1 = "/combatkit"
 SLASH_COMBATKIT2 = "/ck"
-SlashCmdList.COMBATKIT = function(msg)
-	local word, rest = strtrim(msg or ""):lower():match("^(%S*)%s*(.-)$")
-	if word == "reset" then
-		ns.HUD.ResetPosition()
-	elseif word == "help" then
-		ns.Msg(L["Slash help"])
-	elseif ns.slash[word] then
-		ns.slash[word](rest)
-	else
-		ns.ToggleOptions()
-	end
-end
+SlashCmdList.COMBATKIT = function() ns.ToggleOptions() end
 
 function CombatKit_OnAddonCompartmentClick()
 	ns.ToggleOptions()

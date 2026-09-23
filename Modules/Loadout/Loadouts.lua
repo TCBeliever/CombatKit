@@ -201,6 +201,27 @@ function ns.BuildSetup(key, targetSpecID)
 	return setup
 end
 
+-- The setup that takes the character to `specID` with `cell`'s talents and
+-- gear, or nil when it is already there. For the settings page: what the page
+-- shows, applied on request, whatever scenario the character is in.
+function ns.BuildSetupFor(specID, cell)
+	if not specID then return nil end
+	local setup = { specID = specID ~= ns.GetCurrentSpecID() and specID or nil }
+	if cell then
+		ns.RepairCell(cell, specID)
+		if cell.configID and ConfigExists(cell.configID)
+			and (setup.specID or ns.GetActiveConfigID(specID) ~= cell.configID) then
+			setup.configID = cell.configID
+		end
+		if cell.setID then
+			local equipped, exists = ns.IsSetEquipped(cell.setID)
+			if exists and (setup.specID or not equipped) then setup.setID = cell.setID end
+		end
+	end
+	if not setup.specID and not setup.configID and not setup.setID then return nil end
+	return setup
+end
+
 -- ===========================================================================
 -- Applying a setup: spec, then gear and talents
 --

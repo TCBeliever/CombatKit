@@ -1,18 +1,15 @@
 # CombatKit
 
-**Combat helpers, one switch each.**
+A modular combat addon for World of Warcraft (Retail) with a small resource footprint. It bundles:
 
-A kit of lightweight combat helpers for World of Warcraft (Retail): talents and gear that follow where you are, your stats on a compact HUD, range to your target and focus, and a few small extras. Each is one switch, and what is off is never loaded: no code, no frames, not even its saved settings.
+- **Loadout** (on by default): spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
+- **Stats**: live stats on a compact HUD.
+- **Range**: distance to your target, focus and mouseover.
+- **Extras**: a text on entering and leaving combat; right click disabled in combat.
+
+Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No libraries, no texture or font files.
 
 [繁體中文](README.zhTW.md)
-
-| Module | What it does | Default |
-|---|---|---|
-| **Loadout** | One PvE and one PvP setup per spec (talent loadout + equipment set). Switches them when you enter a scenario or change spec. | on |
-| **Stats** | Your stats as lines on the HUD, live in combat. | off |
-| **Range** | Distance to your target, focus and mouseover. | off |
-| **Extras: combat alert** | A short text when you enter and leave combat. | off |
-| **Extras: disable right click in combat** | In combat, right click no longer interacts with or targets the unit under the cursor, so turning the camera never switches your target. | off |
 
 ## Install
 
@@ -41,7 +38,7 @@ Right click: settings. Drag to move (unless locked), `Ctrl` + mouse wheel to res
 
 ## Loadout
 
-Open `/ck`. There are two entries, **PvE** and **PvP**. Pick a spec from the large icons at the top, then its talent loadout and equipment set underneath; a corner mark shows which specs are set up. That is the whole setup: whatever spec you are in decides which pair is used, so a battleground as DPS and a battleground as healer are simply two specs, each set up once.
+Open `/ck`. There are two entries, **PvE** and **PvP**. Pick a spec from the large icons at the top, then its talent loadout and equipment set underneath; a corner mark shows which specs are set up. That is the whole setup: whatever spec you are in decides which pair is used, so a battleground as DPS and a battleground as healer are simply two specs, each set up once. *Switch now* under the fields takes you there at once: the spec picked on the page, its talents and gear, wherever you are.
 
 | | |
 |---|---|
@@ -72,18 +69,9 @@ Small things that do not deserve an addon of their own. One with settings has a 
 - **Combat alert**: a text in the middle of the screen when combat starts and ends. Both texts, the font size and the position are yours; *Test* plays it.
 - **Disable right click in combat**: while you are in combat and a unit is under the cursor, right click only turns the camera. Corpses count as units, so right click on them is held back too; left click (with the game's *interact on left click*) and the interact key still reach them. Ore, herbs, chests and doors are not units and are never affected. Back to normal when combat ends.
 
-## Commands
-
-| | |
-|---|---|
-| `/ck` | settings |
-| `/ck apply` | Loadout: apply now |
-| `/ck debug` | Loadout: the debug page |
-| `/ck reset` | reset the HUD position |
-
 ## Look and weight
 
-Flat panels drawn by the addon itself: no Blizzard frame skin, no libraries, no texture or font files. The palette is one table in `Skin.lua`. English and 繁體中文, switchable in **Settings > General**; more translations are welcome, every `Locales.lua` is a plain table.
+Flat panels drawn by the addon itself, no Blizzard frame skin. The palette is one table in `Skin.lua`. English and 繁體中文, switchable in **Settings > General**; more translations are welcome, every `Locales.lua` is a plain table.
 
 ## Development
 

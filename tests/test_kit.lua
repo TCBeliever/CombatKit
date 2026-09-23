@@ -44,7 +44,6 @@ LO.char.groups.pve.specs[577] = { setID = 1, setName = "PvE" }
 W.inInstance, W.instanceType = true, "raid"
 fire("PLAYER_ENTERING_WORLD")
 eq(#W.log, 0, "a module that is off does not react to events any more")
-check(CK.slash.apply == nil, "and its slash commands are gone")
 
 CK.SetModuleEnabled("Loadout", true); flush()
 eq(CK.GetModuleState("Loadout"), "on", "switched on again, without a reload")

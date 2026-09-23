@@ -3,7 +3,7 @@
 ## Notes: The CombatKit settings window. Loaded the first time you open /ck.
 ## Notes-zhTW: CombatKit 的設定視窗。第一次開啟 /ck 時才載入。
 ## Author: Venser
-## Version: 0.3.0
+## Version: 0.3.1
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## Category: venMOD

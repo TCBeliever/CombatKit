@@ -296,8 +296,6 @@ function ns.OnEnable()
 	-- an event this client does not know raises an error on registration
 	for _, e in ipairs(EVENTS) do pcall(driver.RegisterEvent, driver, e) end
 	CK.HUD.AddSection(ns.hudSection)
-	CK.slash.apply = function() ns.ApplyNow() end
-	CK.slash.debug = function() CK.OpenOptions("Loadout/debug") end
 	-- switched on mid-session there is no loading screen to start from; at
 	-- login this merges with the one PLAYER_ENTERING_WORLD asks for
 	currentKey = nil
@@ -311,5 +309,4 @@ function ns.OnDisable()
 	wantAuto, wantSpec, earlyBG, earlyLFG = false, false, nil, nil
 	wipe(ns.debug)
 	CK.HUD.RemoveSection("loadout")
-	CK.slash.apply, CK.slash.debug = nil, nil
 end

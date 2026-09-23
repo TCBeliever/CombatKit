@@ -42,8 +42,14 @@ function Skin.Button(parent, text, w, h, onClick)
 		self.selected = on and true or false
 		Rest(self)
 	end
+	function b:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		self:SetAlpha(self.disabled and 0.55 or 1)
+	end
 	Hoverable(b)
-	b:SetScript("OnClick", onClick)
+	b:SetScript("OnClick", function(self, ...)
+		if not self.disabled then onClick(self, ...) end
+	end)
 	return b
 end
 

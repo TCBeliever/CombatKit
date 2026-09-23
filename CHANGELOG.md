@@ -10,4 +10,9 @@ First public release.
 - **Stats**: your stats as lines on the HUD, live in combat. Which ones, their order and decimals are yours; the HUD can use the English names in any language.
 - **Range**: distance to your target, focus and mouseover as colour-coded numbers.
 - **Extras**: a text when you enter and leave combat; right click disabled in combat, so turning the camera never switches your target.
-- **The kit**: every module is a load-on-demand addon, so what is off is never loaded. One HUD that the modules share, with its own scale, background opacity, border and font. Settings in tabs, reachable from `/ck`, the addon compartment and the game's AddOns options. English and 繁體中文, switchable in game. No libraries, no texture or font files.
+- **The kit**: every module is a load-on-demand addon; a disabled module is never loaded. One HUD that the modules share, with its own scale, background opacity, border and font. Settings in tabs, reachable from `/ck`, the addon compartment and the game's AddOns options. English and 繁體中文, switchable in game. No libraries, no texture or font files.
+
+## 0.3.1 (unreleased)
+
+- Loadout: a *Switch now* button under the talent and gear fields switches to the spec picked on the page and applies what is shown, wherever you are.
+- `/ck` only opens the settings now; `/ck apply`, `/ck debug` and `/ck reset` are gone. Apply from the HUD or the *Switch now* button, the debug page is in the Loadout tab, the HUD position is reset in Settings > HUD.

@@ -70,7 +70,7 @@ ns.AddLocale("enUS", {
 	["FEAT_CombatAlert"] = "Combat alert",
 	["HUD_HINT"]        = "Right click: settings. Drag to move, Ctrl + mouse wheel to resize.",
 	["LANG_auto"]       = "Auto (game language)",
-	["Slash help"]      = "/ck: settings.  /ck reset: reset the HUD position.",
+	["Slash hint"]      = "/ck opens the settings.",
 })
 
 ns.AddLocale("zhTW", {
@@ -82,7 +82,7 @@ ns.AddLocale("zhTW", {
 	["FEAT_CombatAlert"] = "進出戰鬥提示",
 	["HUD_HINT"]        = "右鍵：設定。拖曳移動，Ctrl + 滾輪縮放。",
 	["LANG_auto"]       = "自動（跟隨遊戲語言）",
-	["Slash help"]      = "/ck：設定。/ck reset：重設 HUD 位置。",
+	["Slash hint"]      = "輸入 /ck 開啟設定。",
 	["Open settings"]                   = "開啟設定",
 	["%s is not installed."]            = "%s 沒有安裝。",
 	["Could not load %s (%s)."]         = "無法載入 %s（%s）。",
