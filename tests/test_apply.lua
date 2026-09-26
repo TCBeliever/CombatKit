@@ -122,17 +122,45 @@ eq(count("spec:"), 4, "a refused request is retried like a dropped one")
 check(not ns.IsApplying() and said(ns.L["Could not switch specialization."]), "and given up the same way")
 W.specRefused = false
 
--- ---------------------------------------------------------------- an interrupted talent cast is asked again
+-- ---------------------------------------------------------------- a talent cast the player interrupts is not asked again
 W.specIndex = 2; W.activeConfig[PRES] = 56674545
-W.log = {}
+W.log = {}; T.chat = {}
 pretend("raid"); pretend("delve")   -- re-enter delve as Preservation with the wrong loadout
 eq(count("talents:"), 1, "loadout asked")
 W.casting = true; pass(1)
 W.casting = false; fire("CONFIG_COMMIT_FAILED")
-eq(count("talents:"), 2, "asked again after the interruption")
+pass(2); pass(2); pass(2)
+eq(count("talents:"), 1, "the interruption ends it: not asked again")
+check(not ns.IsApplying(), "nothing pending")
+check(said(ns.L["Talent change"]) and said("HUD"), "one message, pointing at the HUD")
+eq(ns.GetStatus("delve").state, "mismatch", "the HUD keeps showing what is missing")
+fire("PLAYER_ENTERING_WORLD"); pass(1); pass(4); pass(1)
+eq(count("talents:"), 1, "the second pass after a loading screen does not ask either")
+ns.ApplyNow(); flush()
+eq(count("talents:"), 2, "clicking the HUD asks once more")
 W.casting = true; pass(1); talentsLand(); pass(1)
 check(not ns.IsApplying(), "and finished")
 eq(ns.GetStatus("delve").state, "ready", "ready")
+
+-- the same for a spec cast: seen under way, then gone with the spec unchanged
+W.specIndex = 1; W.log = {}; T.chat = {}
+pretend("raid"); pretend("delve")   -- delve wants Preservation
+eq(count("spec:"), 1, "spec asked")
+W.casting = true; pass(1)
+W.casting = false; pass(1); pass(1); pass(1)
+eq(count("spec:"), 1, "gone without landing: not asked again")
+check(not ns.IsApplying() and said(ns.L["Spec change"]), "ended with a message")
+pass(2); pass(2)
+eq(count("spec:"), 1, "and stays ended")
+-- a dropped request (never a cast) is still retried
+W.log = {}
+pretend("raid"); pretend("delve")
+eq(count("spec:"), 1, "spec asked")
+pass(2)
+eq(count("spec:"), 2, "no cast showed up: asked again")
+W.casting = true; pass(1); specLands(2)
+W.casting = true; pass(1); talentsLand(); pass(1)
+check(not ns.IsApplying(), "and finished")
 
 -- ---------------------------------------------------------------- running after a loading screen
 W.log = {}; T.chat = {}

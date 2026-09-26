@@ -285,7 +285,12 @@ local function Mock(kind, name)
 		GetStringWidth = function(self) if self.__secret then return T.SECRET end return 60 end,
 		GetWidth = function() return 120 end,
 		GetEffectiveScale = function(self) return self.__scale or 1 end,
-		GetPoint = function() return "TOP", nil, "TOP", 10.4, -20.6 end,
+		-- what SetPoint last set; after a drag the game picks a point of its own
+		GetPoint = function(self)
+			if self.__point then return unpack(self.__point) end
+			return "TOP", nil, "TOP", 10.4, -20.6
+		end,
+		StopMovingOrSizing = function(self) self.__point = { "TOP", nil, "TOP", 10.4, -20.6 } end,
 		IsMouseOver = function() return false end,
 		SetScale = function(self, s) self.__scale = s end,
 		SetAlpha = function(self, a) self.__alpha = a end,

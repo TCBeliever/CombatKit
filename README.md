@@ -34,7 +34,7 @@ Crit                      23.4%
 Haste                     18.0%
 ```
 
-Right click: settings. Drag to move (unless locked), `Ctrl` + mouse wheel to resize. With nothing to show it is hidden. **Settings > HUD** hides it altogether and sets its scale, background opacity (down to none), border and font. Fonts: the game's own, plus whatever LibSharedMedia offers when another addon brought it along.
+Right click: settings. Drag to move (unless locked), `Ctrl` + mouse wheel to resize. With nothing to show it is hidden. **Settings > HUD** hides it altogether and sets its scale, background opacity (down to none), border, font and anchor: the corner the box keeps while lines come and go, top left by default, so it grows down and to the right. Fonts: the game's own, plus whatever LibSharedMedia offers when another addon brought it along.
 
 ## Loadout
 
@@ -46,7 +46,7 @@ Open `/ck`. There are two entries, **PvE** and **PvP**. Pick a spec from the lar
 | **Switch spec automatically** (open world, delves) | Tick it and pick the spec from the large icons: that spec is switched to the moment you enter, and the talents and gear below are the ones set for it. In a group it never takes you out of the role the group gave you, and says so in chat; a group without assigned roles (friends, an NPC companion) changes nothing. |
 | **Open world with War Mode uses PvP** (PvP page) | With War Mode on, the open world uses your PvP settings. |
 
-Talents and gear are applied **once** when you enter a scenario (logging in counts) and once when you change spec. What you change by hand afterwards is left alone: the HUD line turns amber, and a left click on it applies the setup again. It waits out combat, your own casts and, for a spec change, running; a request the game dropped is asked again, and it tells you when it gives up. While a keystone is running or a PvP match has started nothing can be changed, so it waits. On a queue pop nothing is switched: the HUD shows what the upcoming scenario wants, click it if you want it now.
+With *Switch talents and gear automatically* on (Loadout tab > Options; off by default), talents and gear are applied **once** when you enter a scenario (logging in counts) and once when you change spec. What you change by hand afterwards is left alone: on the HUD the line splits in two, what you have now and, under an arrow, what will be applied; when the scenario wants another spec the first line names it. A left click switches. It waits out combat, your own casts and, for a spec change, running; a request the game dropped is asked again, and it tells you when it gives up. A cast you interrupt yourself is not asked again: it says so once, and the HUD shows what is still missing. While a keystone is running or a PvP match has started nothing can be changed, so it waits. On a queue pop nothing is switched: the HUD shows what the upcoming scenario wants, click it if you want it now.
 
 These setups are saved per character; everything else in the kit is account-wide. A loadout or set that was deleted and recreated under the same name is found again by name. The **Debug** page simulates another scenario and, under Advanced, a queue pop, War Mode, a group role or a running key, so everything can be tried from a city; *Dry run* only says what would be switched.
 

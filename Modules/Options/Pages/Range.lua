@@ -101,7 +101,7 @@ O.AddSection({
 	order = 30,
 	tab = function() return L["MOD_Range"] end,
 	GetNodes = function() return { { key = "range", label = L["MOD_Range"] } } end,
-	GetHeader = function() return L["MOD_Range"], nil end,
+	GetHeader = function() return L["MOD_Range"], L["MODDESC_Range"] end,
 	Build = function(p) RG = CK.modules.Range; Build(p) end,
 	Refresh = function(_, p) RG = CK.modules.Range; Refresh(p) end,
 	OnWindowHide = function()

@@ -186,7 +186,8 @@ end
 --     version  = 1,
 --     settings = { windowScale=, locale= ("enUS" | "zhTW"; absent = follow the game) },
 --     hud      = { show = "always" | "never", scale=, locked=, point=, relPoint=, x=, y=,
---                  bgAlpha= (0 = no background), border=, font= (file; absent = the game's), fontName= },
+--                  bgAlpha= (0 = no background), border=, font= (file; absent = the game's), fontName=,
+--                  anchor = the corner the box grows away from ("TOPLEFT" ...) },
 --     modules  = { Loadout = true, Stats = false, Misc = { RightClick = false, ... } },
 --   }
 -- ---------------------------------------------------------------------------
@@ -194,7 +195,7 @@ end
 ns.defaults = {
 	settings = { windowScale = 1.5 },
 	hud = { show = "always", scale = 1.0, locked = false, point = "TOP", relPoint = "TOP", x = 0, y = -170,
-		bgAlpha = 0.8, border = true },
+		bgAlpha = 0.8, border = true, anchor = "TOPLEFT" },
 }
 
 local function InitDB()

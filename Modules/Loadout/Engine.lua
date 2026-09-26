@@ -24,7 +24,7 @@ local CK = CombatKit
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
-	auto  = true,       -- switch talents and gear on entering a scenario / changing spec
+	auto  = false,      -- switch talents and gear on entering a scenario / changing spec
 	early = true,       -- show the upcoming scenario on a queue pop
 	hud   = "always",   -- this module's HUD lines: "always" | "mismatch"
 }
@@ -161,18 +161,26 @@ function ns.QueueCheck(delay)
 	end)
 end
 
+-- The player interrupted a cast of ours: nothing is owed any more, and the
+-- second pass after a loading screen must not ask again either. The next
+-- entry or spec change starts afresh.
+function ns.OnApplyInterrupted()
+	wantAuto, wantSpec, enteredAt = false, false, nil
+end
+
 -- Debug page: run the check as if the scenario had just been entered.
 function ns.EnterAgain()
 	currentKey = nil
 	ns.Check()
 end
 
--- The HUD was clicked: apply what it shows, now.
+-- The HUD was clicked: apply what it shows, now, the spec it names included.
 function ns.ApplyNow()
 	if not running or not ns.char then return end
 	local key = ns.GetEarlyScenario() or ns.DetectScenario()
-	if ns.GetStatus(key).state ~= "mismatch" then return end
-	local setup = ns.BuildSetup(key)
+	local st = ns.GetStatus(key)
+	if st.state ~= "mismatch" then return end
+	local setup = ns.BuildSetup(key, st.targetSpecID)
 	if setup then ns.ApplySetup(setup) end
 	ns.UpdateHUD()
 end
@@ -186,6 +194,7 @@ local EVENTS = {
 	"PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED",
 	"PLAYER_SPECIALIZATION_CHANGED",
 	"TRAIT_CONFIG_UPDATED", "TRAIT_CONFIG_LIST_UPDATED", "ACTIVE_COMBAT_CONFIG_CHANGED", "CONFIG_COMMIT_FAILED",
+	"UNIT_SPELLCAST_INTERRUPTED",
 	"EQUIPMENT_SETS_CHANGED", "EQUIPMENT_SWAP_FINISHED", "PLAYER_EQUIPMENT_CHANGED",
 	"UPDATE_BATTLEFIELD_STATUS",
 	"LFG_PROPOSAL_SHOW", "LFG_PROPOSAL_FAILED", "LFG_PROPOSAL_DONE",
@@ -228,6 +237,12 @@ end
 
 function handlers.CONFIG_COMMIT_FAILED()
 	ns.OnTalentsFailed()
+	ns.QueueCheck()
+end
+
+function handlers.UNIT_SPELLCAST_INTERRUPTED(unit)
+	if unit ~= "player" then return end
+	ns.OnCastInterrupted()
 	ns.QueueCheck()
 end
 

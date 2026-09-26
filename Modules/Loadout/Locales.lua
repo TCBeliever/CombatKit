@@ -13,12 +13,13 @@ CK.AddLocale("enUS", {
 	["SCN_raid"]    = "Raids",
 	["SCN_arena"]   = "Arena",
 	["SCN_bg"]      = "Battlegrounds / rated",
+	["SCN_SHORT_bg"] = "Battlegrounds",
 
 	["ROLE_TANK"]    = "tank",
 	["ROLE_HEALER"]  = "healer",
 	["ROLE_DAMAGER"] = "damage",
 
-	["LOADOUT_HINT"] = "Left click: apply now.",
+	["LOADOUT_HINT"] = "Left click: switch now.",
 	["DRYRUN_MSG"]   = "Dry run: spec %s, talents %s, gear %s.",
 	["faked"]        = "simulated",
 })
@@ -30,12 +31,13 @@ CK.AddLocale("zhTW", {
 	["SCN_raid"]    = "Raid",
 	["SCN_arena"]   = "Arena",
 	["SCN_bg"]      = "戰場/積分戰場",
+	["SCN_SHORT_bg"] = "戰場",
 
 	["ROLE_TANK"]    = "坦克",
 	["ROLE_HEALER"]  = "治療",
 	["ROLE_DAMAGER"] = "傷害輸出",
 
-	["LOADOUT_HINT"] = "左鍵：立即套用。",
+	["LOADOUT_HINT"] = "左鍵：立即切換。",
 	["DRYRUN_MSG"]   = "模擬：專精 %s，天賦 %s，裝備 %s。",
 
 	-- HUD
@@ -45,7 +47,7 @@ CK.AddLocale("zhTW", {
 	["Applying"]       = "套用中",
 	["Stand still"]    = "站定後切換",
 	["After combat"]   = "戰鬥後套用",
-	["Click to apply"] = "點擊套用",
+	["Click to switch"] = "點擊切換",
 	["Not set up"]     = "未設定",
 	["missing"]        = "已不存在",
 	["faked"]          = "模擬",
@@ -62,5 +64,7 @@ CK.AddLocale("zhTW", {
 	["Not switching to %s: your role in this group is %s."] = "沒有切換到%s：你在這個隊伍的職責是%s。",
 	["Could not load the talent loadout: %s"] = "無法載入天賦配置：%s",
 	["unknown reason"] = "原因不明",
-	["the change was interrupted"] = "變更被中斷",
+	["%s interrupted. Click the HUD to apply again."] = "%s被中斷。要套用時點一下 HUD。",
+	["Spec change"]   = "專精切換",
+	["Talent change"] = "天賦變更",
 })

@@ -57,6 +57,47 @@ local function ApplyPosition()
 	frame:SetPoint(s.point, UIParent, s.relPoint, s.x, s.y)
 end
 
+-- The box is anchored by one corner and grows away from it as rows come and go:
+-- down and to the right from the top left corner, and so on. The player picks
+-- the corner; dragging and the first layout re-express the position from it.
+HUD.ANCHORS = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
+local VALID_ANCHOR = {}
+for _, a in ipairs(HUD.ANCHORS) do VALID_ANCHOR[a] = true end
+
+-- Screen coordinates of a region's corner: the box and UIParent are scaled differently.
+local function Corner(region, anchor)
+	local l, r, t, b = region:GetLeft(), region:GetRight(), region:GetTop(), region:GetBottom()
+	if not (l and r and t and b) then return nil end
+	local scale = region:GetEffectiveScale()
+	local x = anchor:find("LEFT", 1, true) and l or r
+	local y = anchor:find("TOP", 1, true) and t or b
+	return x * scale, y * scale
+end
+
+-- Express where the box is from `anchor`, without moving it.
+local function Reanchor(anchor)
+	local s = ns.db.hud
+	local fx, fy = Corner(frame, anchor)
+	local ux, uy = Corner(UIParent, anchor)
+	if fx and ux then
+		local scale = frame:GetEffectiveScale()
+		s.point, s.relPoint = anchor, anchor
+		s.x, s.y = math.floor((fx - ux) / scale + 0.5), math.floor((fy - uy) / scale + 0.5)
+	else
+		-- not laid out yet: keep whatever point the box has
+		local point, _, relPoint, x, y = frame:GetPoint()
+		if point then s.point, s.relPoint, s.x, s.y = point, relPoint, math.floor(x + 0.5), math.floor(y + 0.5) end
+	end
+	ApplyPosition()
+end
+
+function HUD.SetAnchor(anchor)
+	if not VALID_ANCHOR[anchor] then return end
+	ns.db.hud.anchor = anchor
+	if frame then Reanchor(anchor) end
+	ns.RefreshOptions()
+end
+
 function HUD.SetScale(scale)
 	scale = math.max(HUD.SCALE_MIN, math.min(HUD.SCALE_MAX, scale))
 	scale = math.floor(scale * 10 + 0.5) / 10
@@ -68,7 +109,10 @@ end
 function HUD.ResetPosition()
 	local s, d = ns.db.hud, ns.defaults.hud
 	s.point, s.relPoint, s.x, s.y = d.point, d.relPoint, d.x, d.y
-	if frame then ApplyPosition() end
+	if frame then
+		ApplyPosition()
+		HUD.Refresh()   -- lays it out, then re-expresses the place from the anchor corner
+	end
 end
 
 -- ---------------------------------------------------------------------------
@@ -134,9 +178,7 @@ local function MakeHandle(widget)
 	end)
 	widget:SetScript("OnDragStop", function()
 		frame:StopMovingOrSizing()
-		local point, _, relPoint, x, y = frame:GetPoint()
-		local s = ns.db.hud
-		s.point, s.relPoint, s.x, s.y = point, relPoint, math.floor(x + 0.5), math.floor(y + 0.5)
+		Reanchor(ns.db.hud.anchor)
 	end)
 	widget:SetScript("OnMouseWheel", function(_, delta)
 		if IsControlKeyDown() then HUD.SetScale(ns.db.hud.scale + delta * HUD.SCALE_STEP) end
@@ -358,6 +400,9 @@ function HUD.Refresh()
 	ApplyBox(alert)
 	frame:SetSize(width, -y + PAD_Y)
 	frame:Show()
+	-- placed by something else than its corner (a fresh install, an older save):
+	-- now that it has its size, the corner can be worked out
+	if ns.db.hud.point ~= ns.db.hud.anchor then Reanchor(ns.db.hud.anchor) end
 end
 
 -- for the settings and the tests

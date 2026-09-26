@@ -74,6 +74,23 @@ function ns.GetActiveConfigID(specID)
 	return ok and id or nil
 end
 
+-- The name of the talent loadout the spec has selected, or nil (none, or unsaved changes)
+function ns.GetActiveConfigName(specID)
+	local id = ns.GetActiveConfigID(specID)
+	if not id then return nil end
+	local ok, info = pcall(C_Traits.GetConfigInfo, id)
+	return ok and type(info) == "table" and info.name or nil
+end
+
+-- The name of the equipment set that is fully equipped, or nil
+function ns.GetEquippedSetName()
+	if not C_EquipmentSet or not C_EquipmentSet.GetEquipmentSetIDs then return nil end
+	for _, id in ipairs(C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+		local name, _, _, isEquipped = C_EquipmentSet.GetEquipmentSetInfo(id)
+		if name and isEquipped then return name end
+	end
+end
+
 -- { { id=, name=, icon= }, ... } sorted by name
 function ns.GetEquipmentSets()
 	local out = {}
@@ -152,8 +169,11 @@ function ns.ResolveTarget(key, specID)
 	return char.groups[group].specs[specID], group, nil
 end
 
--- How the character compares to the target for `key`, for the current spec.
+-- How the character compares to the target for `key`.
 -- state: "none" (nothing configured) | "ready" | "mismatch"
+-- A scenario that switches spec on entering has that spec as its target while
+-- the character is in another one (targetSpecID), with the talents and gear
+-- set for it; otherwise the target is the current spec's own.
 function ns.GetStatus(key)
 	local specID = ns.GetCurrentSpecID()
 	local st = { key = key, specID = specID, state = "none", talentsOK = true, gearOK = true }
@@ -161,18 +181,26 @@ function ns.GetStatus(key)
 
 	local cell, source, autoSpec = ns.ResolveTarget(key, specID)
 	st.cell, st.source, st.autoSpec = cell, source, autoSpec
+	local targetSpec = specID
+	if autoSpec and autoSpec ~= specID then
+		st.targetSpecID = autoSpec
+		st.state = "mismatch"
+		targetSpec = autoSpec
+		cell = ns.ResolveTarget(key, autoSpec)
+		st.cell = cell
+	end
 	if not cell then return st end
-	ns.RepairCell(cell, specID)
+	ns.RepairCell(cell, targetSpec)
 
 	if cell.configID then
 		st.hasTalents = true
-		st.talentsOK = ns.GetActiveConfigID(specID) == cell.configID
+		st.talentsOK = not st.targetSpecID and ns.GetActiveConfigID(specID) == cell.configID
 		st.talentsMissing = not ConfigExists(cell.configID)
 	end
 	if cell.setID then
 		st.hasGear = true
 		local equipped, exists = ns.IsSetEquipped(cell.setID)
-		st.gearOK, st.gearMissing = equipped, not exists
+		st.gearOK, st.gearMissing = (equipped and not st.targetSpecID) and true or false, not exists
 	end
 	if st.hasTalents or st.hasGear then
 		st.state = (st.talentsOK and st.gearOK) and "ready" or "mismatch"
@@ -202,21 +230,18 @@ function ns.BuildSetup(key, targetSpecID)
 end
 
 -- The setup that takes the character to `specID` with `cell`'s talents and
--- gear, or nil when it is already there. For the settings page: what the page
--- shows, applied on request, whatever scenario the character is in.
+-- gear: everything the cell has, whatever is on right now, so the player can
+-- ask for it again (a loadout re-applied drops unsaved talent changes). Only
+-- what does not exist is left out; nil when there is nothing at all.
+-- For the settings page: what the page shows, applied on request, whatever
+-- scenario the character is in. A forced setup asks every step once.
 function ns.BuildSetupFor(specID, cell)
 	if not specID then return nil end
-	local setup = { specID = specID ~= ns.GetCurrentSpecID() and specID or nil }
+	local setup = { specID = specID ~= ns.GetCurrentSpecID() and specID or nil, force = true }
 	if cell then
 		ns.RepairCell(cell, specID)
-		if cell.configID and ConfigExists(cell.configID)
-			and (setup.specID or ns.GetActiveConfigID(specID) ~= cell.configID) then
-			setup.configID = cell.configID
-		end
-		if cell.setID then
-			local equipped, exists = ns.IsSetEquipped(cell.setID)
-			if exists and (setup.specID or not equipped) then setup.setID = cell.setID end
-		end
+		if cell.configID and ConfigExists(cell.configID) then setup.configID = cell.configID end
+		if cell.setID and select(2, ns.IsSetEquipped(cell.setID)) then setup.setID = cell.setID end
 	end
 	if not setup.specID and not setup.configID and not setup.setID then return nil end
 	return setup
@@ -230,12 +255,19 @@ end
 -- assumed. A ticker looks at the real state, waits while the player is casting
 -- (spec and talent changes are casts), asks again when a request had no effect,
 -- and gives up with a message after a few tries. Events only make it faster.
+--
+-- A request that did start its cast was accepted. If that cast ends with
+-- nothing to show for it, the player (or the game) interrupted it, and asking
+-- again would only have them interrupt it again: the apply ends there, with
+-- one message, and nothing stays owed. The HUD keeps showing what is missing.
 -- ===========================================================================
 
 local TICK          = 0.75   -- seconds between looks while an apply is pending
 local GRACE         = 1.0    -- a request gets this long to show an effect (a cast starting counts)
 local MAX_TRIES     = 4      -- per step
 local APPLY_TIMEOUT = 15     -- without any new request
+local CAST_WINDOW   = 8      -- an interruption this long after a request still counts as ours
+local CAST_GONE     = 0.5    -- a cast must be gone this long before it is called interrupted
 
 local pending   -- { setup=, expires=, steps = { spec={}, talents={}, gear={} }, commitSpecID=, commitConfigID= }
 local ticking = false
@@ -321,6 +353,29 @@ local function Finish(message, ...)
 	ns.QueueCheck(0.1)
 end
 
+-- The step whose cast is pending right now: spec first, then talents (gear has no cast).
+local function CastingStep()
+	local setup = pending.setup
+	local specID = ns.GetCurrentSpecID()
+	if setup.specID and setup.specID ~= specID then return pending.steps.spec, "spec" end
+	if setup.configID and ns.GetActiveConfigID(specID) ~= setup.configID then return pending.steps.talents, "talents" end
+end
+
+local function Interrupted(name)
+	ns.Debug("apply: %s cast interrupted", name)
+	ns.OnApplyInterrupted()
+	Finish(L["%s interrupted. Click the HUD to apply again."], L[name == "spec" and "Spec change" or "Talent change"])
+end
+
+-- The cast of `step` was seen and is gone while the step is not done. nil: no
+-- cast was seen; false: gone, but a cast that just finished needs a moment to
+-- show up in the state, so wait; true: gone for good, interrupted.
+local function CastGone(step)
+	if not step.castSeen then return nil end
+	step.castGoneAt = step.castGoneAt or GetTime()
+	return GetTime() - step.castGoneAt >= CAST_GONE
+end
+
 -- One step: ask (again) when allowed. Returns false when the step is out of tries.
 local function Ask(name, request)
 	local step = pending.steps[name]
@@ -351,10 +406,17 @@ function ns.ContinueApply()
 		-- only the spec step can wait that long without asking (the player kept moving)
 		return Finish(needSpec and L["Could not switch specialization."] or nil)
 	end
-	-- the previous request, or the player's own cast: wait it out
-	if IsCasting() then return Waiting("casting") end
+	-- the previous request, or the player's own cast: wait it out. A cast seen
+	-- after a request of ours means the client took it.
+	if IsCasting() then
+		local step = CastingStep()
+		if step and step.askedAt then step.castSeen, step.castGoneAt = true, nil end
+		return Waiting("casting")
+	end
 
 	if needSpec then
+		local gone = CastGone(pending.steps.spec)
+		if gone then return Interrupted("spec") elseif gone == false then return end
 		-- asked as soon as the player stands still
 		if IsMoving() then return Waiting("moving") end
 		if not Ask("spec", function() return SwitchSpec(setup.specID) end) then
@@ -365,15 +427,19 @@ function ns.ContinueApply()
 
 	Waiting(nil)
 	local done = true
-	if setup.setID and not ns.IsSetEquipped(setup.setID) then
+	-- a forced setup asks each step once even when it looks done already
+	local force = setup.force
+	if setup.setID and (not ns.IsSetEquipped(setup.setID) or (force and not pending.steps.gear.tries)) then
 		done = false
 		if not Ask("gear", function() return ns.EquipSet(setup.setID) end) then
 			local _, _, setName = DescribeSetup(setup)
 			return Finish(L["Could not equip %s."], setName)
 		end
 	end
-	if setup.configID and ns.GetActiveConfigID(specID) ~= setup.configID then
+	if setup.configID and (ns.GetActiveConfigID(specID) ~= setup.configID or (force and not pending.steps.talents.tries)) then
 		done = false
+		local gone = CastGone(pending.steps.talents)
+		if gone then return Interrupted("talents") elseif gone == false then return end
 		if not Ask("talents", function() return LoadTalents(specID, setup.configID) end) then
 			return Finish(L["Could not load the talent loadout: %s"], pending.steps.talents.reason or L["unknown reason"])
 		end
@@ -423,12 +489,22 @@ function ns.OnTalentsCommitted(configID)
 	ns.ContinueApply()
 end
 
--- CONFIG_COMMIT_FAILED: the cast was interrupted; the ticker asks again
+-- CONFIG_COMMIT_FAILED: the commit we started did not go through (interrupted,
+-- or refused after all). Asking the same thing again would not change that.
 function ns.OnTalentsFailed()
 	if pending and pending.commitConfigID then
-		ns.Debug("apply: talent commit failed")
 		pending.commitSpecID, pending.commitConfigID = nil, nil
-		pending.steps.talents.reason = L["the change was interrupted"]
+		Interrupted("talents")
+	end
+end
+
+-- UNIT_SPELLCAST_INTERRUPTED for the player: ours, when a request of ours is out
+-- and its cast was seen or is due.
+function ns.OnCastInterrupted()
+	if not pending then return end
+	local step, name = CastingStep()
+	if step and step.askedAt and (step.castSeen or GetTime() - step.askedAt < CAST_WINDOW) then
+		Interrupted(name)
 	end
 end
 

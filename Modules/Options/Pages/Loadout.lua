@@ -214,7 +214,8 @@ local function BuildLoadout(p)
 	end)
 	p.gear:SetPoint("TOPLEFT", FIELD_X, fieldY - 28)
 
-	-- what the page shows, applied right now: the spec picked above, its talents and gear
+	-- what the page shows, applied right now: the spec picked above, its talents and
+	-- gear, whatever is on already (so a loadout can be re-applied)
 	p.switch = CK.Bind(Skin.Button(editor, "", 110, 22, function()
 		local specs = ShownSpecs()
 		local setup = LO.BuildSetupFor(selectedSpec, specs[selectedSpec])
@@ -316,7 +317,7 @@ local function RefreshLoadout(p)
 	p.gear:SetDisabled(not usable)
 	p.talents:SetValueText(cell and cell.configName or L["Not set"], not (cell and cell.configID))
 	p.gear:SetValueText(cell and cell.setName or L["Not set"], not (cell and cell.setID))
-	-- nothing to switch to (already there, or nothing set): the button waits
+	-- nothing to switch to at all (this spec, nothing set): the button waits
 	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell) == nil)
 
 	local isPvP = isGroup and selected.key == "pvp"

@@ -10,6 +10,7 @@ local HAVOC, VENG = 577, 581
 local function wear(id) for k, s in pairs(W.sets) do s[2] = (k == id) end end
 
 W.specIndex = 1; W.activeConfig[HAVOC] = 101; wear(1)
+CombatKitLoadoutDB = { settings = { auto = true } }   -- off by default; these tests are about the switching
 local CK = T.boot()
 fire("PLAYER_ENTERING_WORLD")
 local LO = CK.modules.Loadout
@@ -114,14 +115,24 @@ check(not p.switch.disabled, "Havoc PvP shows gear 2 while set 1 is worn: the bu
 p.switch:Click(); flush()
 eq(W.log[1], "equip:2", "it equips the set shown")
 fire("EQUIPMENT_SWAP_FINISHED"); flush()
-check(p.switch.disabled, "already there: the button waits")
+check(not p.switch.disabled, "already there: the button stays live, so the setup can be applied again")
 W.log = {}
-p.switch:Click()
-eq(#W.log, 0, "and does nothing")
+p.switch:Click(); flush()
+eq(W.log[1], "equip:2", "and it asks once more, whatever is on")
+fire("EQUIPMENT_SWAP_FINISHED"); flush()
+check(not LO.IsApplying() and #W.log == 1, "once: then it is done")
+specButton(1480):Click()
+check(not p.switch.disabled, "another spec with nothing set up: still a spec to switch to")
+specButton(HAVOC):Click()
+local keep = C.groups.pvp.specs[HAVOC]
+C.groups.pvp.specs[HAVOC] = nil; O.Refresh()
+check(p.switch.disabled, "the current spec with nothing set up: nothing to switch to")
+C.groups.pvp.specs[HAVOC] = keep; O.Refresh()
 specButton(VENG):Click()
 check(pick(p.talents, 201), "Vengeance PvP: talents")
-check(not p.switch.disabled, "another spec is picked: live again")
+check(not p.switch.disabled, "another spec is picked: live")
 W.activeConfig[VENG] = nil   -- that spec last used some other loadout
+W.log = {}
 p.switch:Click(); flush()
 eq(W.log[1], "spec:2", "it asks for the spec first")
 W.specIndex = 2; fire("PLAYER_SPECIALIZATION_CHANGED"); flush()
@@ -192,6 +203,7 @@ treeRow("Loadout", "options"):Click()
 local lopt = main.bodies.Loadout.pages.options
 check(lopt:IsShown() and not p:IsShown(), "only the page is shown")
 lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
+eq(LO.defaults.auto, false, "a fresh install does not switch on its own")
 lopt.early:Click(); eq(LO.db.settings.early, false, "early off"); lopt.early:Click()
 
 -- ---------------------------------------------------------------- settings page: language, window size, HUD
@@ -239,6 +251,13 @@ eq(CK.db.hud.x, 10, "position saved, rounded")
 eq(CK.db.hud.y, -21, "position saved, rounded (y)")
 hudPage.locked:Click()   -- (re)lock for the checks below
 CK.HUD.ResetPosition(); eq(CK.db.hud.y, CK.defaults.hud.y, "reset from the settings")
+-- the corner the box keeps while lines come and go
+eq(CK.db.hud.anchor, "TOPLEFT", "grows down and to the right by default")
+check(pick(hudPage.anchor, "BOTTOMRIGHT"), "anchor: bottom right")
+eq(CK.db.hud.anchor, "BOTTOMRIGHT", "saved")
+eq(hudPage.anchor.text:GetText(), L["ANCHOR_BOTTOMRIGHT"], "and shown")
+CK.HUD.SetAnchor("SIDEWAYS"); eq(CK.db.hud.anchor, "BOTTOMRIGHT", "only the four corners")
+CK.HUD.SetAnchor("TOPLEFT")
 hudPage.locked:Click()
 
 CK.HUD.SetScale(5); eq(CK.db.hud.scale, 1.8, "scale is capped")
@@ -401,14 +420,23 @@ eq(LO.GetStatus("world").state, "ready", "world is ready")
 check(rows[1].right:GetText():find(L["Ready"], 1, true), "state: ready")
 check(rows[2].value:GetText():find("M+ AoE", 1, true) and rows[2].value:GetText():find(Skin.Hex("ok"), 1, true), "talents row: name, green")
 wear(2); fire("PLAYER_EQUIPMENT_CHANGED")
-check(rows[3].value:GetText():find("PvE", 1, true) and rows[3].value:GetText():find(Skin.Hex("warn"), 1, true), "gear row: target name, amber")
-check(rows[1].right:GetText():find(L["Click to apply"], 1, true), "state: click to apply")
+-- what differs takes two lines: what is worn now, then what will be applied
+check(rows[3].value:GetText():find("PvP", 1, true) and rows[3].value:GetText():find(Skin.Hex("dim"), 1, true), "gear row: what is worn now, dimmed")
+eq(rows[4].label:GetText():find("→", 1, true) ~= nil, true, "a second line, marked with an arrow")
+check(rows[4].value:GetText():find("PvE", 1, true) and rows[4].value:GetText():find(Skin.Hex("warn"), 1, true), "with the target, amber")
+check(rows[2].value:GetText():find("M+ AoE", 1, true) and not rows[2].label:GetText():find("→", 1, true), "talents still match: one line")
+check(rows[1].right:GetText():find(L["Click to switch"], 1, true), "state: click to switch")
+W.activeConfig[HAVOC] = 102; fire("TRAIT_CONFIG_UPDATED")
+check(rows[2].value:GetText():find("Raid ST", 1, true) and rows[3].label:GetText():find("→", 1, true) and rows[3].value:GetText():find("M+ AoE", 1, true), "talents differ too: now Raid ST, then M+ AoE")
+check(rows[5].value:GetText():find("PvE", 1, true), "and the gear lines moved down")
+W.activeConfig[HAVOC] = 101; fire("TRAIT_CONFIG_UPDATED")
 
 W.log = {}
 section:Click("LeftButton"); flush()
 eq(W.log[1], "equip:1", "left click applies")
 fire("EQUIPMENT_SWAP_FINISHED")
 check(rows[1].right:GetText():find(L["Ready"], 1, true), "ready again")
+check(rows[3].value:GetText():find("PvE", 1, true) and (not rows[4] or not rows[4].value:IsShown()), "back to one line per item")
 section:GetScript("OnEnter")(section); section:GetScript("OnLeave")(section)
 
 go("kit", "hud")

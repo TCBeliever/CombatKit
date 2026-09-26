@@ -569,8 +569,18 @@ local function BuildHud(page)
 	page.font = Skin.Dropdown(page, 220, FontItems, function(_, item) CK.HUD.SetFont(item.value, item.label) end)
 	page.font:SetPoint("TOPLEFT", X, -128)
 
-	Row("Position", -160)
-	page.locked = Check("Lock", -160, function(checked) CK.db.hud.locked = checked end)
+	-- the corner the box keeps while rows come and go
+	Row("Anchor", -160)
+	page.anchor = Skin.Dropdown(page, 220, function()
+		local items = {}
+		for _, a in ipairs(CK.HUD.ANCHORS) do items[#items + 1] = { label = L["ANCHOR_" .. a], value = a } end
+		return items
+	end, function(_, item) CK.HUD.SetAnchor(item.value) end)
+	page.anchor:SetPoint("TOPLEFT", X, -160)
+	Skin.Tooltip(page.anchor, "Anchor", "ANCHOR_TIP")
+
+	Row("Position", -192)
+	page.locked = Check("Lock", -192, function(checked) CK.db.hud.locked = checked end)
 	Skin.Tooltip(page.locked, "Lock", "HUD_HINT")
 	local reset = CK.Bind(Skin.Button(page, "", 90, 20, function() CK.HUD.ResetPosition() end), "Reset position")
 	reset:SetPoint("LEFT", page.locked, "RIGHT", 16, 0)
@@ -582,6 +592,7 @@ local function RefreshHud(page)
 	page.bgAlpha:SetText(string.format("%d%%", math.floor(CK.db.hud.bgAlpha * 100 + 0.5)))
 	page.border:SetChecked(CK.db.hud.border)
 	page.font:SetValueText(CK.db.hud.font and CK.db.hud.fontName or L["Game default"])
+	page.anchor:SetValueText(L["ANCHOR_" .. CK.db.hud.anchor])
 	page.locked:SetChecked(CK.db.hud.locked)
 end
 

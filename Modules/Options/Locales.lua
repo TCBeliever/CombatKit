@@ -13,7 +13,7 @@ CK.AddLocale("enUS", {
 
 	["MODDESC_Loadout"] = "Switches talents and gear to match the scenario you are in, set up per spec.",
 	["MODDESC_Stats"]   = "Your stats on the HUD.",
-	["MODDESC_Range"]   = "Distance to your target, focus and mouseover.",
+	["MODDESC_Range"]   = "Shows the distance to your target, focus and mouseover.",
 	["FEATDESC_RightClick"]  = "In combat, right click no longer interacts with or targets the unit under the cursor, so turning the camera never switches your target. Back to normal when combat ends.",
 	["FEATDESC_CombatAlert"] = "A short text when you enter and leave combat.",
 
@@ -26,7 +26,12 @@ CK.AddLocale("enUS", {
 	["SCN_DESC_bg"]      = "Random, epic, rated, Battleground Blitz.",
 	["LIST_SEP"]         = ", ",
 
-	["STATS_DESC"]      = "Tick the stats to show; the arrows change their order.",
+	["STATS_DESC"]      = "Shows your character's basic stats on the HUD.",
+	["ANCHOR_TIP"]      = "The corner the box keeps. Lines are added downwards from a top corner and upwards from a bottom one, to the right from a left corner and to the left from a right one.",
+	["ANCHOR_TOPLEFT"]     = "Top left",
+	["ANCHOR_TOPRIGHT"]    = "Top right",
+	["ANCHOR_BOTTOMLEFT"]  = "Bottom left",
+	["ANCHOR_BOTTOMRIGHT"] = "Bottom right",
 
 	["Outline: none"]  = "None",
 	["Outline: thin"]  = "Thin",
@@ -38,10 +43,10 @@ CK.AddLocale("enUS", {
 	["SPLIT_TIP_pve"] = "Lists open world, delves, dungeons and raids separately. Each keeps using the PvE settings until you give it its own.",
 	["SPLIT_TIP_pvp"] = "Lists arena and battlegrounds separately. Each keeps using the PvP settings until you give it its own.",
 	["AUTOSPEC_TIP"]  = "The moment you enter, switches to the spec picked below; its talents and gear are the ones set here. In a group it never takes you out of the role the group gave you. Switching spec yourself afterwards is left alone.",
-	["AUTO_TIP"]      = "Once when you enter a scenario and once when you change spec. What you change by hand afterwards is left alone: the HUD turns amber and a click on it applies again. Off: nothing switches until you click the HUD.",
+	["AUTO_TIP"]      = "Once when you enter a scenario and once when you change spec. What you change by hand afterwards is left alone: the HUD shows what you have and what would be applied, and a click applies it. Off: nothing switches until you click the HUD.",
 	["EARLY_TIP"]     = "When a PvP match or a dungeon finder group pops, the HUD already shows what that scenario wants. Nothing is switched until you click it: you may still decline.",
 	["DRYRUN_TIP"]    = "Says in chat what would be switched, and switches nothing.",
-	["SWITCH_NOW_TIP"] = "Switches to the spec picked above and applies the talents and gear shown, right now. In combat it waits for combat to end.",
+	["SWITCH_NOW_TIP"] = "Switches to the spec picked above and applies the talents and gear shown, right now, even if they seem to be on already. In combat it waits for combat to end.",
 	["ENTER_TIP"]     = "Runs the check as if you had just entered the scenario.",
 })
 
@@ -61,7 +66,7 @@ CK.AddLocale("zhTW", {
 
 	["MODDESC_Loadout"] = "依所在場景自動切換天賦與裝備，每個專精各自設定。",
 	["MODDESC_Stats"]   = "在 HUD 上顯示你的屬性數值。",
-	["MODDESC_Range"]   = "與目標、焦點、滑鼠指向單位的距離。",
+	["MODDESC_Range"]   = "顯示與目標、專注目標、滑鼠指向單位的距離。",
 	["FEATDESC_RightClick"]  = "關閉戰鬥中右鍵互動選取目標，避免轉視角時切換目標，離開戰鬥恢復。",
 	["FEATDESC_CombatAlert"] = "進入與脫離戰鬥時顯示一段文字。",
 
@@ -85,7 +90,13 @@ CK.AddLocale("zhTW", {
 	["SCN_DESC_bg"]      = "隨機、史詩、積分戰場、戰場閃擊戰。",
 	["LIST_SEP"]         = "、",
 
-	["STATS_DESC"]      = "勾選要顯示的屬性，用箭頭調整順序。",
+	["STATS_DESC"]      = "在 HUD 顯示角色基礎屬性。",
+	["Anchor"]          = "錨點",
+	["ANCHOR_TIP"]      = "方塊固定不動的角落。行數增加時，從上方的角落往下長、從下方的角落往上長；靠左的角落往右長、靠右的往左長。",
+	["ANCHOR_TOPLEFT"]     = "左上",
+	["ANCHOR_TOPRIGHT"]    = "右上",
+	["ANCHOR_BOTTOMLEFT"]  = "左下",
+	["ANCHOR_BOTTOMRIGHT"] = "右下",
 	["Decimals"]        = "小數位數",
 	["English on the HUD"] = "HUD 顯示英文",
 
@@ -112,10 +123,10 @@ CK.AddLocale("zhTW", {
 	["SPLIT_TIP_pve"] = "把開放世界、探究、地城/M+、Raid 分開列出。每一項在你給它自己的設定之前，仍然使用 PvE 的設定。",
 	["SPLIT_TIP_pvp"] = "把 Arena 與戰場/積分戰場分開列出。每一項在你給它自己的設定之前，仍然使用 PvP 的設定。",
 	["AUTOSPEC_TIP"]  = "進入的當下切到下面選中的專精，並套用這裡替它設定的天賦與裝備。在隊伍中時，不會把你切離隊伍指派給你的職責。之後你自己換專精不會被改回。",
-	["AUTO_TIP"]      = "進入場景時一次、換專精時一次。之後你手動改的不會被改回：HUD 變成琥珀色，點一下 HUD 就再套用。關閉後，只有點 HUD 才會切換。",
+	["AUTO_TIP"]      = "進入場景時一次、換專精時一次。之後你手動改的不會被改回：HUD 會列出目前的和準備切換的，點一下 HUD 就套用。關閉後，只有點 HUD 才會切換。",
 	["EARLY_TIP"]     = "PvP 或地城搜尋器排到時，HUD 先顯示那個場景要的配置。點了才會切換：你可能還會拒絕。",
 	["DRYRUN_TIP"]    = "只在聊天視窗說明會切換什麼，實際上什麼都不切。",
-	["SWITCH_NOW_TIP"] = "現在就切到上面選的專精，並套用顯示的天賦與裝備。戰鬥中會等脫離戰鬥。",
+	["SWITCH_NOW_TIP"] = "現在就切到上面選的專精，並套用顯示的天賦與裝備；已經是這一組也會重新套用。戰鬥中會等脫離戰鬥。",
 	["ENTER_TIP"]     = "當作你剛進入這個場景，重新檢查一次。",
 
 	["Options"]                  = "選項",

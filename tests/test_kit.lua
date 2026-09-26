@@ -18,6 +18,7 @@ Settings = {
 SettingsPanel = T.Mock("Frame", "SettingsPanel")
 function HideUIPanel(frame) frame:Hide() end
 
+CombatKitLoadoutDB = { settings = { auto = true } }
 local CK = T.boot()
 check(loaded("CombatKit"), "the core is loaded")
 check(loaded("CombatKit_Loadout"), "Loadout is on by default, so it is loaded at login")

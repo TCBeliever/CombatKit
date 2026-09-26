@@ -14,6 +14,7 @@ local function count(entry) local n = 0 for _, l in ipairs(W.log) do if l == ent
 
 -- start in the open world as Havoc, on the raid loadout, wearing PvP gear
 at(false, "none"); W.specIndex = 1; W.activeConfig[HAVOC] = 102; wear(2)
+CombatKitLoadoutDB = { settings = { auto = true } }   -- off by default; these tests are about the switching
 local CK = T.boot()
 local ns = CK.modules.Loadout
 check(ns ~= nil and ns.enabled, "the Loadout module is loaded and running after login")

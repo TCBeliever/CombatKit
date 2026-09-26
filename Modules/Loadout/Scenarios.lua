@@ -33,6 +33,12 @@ ns.SCENARIO_BY_KEY = {}
 for _, s in ipairs(ns.SCENARIOS) do ns.SCENARIO_BY_KEY[s.key] = s end
 
 function ns.ScenarioName(key) return ns.L["SCN_" .. key] end
+-- for the HUD, where "Battlegrounds / rated" is too long; the full name unless a short one exists
+function ns.ScenarioShortName(key)
+	local short = ns.L["SCN_SHORT_" .. key]
+	if short == "SCN_SHORT_" .. key then return ns.ScenarioName(key) end
+	return short
+end
 function ns.GroupName(group) return ns.L["GROUP_" .. group] end
 
 local DIFFICULTY_DELVE = 208
