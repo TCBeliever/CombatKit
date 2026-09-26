@@ -109,7 +109,10 @@ if CK.L["STAT_crit"] == "Crit" then
 else
 	check(crit:find(CK.L["STAT_crit"], 1, true) and crit:find("Crit", 1, true), "other languages: the name and its English")
 end
-check(page.rows[1].up.__point[2] == 250, "the list is the right column; the settings keep the left")
+local listX = page.rows[1].up.__point[2]
+check(listX > page.english.__point[2] + page.english:GetWidth(), "the list is the right column, clear of the fields on the left")
+local listRight = listX + 18 + 2 + 18 + 10 + page.rows[1].check:GetWidth()
+check(listRight > CK.Options.RIGHT_W and listRight < CK.Options.PageWidth(), "in the room the tree leaves free on a single page, a margin from its edge")
 
 -- English names on the HUD, whatever language the window is in
 check(not page.english:GetChecked(), "English names: off by default")

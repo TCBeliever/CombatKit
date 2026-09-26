@@ -66,7 +66,7 @@ A colour-coded number near your target and focus, and one that follows the curso
 
 Small things that do not deserve an addon of their own. One with settings has a page; those that are only a switch share the **Misc** page.
 
-- **Combat alert**: a text in the middle of the screen when combat starts and ends. Both texts, the font size and the position are yours; *Test* plays it.
+- **Combat alert**: a text in the middle of the screen when combat starts and ends. Both texts, the font size and the position are yours, and it can float up as it fades; *Test* plays it.
 - **Disable right click in combat**: while you are in combat and a unit is under the cursor, right click only turns the camera. Corpses count as units, so right click on them is held back too; left click (with the game's *interact on left click*) and the interact key still reach them. Ore, herbs, chests and doors are not units and are never affected. Back to normal when combat ends.
 
 ## Look and weight

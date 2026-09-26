@@ -3,16 +3,17 @@ local CK = CombatKit
 
 -- ===========================================================================
 -- A short text in the middle of the screen when combat starts and when it
--- ends: fade in, hold, fade out. A new event while one is still showing
--- starts over instead of queueing.
+-- ends: fade in, hold, fade out, and, if asked, floating up the while. A new
+-- event while one is still showing starts over instead of queueing.
 -- ===========================================================================
 
 local FADE_IN, HOLD, FADE_OUT = 0.5, 0.5, 0.5
+local RISE = 40   -- how far the text floats up over the whole show
 local COLOUR = { enter = { 1, 0.1, 0.1 }, leave = { 0, 1, 0 } }
 
-local DEFAULTS = { fontSize = 16, point = "CENTER", relPoint = "CENTER", x = 0, y = 120 }
+local DEFAULTS = { fontSize = 16, point = "CENTER", relPoint = "CENTER", x = 0, y = 120, rise = false }
 
-local frame, animation
+local frame
 local testing = false
 
 local function Settings()
@@ -63,9 +64,9 @@ local function Create()
 	frame.text:SetJustifyV("MIDDLE")
 	frame.text:SetAlpha(0)
 
-	animation = frame.text:CreateAnimationGroup()
+	frame.fade = frame.text:CreateAnimationGroup()
 	local function Alpha(order, from, to, duration)
-		local a = animation:CreateAnimation("Alpha")
+		local a = frame.fade:CreateAnimation("Alpha")
 		a:SetOrder(order)
 		a:SetFromAlpha(from)
 		a:SetToAlpha(to)
@@ -75,7 +76,20 @@ local function Create()
 	Alpha(1, 0, 1, FADE_IN)
 	Alpha(2, 1, 1, HOLD)
 	Alpha(3, 1, 0, FADE_OUT)
-	animation:SetScript("OnFinished", function() frame.text:SetAlpha(0) end)
+	frame.fade:SetScript("OnFinished", function() frame.text:SetAlpha(0) end)
+
+	-- the option: a steady drift upwards for as long as the text shows. A group
+	-- of its own, so the fade is the same with or without it.
+	frame.rise = frame.text:CreateAnimationGroup()
+	local t = frame.rise:CreateAnimation("Translation")
+	t:SetOffset(0, RISE)
+	t:SetDuration(FADE_IN + HOLD + FADE_OUT)
+end
+
+local function StopAll()
+	for _, group in ipairs({ frame.fade, frame.rise }) do
+		if group:IsPlaying() then group:Stop() end
+	end
 end
 
 -- Font size and position, from the saved settings.
@@ -90,11 +104,12 @@ end
 
 local function Show(which)
 	if testing then return end
-	if animation:IsPlaying() then animation:Stop() end
+	StopAll()
 	frame.text:SetText(ns.AlertText(which))
 	frame.text:SetTextColor(unpack(COLOUR[which]))
 	frame.text:SetAlpha(0)
-	animation:Play()
+	frame.fade:Play()
+	if Settings().rise then frame.rise:Play() end
 end
 ns.ShowAlert = Show
 
@@ -102,7 +117,7 @@ ns.ShowAlert = Show
 function ns.SetAlertTesting(on)
 	if not frame then return end
 	testing = on and true or false
-	if animation:IsPlaying() then animation:Stop() end
+	StopAll()
 	frame:EnableMouse(testing)
 	frame.bg:SetShown(testing)
 	frame.text:SetText(testing and ns.AlertText("enter") or "")

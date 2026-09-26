@@ -168,6 +168,8 @@ check(C.scenarios.dungeon.specs[HAVOC] and C.scenarios.dungeon.specs[HAVOC] ~= C
 check(pick(p.gear, 3), "dungeon: different gear")
 eq(C.groups.pve.specs[HAVOC].setID, 1, "the group's cell is untouched")
 eq(treeRow("Loadout", "scenario:dungeon").tag:GetText(), L["own"], "the tree marks it")
+eq(main.treeW, 22 + 60 + 4 + 60 + 16 + 2, "the tree is as wide as that row: indent, name, tag, margins (the stub measures every string at 60)")
+local taggedTreeW = main.treeW
 
 -- switch spec automatically: a check box, and the big icons pick the spec
 treeRow("Loadout", "scenario:world"):Click()
@@ -210,6 +212,7 @@ lopt.early:Click(); eq(LO.db.settings.early, false, "early off"); lopt.early:Cli
 go("kit", "general")
 check(tab("kit").sel:IsShown() and not tab("Loadout").sel:IsShown(), "the kit's tab is open")
 eq(#shownRows(), 3, "its tree: Modules, General, HUD")
+check(main.treeW < taggedTreeW, "short names and no tags: a narrower tree")
 eq(d.title:GetText(), L["General"], "general page")
 local general = main.bodies.kit.pages.general
 local hudPage = main.bodies.kit.pages.hud
@@ -350,11 +353,12 @@ tab("Stats"):Click()
 eq(d.desc:GetText(), L["MODDESC_Stats"], "Stats is off: described")
 main.off.check:Click(); flush()
 check(CK.IsModuleEnabled("Stats") and main.bodies.Stats and main.bodies.Stats:IsShown(), "switched on from its tab")
-check(not main.tree:IsShown(), "one page: no tree")
+check(not main.tree:IsShown() and O.PageWidth() > O.RIGHT_W, "one page: no tree, and the page has its room")
+local fullW = O.PageWidth()
 go("Loadout", "options")
 tab("Stats"):Click(); tab("Loadout"):Click()
 eq(select(2, O.GetSelection()), "options", "back on the page it was left on")
-check(main.tree:IsShown(), "with its tree")
+check(main.tree:IsShown() and O.PageWidth() >= O.RIGHT_W and O.PageWidth() < fullW, "with its tree, and the page has what it leaves")
 CK.SetModuleEnabled("Stats", false)
 
 -- ---------------------------------------------------------------- debug page

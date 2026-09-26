@@ -5,12 +5,25 @@ local L, Skin, O = CK.L, CK.Skin, CK.Options
 -- stats, in which order; each with its English name next to it, since that is
 -- what guides and the HUD's English option use.
 
-local ROW_H  = 22
-local LIST_X = 250   -- where the right column starts
+local ROW_H       = 22
+local ARROWS_W    = 18 + 2 + 18   -- the up and down buttons and the gap between them
+local LIST_GAP    = 10            -- between the buttons and the checkbox
+local LIST_MARGIN = 80            -- between the list and the right edge of the page
 local ST   -- the module, set whenever the section is used
 
 local function Changed()
 	O.Changed()
+end
+
+-- The list sits at the right of the page, a margin from its edge and as wide
+-- as its widest label; the fields on the left get the rest, whatever the language.
+local function PlaceList(p)
+	local w = 0
+	for _, r in ipairs(p.rows) do w = math.max(w, r.check:GetWidth()) end
+	local x = O.PageWidth() - LIST_MARGIN - (ARROWS_W + LIST_GAP + w)
+	for i, r in ipairs(p.rows) do
+		r.up:SetPoint("TOPLEFT", x, -(i - 1) * ROW_H)
+	end
 end
 
 local function Build(p)
@@ -37,11 +50,11 @@ local function Build(p)
 		end)
 		r.up = Skin.ArrowButton(p, true, function() ST.Move(r.key, -1); Changed() end)
 		r.down = Skin.ArrowButton(p, false, function() ST.Move(r.key, 1); Changed() end)
-		r.up:SetPoint("TOPLEFT", LIST_X, -(i - 1) * ROW_H)
 		r.down:SetPoint("LEFT", r.up, "RIGHT", 2, 0)
-		r.check:SetPoint("LEFT", r.down, "RIGHT", 10, 0)
+		r.check:SetPoint("LEFT", r.down, "RIGHT", LIST_GAP, 0)
 		p.rows[i] = r
 	end
+	PlaceList(p)
 end
 
 local function Refresh(p)
@@ -54,6 +67,7 @@ local function Refresh(p)
 		r.check:SetLabel(name == english and name or (name .. "  " .. Skin.Text("dim", english)))
 		r.check:SetChecked(ST.db.shown[key])
 	end
+	PlaceList(p)
 end
 
 O.AddSection({

@@ -102,6 +102,16 @@ check(MI.IsAlertTesting(), "test mode: the text stays on screen to be dragged")
 page.play:Click()
 check(not MI.IsAlertTesting() and not page.test:GetChecked(), "playing it ends the drag mode first")
 eq(alert.text:GetText(), "<Entering Combat>", "and plays")
+
+-- it can float up while it shows: off unless ticked
+local fades = alert.fade.__plays
+check(not page.rise:GetChecked() and alert.rise.__plays == nil, "motion: off by default, so far the text has only faded")
+page.rise:Click()
+eq(MI.AlertSettings().rise, true, "ticked: saved")
+page.play:Click()
+check(alert.fade.__plays == fades + 1 and alert.rise.__plays == 1, "and the text floats up as it fades")
+page.rise:Click()
+check(not MI.AlertSettings().rise and not page.rise:GetChecked(), "and off again")
 page.test:Click()
 eq(alert.text:GetAlpha(), 1, "fully visible")
 main:Hide()

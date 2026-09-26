@@ -79,7 +79,7 @@ ns.AddLocale("zhTW", {
 	["MOD_Range"]       = "顯示距離",
 	["MOD_Misc"]        = "額外功能",
 	["FEAT_RightClick"]  = "戰鬥中停用右鍵",
-	["FEAT_CombatAlert"] = "進出戰鬥提示",
+	["FEAT_CombatAlert"] = "進戰鬥提醒",
 	["HUD_HINT"]        = "右鍵：設定。拖曳移動，Ctrl + 滾輪縮放。",
 	["LANG_auto"]       = "自動（跟隨遊戲語言）",
 	["Slash hint"]      = "輸入 /ck 開啟設定。",

@@ -3,7 +3,7 @@
 ## Notes: CombatKit module. Talents and gear that follow the scenario you are in. Loaded by CombatKit when the module is on.
 ## Notes-zhTW: CombatKit 模組。依所在場景自動切換天賦與裝備。模組啟用時由 CombatKit 載入。
 ## Author: Venser
-## Version: 0.3.1
+## Version: 0.3.2
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## SavedVariables: CombatKitLoadoutDB

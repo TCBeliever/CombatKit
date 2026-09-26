@@ -51,13 +51,20 @@ local function BuildAlert(p, a)
 	size:SetPoint("TOPLEFT", X, -60)
 	p.fontSize = size.value
 
+	Skin.Field(a, "Effect", 0, -92)
+	p.rise = CK.Bind(Skin.Checkbox(a, "", function(checked)
+		MI.AlertSettings().rise = checked and true or false
+		Changed()
+	end), "Float up")
+	p.rise:SetPoint("TOPLEFT", X, -93)
+
 	-- while ticked the text stays on screen and can be dragged; closing the window ends it
-	Skin.Field(a, "Position", 0, -92)
+	Skin.Field(a, "Position", 0, -124)
 	p.test = CK.Bind(Skin.Checkbox(a, "", function(checked)
 		MI.SetAlertTesting(checked)
 		O.Refresh()
 	end), "Unlock")
-	p.test:SetPoint("TOPLEFT", X, -93)
+	p.test:SetPoint("TOPLEFT", X, -125)
 	local reset = CK.Bind(Skin.Button(a, "", 90, 20, function() MI.ResetAlertPosition() end), "Reset position")
 	reset:SetPoint("LEFT", p.test, "RIGHT", 16, 0)
 
@@ -69,7 +76,7 @@ local function BuildAlert(p, a)
 		which = (which == "enter") and "leave" or "enter"
 		O.Refresh()
 	end), "Test")
-	p.play:SetPoint("TOPLEFT", X, -124)
+	p.play:SetPoint("TOPLEFT", X, -156)
 end
 
 local function Build(p)
@@ -142,6 +149,7 @@ local function Refresh(node, p)
 	p.enter:SetText(MI.AlertText("enter"))
 	p.leave:SetText(MI.AlertText("leave"))
 	p.fontSize:SetText(tostring(MI.AlertSettings().fontSize))
+	p.rise:SetChecked(MI.AlertSettings().rise)
 	p.test:SetChecked(MI.IsAlertTesting())
 end
 

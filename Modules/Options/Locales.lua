@@ -13,7 +13,7 @@ CK.AddLocale("enUS", {
 
 	["MODDESC_Loadout"] = "Switches talents and gear to match the scenario you are in, set up per spec.",
 	["MODDESC_Stats"]   = "Your stats on the HUD.",
-	["MODDESC_Range"]   = "Shows the distance to your target, focus and mouseover.",
+	["MODDESC_Range"]   = "Display range for target, focus and mouseover.",
 	["FEATDESC_RightClick"]  = "In combat, right click no longer interacts with or targets the unit under the cursor, so turning the camera never switches your target. Back to normal when combat ends.",
 	["FEATDESC_CombatAlert"] = "A short text when you enter and leave combat.",
 
@@ -26,7 +26,7 @@ CK.AddLocale("enUS", {
 	["SCN_DESC_bg"]      = "Random, epic, rated, Battleground Blitz.",
 	["LIST_SEP"]         = ", ",
 
-	["STATS_DESC"]      = "Shows your character's basic stats on the HUD.",
+	["STATS_DESC"]      = "Show stats on the HUD.",
 	["ANCHOR_TIP"]      = "The corner the box keeps. Lines are added downwards from a top corner and upwards from a bottom one, to the right from a left corner and to the left from a right one.",
 	["ANCHOR_TOPLEFT"]     = "Top left",
 	["ANCHOR_TOPRIGHT"]    = "Top right",
@@ -68,7 +68,7 @@ CK.AddLocale("zhTW", {
 	["MODDESC_Stats"]   = "在 HUD 上顯示你的屬性數值。",
 	["MODDESC_Range"]   = "顯示與目標、專注目標、滑鼠指向單位的距離。",
 	["FEATDESC_RightClick"]  = "關閉戰鬥中右鍵互動選取目標，避免轉視角時切換目標，離開戰鬥恢復。",
-	["FEATDESC_CombatAlert"] = "進入與脫離戰鬥時顯示一段文字。",
+	["FEATDESC_CombatAlert"] = "進出戰鬥時用文字提醒。",
 
 	["Language"]       = "語言",
 	["Window scale"]   = "視窗縮放",
@@ -115,6 +115,8 @@ CK.AddLocale("zhTW", {
 	-- combat alert page
 	["Text on entering"]   = "進入戰鬥的文字",
 	["Text on leaving"]    = "脫離戰鬥的文字",
+	["Effect"]             = "效果",
+	["Float up"]           = "往上飄散",
 	["Test"]               = "測試",
 
 	["PAGE_debug"]      = "除錯",
@@ -141,7 +143,7 @@ CK.AddLocale("zhTW", {
 	["Switch now"]               = "立即切換",
 	["Not set"]                  = "不設定",
 	["Open world with War Mode uses PvP"]      = "戰爭模式開啟時，開放世界使用 PvP 設定",
-	["Switch talents and gear automatically"]  = "自動切換天賦與裝備",
+	["Switch talents and gear automatically"]  = "自動切換",
 	["Show the next scenario on a queue pop"]  = "排隊就緒時，預先顯示該場景的配置",
 	["On the HUD only when something differs"] = "僅在配置不符時顯示",
 

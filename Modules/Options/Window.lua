@@ -29,7 +29,8 @@ local TITLE_H     = 28
 local TAB_H       = 24
 local TOP         = TITLE_H + TAB_H - 2   -- title bar and tab strip share a border line each
 local TAB_PAD     = 14
-local LEFT_W      = 176
+local LEFT_W      = 176   -- the tree at its widest: the least room a page can count on
+local LEFT_MIN    = 90    -- and at its narrowest, with short page names
 local RIGHT_X     = LEFT_W + 14
 local RIGHT_W     = W - RIGHT_X - 14
 local TREE_ROW    = 22
@@ -174,16 +175,26 @@ local function CreateTreeRow(parent)
 	return b
 end
 
-local function RefreshTree()
+-- The pages of the selected section; one page needs no tree
+local function TreeNodes()
 	local def = byKey[selected.section]
-	local nodes = (def and IsOn(def)) and def.GetNodes() or {}
-	-- a single page needs no list: the page moves to the left edge
+	return (def and IsOn(def)) and def.GetNodes() or {}
+end
+
+-- How wide the page is: what the tree leaves, or nearly the window without one.
+-- Set by RefreshTree, which runs before the page is refreshed.
+function O.PageWidth()
+	return main and main.pageW or RIGHT_W
+end
+
+-- The tree is as wide as its widest row, within limits; the page gets the rest.
+local function RefreshTree()
+	local def, nodes = byKey[selected.section], TreeNodes()
+	-- a single page needs no list: the page moves to the left edge and takes its room
 	local showTree = #nodes > 1
 	main.tree:SetShown(showTree)
-	main.detail:ClearAllPoints()
-	main.detail:SetPoint("TOPLEFT", showTree and RIGHT_X or 14, -TOP - 12)
 
-	local y, used = -6, 0
+	local y, used, widest = -6, 0, 0
 	if showTree then
 		for _, node in ipairs(nodes) do
 			used = used + 1
@@ -196,12 +207,18 @@ local function RefreshTree()
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", 1, y)
 			b:SetPoint("TOPRIGHT", -1, y)
+			local indent = node.indent or 10
 			b.text:ClearAllPoints()
-			b.text:SetPoint("LEFT", node.indent or 10, 0)
-			b.text:SetPoint("RIGHT", b.tag, "LEFT", -4, 0)
+			b.text:SetPoint("LEFT", indent, 0)
 			b.text:SetText(node.label)
 			b.text:SetTextColor(Skin.Color(node.here and "ok" or "text"))
 			b.tag:SetText(node.tag or "")
+			-- measured before the right edge binds it: a name too long for the widest tree is
+			-- cut. Some slack, since the width is fractional and the frame snaps to pixels.
+			local w = indent + b.text:GetStringWidth() + 16
+			if node.tag and node.tag ~= "" then w = w + b.tag:GetStringWidth() + 4 end
+			widest = math.max(widest, w)
+			b.text:SetPoint("RIGHT", b.tag, "LEFT", -4, 0)
 			local isSelected = selected.node == node.key
 			b.sel:SetShown(isSelected)
 			b.bar:SetShown(isSelected)
@@ -210,6 +227,18 @@ local function RefreshTree()
 		end
 	end
 	for i = used + 1, #main.treeRows do main.treeRows[i]:Hide() end
+
+	local x = 14
+	if showTree then
+		main.treeW = math.max(LEFT_MIN, math.min(LEFT_W, math.ceil(widest) + 2))   -- the rows sit 1 in from each edge
+		main.tree:SetWidth(main.treeW)
+		x = main.treeW + 14
+	end
+	main.pageW = W - x - 14
+	main.detail:ClearAllPoints()
+	main.detail:SetPoint("TOPLEFT", x, -TOP - 12)
+	main.detail:SetWidth(main.pageW)
+	main.detail.desc:SetWidth(main.pageW)
 end
 
 -- ---------------------------------------------------------------------------
@@ -236,7 +265,10 @@ local function ShowOff(def)
 	off:Show()
 end
 
-local function RefreshDetail()
+-- The selection made good: a section that is gone falls back to the first, a
+-- page that is gone (a group folded its scenarios away, a module was just
+-- switched on) to the section's first
+local function FixSelection()
 	local def = byKey[selected.section]
 	if not def then
 		def = sections[1]
@@ -244,15 +276,17 @@ local function RefreshDetail()
 	end
 	if not IsOn(def) then
 		selected.node = nil
-		return ShowOff(def)
-	end
-	main.off:Hide()
-	-- the page is gone (a group folded its scenarios away, a module was just switched on)
-	if not HasNode(def, selected.node) then
+	elseif not HasNode(def, selected.node) then
 		selected.node = FirstNode(def)
 		lastNode[def.key] = selected.node
 		if def.OnSelect then def.OnSelect(selected.node) end
 	end
+end
+
+local function RefreshDetail()
+	local def = byKey[selected.section]
+	if not IsOn(def) then return ShowOff(def) end
+	main.off:Hide()
 
 	local d = main.detail
 	local title, desc = def.GetHeader(selected.node)
@@ -279,9 +313,10 @@ end
 function O.Refresh()
 	if not main or not main:IsShown() then return end
 	Skin.HideOptionList()
-	RefreshDetail()   -- first: it may move the selection off a page that is gone
+	FixSelection()
+	RefreshTree()     -- sizes itself to its rows: the page gets what is left
+	RefreshDetail()
 	RefreshTabs()
-	RefreshTree()
 end
 
 function O.IsShown()

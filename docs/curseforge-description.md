@@ -21,7 +21,7 @@ Distance to your target and focus as colour-coded numbers, and one at the cursor
 
 **Extras**
 
-Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident.
+Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident.
 
 **HUD**
 
