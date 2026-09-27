@@ -21,7 +21,7 @@ First public release.
 - Loadout: a spec or talent change you interrupt is not asked again. It says so once and the HUD shows what is still missing; nothing is retried until the next entry, spec change or click.
 - `/ck` only opens the settings now; `/ck apply`, `/ck debug` and `/ck reset` are gone. Apply from the HUD or the *Switch now* button, the debug page is in the Loadout tab, the HUD position is reset in Settings > HUD.
 
-## 0.3.2 (unreleased)
+## 0.3.2 (2026-09-27)
 
 - Settings: the list of pages on the left is as wide as its names need, and a tab with a single page has the whole width.
 - Stats: the list of stats on the settings page sits at the right, clear of the *English on the HUD* label.
