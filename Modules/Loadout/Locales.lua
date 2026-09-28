@@ -57,6 +57,10 @@ CK.AddLocale("zhTW", {
 	["Spec on entering"] = "進入時專精",
 	["Status"]         = "狀態",
 
+	-- the gear check on screen
+	["Switch to PvP gear"] = "應切換到 PvP 裝備",
+	["Switch to PvE gear"] = "應切換到 PvE 裝備",
+
 	-- chat
 	["In combat. It will be applied when combat ends."] = "戰鬥中，脫離戰鬥後套用。",
 	["Could not switch specialization."] = "無法切換專精。",

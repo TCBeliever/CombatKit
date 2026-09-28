@@ -45,6 +45,7 @@ CK.AddLocale("enUS", {
 	["AUTOSPEC_TIP"]  = "The moment you enter, switches to the spec picked below; its talents and gear are the ones set here. In a group it never takes you out of the role the group gave you. Switching spec yourself afterwards is left alone.",
 	["AUTO_TIP"]      = "Once when you enter a scenario and once when you change spec. What you change by hand afterwards is left alone: the HUD shows what you have and what would be applied, and a click applies it. Off: nothing switches until you click the HUD.",
 	["EARLY_TIP"]     = "When a PvP match or a dungeon finder group pops, the HUD already shows what that scenario wants. Nothing is switched until you click it: you may still decline.",
+	["GEARCHECK_TIP"] = "Tells whether the gear you wear fits the scenario you are in.",
 	["DRYRUN_TIP"]    = "Says in chat what would be switched, and switches nothing.",
 	["SWITCH_NOW_TIP"] = "Switches to the spec picked above and applies the talents and gear shown, right now, even if they seem to be on already. In combat it waits for combat to end.",
 	["ENTER_TIP"]     = "Runs the check as if you had just entered the scenario.",
@@ -127,6 +128,7 @@ CK.AddLocale("zhTW", {
 	["AUTOSPEC_TIP"]  = "進入的當下切到下面選中的專精，並套用這裡替它設定的天賦與裝備。在隊伍中時，不會把你切離隊伍指派給你的職責。之後你自己換專精不會被改回。",
 	["AUTO_TIP"]      = "進入場景時一次、換專精時一次。之後你手動改的不會被改回：HUD 會列出目前的和準備切換的，點一下 HUD 就套用。關閉後，只有點 HUD 才會切換。",
 	["EARLY_TIP"]     = "PvP 或地城搜尋器排到時，HUD 先顯示那個場景要的配置。點了才會切換：你可能還會拒絕。",
+	["GEARCHECK_TIP"] = "智能分辨當前場景下是否穿戴合適裝備。",
 	["DRYRUN_TIP"]    = "只在聊天視窗說明會切換什麼，實際上什麼都不切。",
 	["SWITCH_NOW_TIP"] = "現在就切到上面選的專精，並套用顯示的天賦與裝備；已經是這一組也會重新套用。戰鬥中會等脫離戰鬥。",
 	["ENTER_TIP"]     = "當作你剛進入這個場景，重新檢查一次。",
@@ -144,6 +146,7 @@ CK.AddLocale("zhTW", {
 	["Not set"]                  = "不設定",
 	["Open world with War Mode uses PvP"]      = "戰爭模式開啟時，開放世界使用 PvP 設定",
 	["Switch talents and gear automatically"]  = "自動切換",
+	["Smart gear check"]                       = "智慧檢查套裝切換",
 	["Show the next scenario on a queue pop"]  = "排隊就緒時，預先顯示該場景的配置",
 	["On the HUD only when something differs"] = "僅在配置不符時顯示",
 

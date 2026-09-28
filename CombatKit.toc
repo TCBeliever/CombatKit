@@ -3,7 +3,7 @@
 ## Notes: Modular combat addon with a small resource footprint. Only the modules you enable are loaded.
 ## Notes-zhTW: 模組化的戰鬥插件，資源佔用小。只載入你啟用的模組。
 ## Author: Venser
-## Version: 0.3.2
+## Version: 0.3.3
 ## SavedVariables: CombatKitDB
 ## IconTexture: Interface\Icons\INV_Misc_Gear_01
 ## Category: venMOD

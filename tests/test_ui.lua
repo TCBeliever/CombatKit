@@ -205,6 +205,7 @@ treeRow("Loadout", "options"):Click()
 local lopt = main.bodies.Loadout.pages.options
 check(lopt:IsShown() and not p:IsShown(), "only the page is shown")
 lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
+lopt.gearCheck:Click(); eq(LO.db.settings.gearCheck, false, "gear check off"); lopt.gearCheck:Click()
 eq(LO.defaults.auto, false, "a fresh install does not switch on its own")
 lopt.early:Click(); eq(LO.db.settings.early, false, "early off"); lopt.early:Click()
 

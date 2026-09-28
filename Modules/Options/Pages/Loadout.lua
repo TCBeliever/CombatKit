@@ -341,12 +341,14 @@ local function BuildOptions(p)
 	end
 	p.auto = Toggle("Switch talents and gear automatically", "AUTO_TIP",
 		function() return LO.db.settings.auto end, function(v) LO.db.settings.auto = v end)
+	p.gearCheck = Toggle("Smart gear check", "GEARCHECK_TIP",
+		function() return LO.db.settings.gearCheck end, function(v) LO.db.settings.gearCheck = v end)
 	p.early = Toggle("Show the next scenario on a queue pop", "EARLY_TIP",
 		function() return LO.db.settings.early end, function(v) LO.db.settings.early = v end)
 	p.mismatch = Toggle("On the HUD only when something differs", nil,
 		function() return LO.db.settings.hud == "mismatch" end,
 		function(v) LO.db.settings.hud = v and "mismatch" or "always" end)
-	p.toggles = { p.auto, p.early, p.mismatch }
+	p.toggles = { p.auto, p.gearCheck, p.early, p.mismatch }
 end
 
 local function RefreshOptions(p)

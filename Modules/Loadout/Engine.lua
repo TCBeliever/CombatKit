@@ -7,7 +7,7 @@ local CK = CombatKit
 --
 --   CombatKitLoadoutDB = {
 --     version  = 1,
---     settings = { auto=, early=, hud = "always" | "mismatch" },   -- account-wide
+--     settings = { auto=, early=, hud = "always" | "mismatch", gearCheck= },   -- account-wide
 --     chars    = {
 --       ["Name - Realm"] = {
 --         class      = "DEMONHUNTER",
@@ -27,6 +27,7 @@ ns.defaults = {
 	auto  = false,      -- switch talents and gear on entering a scenario / changing spec
 	early = true,       -- show the upcoming scenario on a queue pop
 	hud   = "always",   -- this module's HUD lines: "always" | "mismatch"
+	gearCheck = true,   -- a text on screen when the gear does not fit the scenario
 }
 
 local function InitDB()
@@ -148,6 +149,7 @@ function ns.Check(trigger)
 		wantAuto = true
 	end
 	RunAuto(key)
+	ns.UpdateGearWarning(key)
 	ns.UpdateHUD()
 end
 
@@ -213,6 +215,7 @@ function handlers.PLAYER_ENTERING_WORLD()
 end
 
 function handlers.PLAYER_REGEN_DISABLED()
+	ns.OnGearWarningCombat()
 	ns.UpdateHUD()
 end
 
@@ -322,6 +325,7 @@ function ns.OnDisable()
 	driver:UnregisterAllEvents()
 	ns.CancelApply()
 	wantAuto, wantSpec, earlyBG, earlyLFG = false, false, nil, nil
+	ns.UpdateGearWarning(nil)
 	wipe(ns.debug)
 	CK.HUD.RemoveSection("loadout")
 end

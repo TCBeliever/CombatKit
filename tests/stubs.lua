@@ -107,6 +107,21 @@ function UnitExists(unit) return W.units[unit] ~= nil end
 function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
 function GetCursorPosition() return 500, 400 end
+-- Trinkets. W.gear[slot] = { pvp = bool, named = bool }: a PvP item's tooltip
+-- names the Gladiator set; a Gladiator item is named for it as well.
+W.gear = { [13] = { pvp = false }, [14] = { pvp = false } }
+ITEM_SET_NAME = "%s (%d/%d)"
+C_TooltipInfo = { GetInventoryItem = function(_, slot)
+	local g = W.gear[slot]
+	if not g then return nil end
+	local name = g.named and "Forged Gladiator's Medallion" or ("Forged Aspirant's Trinket " .. slot)
+	local lines = { { leftText = name }, { leftText = "Item Level 600" } }
+	if g.pvp then
+		lines[#lines + 1] = { leftText = "Gladiator's Distinction (2/2)" }
+		lines[#lines + 1] = { leftText = "(2) Set: In Arenas, Battlegrounds and War Mode, your primary stat is increased by 20%." }
+	end
+	return { lines = lines }
+end }
 C_Item = {
 	GetItemInfo = function(id) return "item" .. id end,
 	RequestLoadItemDataByID = function() end,

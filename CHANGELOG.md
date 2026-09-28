@@ -26,3 +26,7 @@ First public release.
 - Settings: the list of pages on the left is as wide as its names need, and a tab with a single page has the whole width.
 - Stats: the list of stats on the settings page sits at the right, clear of the *English on the HUD* label.
 - Extras: the combat alert can float up as it fades (*Effect* on its page; off unless ticked).
+
+## 0.3.3 (2026-09-28)
+
+- Loadout: a smart gear check (Options, on by default). *Switch to PvP gear* on screen in arena or a battleground when both trinkets are not PvP ones, *Switch to PvE gear* in a dungeon or raid when they are, until the first combat there. Open world and delves are not judged; nothing while a key or a match runs.

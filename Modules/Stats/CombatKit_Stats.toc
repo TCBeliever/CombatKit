@@ -3,7 +3,7 @@
 ## Notes: CombatKit module. Your stats on the HUD. Loaded by CombatKit when the module is on.
 ## Notes-zhTW: CombatKit 模組。在 HUD 上顯示你的屬性數值。模組啟用時由 CombatKit 載入。
 ## Author: Venser
-## Version: 0.3.2
+## Version: 0.3.3
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## SavedVariables: CombatKitStatsDB
