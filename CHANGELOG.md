@@ -31,6 +31,6 @@ First public release.
 
 - Loadout: a smart gear check (Options, on by default). *Switch to PvP gear* on screen in arena or a battleground when both trinkets are not PvP ones, *Switch to PvE gear* in a dungeon or raid when they are, until the first combat there. Open world and delves are not judged; nothing while a key or a match runs.
 
-## 0.3.4 (unreleased)
+## 0.3.4 (2026-10-10)
 
 - Settings: a *Theme* in Settings > General. *Tide* is the blue it always had; *Dusk*, in violet, is new. The window and the HUD take the colours at once.
