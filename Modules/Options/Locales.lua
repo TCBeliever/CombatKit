@@ -32,6 +32,8 @@ CK.AddLocale("enUS", {
 	["ANCHOR_TOPRIGHT"]    = "Top right",
 	["ANCHOR_BOTTOMLEFT"]  = "Bottom left",
 	["ANCHOR_BOTTOMRIGHT"] = "Bottom right",
+	["THEME_tide"]      = "Tide",
+	["THEME_dusk"]      = "Dusk",
 
 	["Outline: none"]  = "None",
 	["Outline: thin"]  = "Thin",
@@ -72,6 +74,9 @@ CK.AddLocale("zhTW", {
 	["FEATDESC_CombatAlert"] = "進出戰鬥時用文字提醒。",
 
 	["Language"]       = "語言",
+	["Theme"]          = "主題色",
+	["THEME_tide"]     = "潮汐藍",
+	["THEME_dusk"]     = "暮紫",
 	["Window scale"]   = "視窗縮放",
 	["Show the HUD"]   = "顯示 HUD",
 	["Scale"]          = "縮放",

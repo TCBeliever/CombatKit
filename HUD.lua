@@ -211,7 +211,7 @@ end
 
 local function ShowTooltip(self)
 	GameTooltip:SetOwner(frame, "ANCHOR_BOTTOM")
-	GameTooltip:AddLine("|cff66ccffCombat|rKit")
+	GameTooltip:AddLine(Skin.Text("accent", "Combat") .. "Kit")
 	if self.def.OnTooltip then self.def.OnTooltip(GameTooltip) end
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine(L["HUD_HINT"], Skin.Color("dim"))

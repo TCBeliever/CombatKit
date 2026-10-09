@@ -184,7 +184,8 @@ end
 --
 --   CombatKitDB = {
 --     version  = 1,
---     settings = { windowScale=, locale= ("enUS" | "zhTW"; absent = follow the game) },
+--     settings = { windowScale=, locale= ("enUS" | "zhTW"; absent = follow the game),
+--                  theme= (a key of Skin.THEMES) },
 --     hud      = { show = "always" | "never", scale=, locked=, point=, relPoint=, x=, y=,
 --                  bgAlpha= (0 = no background), border=, font= (file; absent = the game's), fontName=,
 --                  anchor = the corner the box grows away from ("TOPLEFT" ...) },
@@ -193,7 +194,7 @@ end
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
-	settings = { windowScale = 1.5 },
+	settings = { windowScale = 1.5, theme = ns.Skin.THEMES[1].key },
 	hud = { show = "always", scale = 1.0, locked = false, point = "TOP", relPoint = "TOP", x = 0, y = -170,
 		bgAlpha = 0.8, border = true, anchor = "TOPLEFT" },
 }
@@ -220,7 +221,17 @@ local function InitDB()
 		end
 	end
 	ns.db = db
+	ns.Skin.SetTheme(db.settings.theme)
+	db.settings.theme = ns.Skin.theme   -- a theme that is gone reads as the default
 	ns.ApplyLocale(db.settings.locale or GetLocale())
+end
+
+-- key: one of Skin.THEMES. Everything on screen takes the colours at once.
+function ns.SetTheme(key)
+	ns.Skin.SetTheme(key)
+	ns.db.settings.theme = ns.Skin.theme
+	ns.RefreshOptions()
+	ns.HUD.Refresh()
 end
 
 -- ---------------------------------------------------------------------------

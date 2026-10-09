@@ -29,6 +29,8 @@ end
 eq(CK.GetModuleState("Loadout"), "on", "state: on")
 eq(CK.GetModuleState("Stats") == "off" or CK.GetModuleState("Stats") == "missing", true, "state: off (or not written yet)")
 check(CombatKitLoadoutDB ~= nil, "a loaded module has its saved variables")
+eq(CK.db.settings.theme, "tide", "a fresh install is in Tide")
+eq(CK.Skin.theme, "tide", "and so is the palette")
 
 -- ---------------------------------------------------------------- switching a module off and on
 local LO = CK.modules.Loadout
@@ -107,6 +109,7 @@ CK.Options.GetFrame():Hide()
 -- (a fresh Lua state stands in for a reload; the saved variables carry over)
 local saved = CombatKitDB
 eq(saved.modules.Loadout, false, "the choice is saved")
+eq(saved.settings.theme, "tide", "so is the theme")
 eq(type(saved.modules.Misc), "table", "a module with features saves one flag per feature")
 
 T.releaseChat()

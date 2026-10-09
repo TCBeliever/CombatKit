@@ -29,6 +29,7 @@ function Skin.Button(parent, text, w, h, onClick)
 	local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
 	b:SetSize(w, h or 20)
 	Skin.Backdrop(b, "element")
+	Skin.Paint(b, Rest)   -- a lit button stays lit through a theme switch
 	local fs = Skin.Label(b, "")
 	fs:SetPoint("CENTER")
 	b:SetFontString(fs)
@@ -216,7 +217,7 @@ local function ShowOptionList(anchor, items, onPick)
 	local w = anchor:GetWidth() - 8
 	for _, item in ipairs(items) do
 		f.measure:SetText(item.label)
-		w = math.max(w, f.measure:GetStringWidth() + 16 + (item.icon and 22 or 0))
+		w = math.max(w, f.measure:GetStringWidth() + 16 + ((item.icon or item.swatch) and 22 or 0))
 	end
 	local rows = math.min(#items, LIST_ROWS)
 	for i = 1, rows do
@@ -254,8 +255,12 @@ local function ShowOptionList(anchor, items, onPick)
 			b.item = item
 			b.text:SetText(item.label)
 			b.text:ClearAllPoints()
-			if item.icon then
-				b.icon:SetTexture(item.icon)
+			if item.icon or item.swatch then
+				if item.swatch then
+					b.icon:SetColorTexture(item.swatch[1], item.swatch[2], item.swatch[3])
+				else
+					b.icon:SetTexture(item.icon)
+				end
 				b.icon:Show()
 				b.text:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
 			else
@@ -282,7 +287,8 @@ end
 
 function Skin.HideOptionList() if optionList then optionList:Hide() end end
 
--- getItems(dropdown) -> { { label=, value=, icon= }, ... }; onPick(dropdown, item)
+-- getItems(dropdown) -> { { label=, value=, icon= }, ... }; onPick(dropdown, item).
+-- An item may carry swatch = { r, g, b }, a plain colour, instead of an icon.
 function Skin.Dropdown(parent, w, getItems, onPick)
 	local d = CreateFrame("Button", nil, parent, "BackdropTemplate")
 	d:SetSize(w, 20)

@@ -29,7 +29,7 @@ One box shared by Loadout and Stats. Drag to move, Ctrl + mouse wheel to resize;
 
 **How to use**
 
-`/ck` opens the settings; so do the addon compartment at the minimap and the game's Options > AddOns list. There is a tab per module; a dimmed tab is a module that is off, and its page has the switch. English and 繁體中文, switchable in the settings.
+`/ck` opens the settings; so do the addon compartment at the minimap and the game's Options > AddOns list. There is a tab per module; a dimmed tab is a module that is off, and its page has the switch. Two colour themes (blue, violet) and two languages (English, 繁體中文), switchable in the settings.
 
 **Support**
 

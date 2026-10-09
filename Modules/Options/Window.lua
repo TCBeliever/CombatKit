@@ -554,17 +554,31 @@ local function FontItems()
 	return items
 end
 
+-- the themes, each with its accent as a swatch
+local function ThemeItems()
+	local items = {}
+	for _, theme in ipairs(Skin.THEMES) do
+		items[#items + 1] = { label = L["THEME_" .. theme.key], value = theme.key, swatch = theme.colors.accent }
+	end
+	return items
+end
+
 local function BuildGeneral(page)
 	local X = O.FIELD_X
 	Skin.Field(page, "Language", 0, 0)
 	page.language = Skin.Dropdown(page, 220, LanguageItems, function(_, item) CK.SetLanguage(item.value) end)
 	page.language:SetPoint("TOPLEFT", X, 0)
 
-	Skin.Field(page, "Window scale", 0, -32)
+	-- the colours of this window and of the HUD; both take them at once
+	Skin.Field(page, "Theme", 0, -32)
+	page.theme = Skin.Dropdown(page, 220, ThemeItems, function(_, item) CK.SetTheme(item.value) end)
+	page.theme:SetPoint("TOPLEFT", X, -32)
+
+	Skin.Field(page, "Window scale", 0, -64)
 	local windowStepper = Skin.Stepper(page, function(dir)
 		O.SetWindowScale(CK.db.settings.windowScale + dir * 0.1)
 	end)
-	windowStepper:SetPoint("TOPLEFT", X, -32)
+	windowStepper:SetPoint("TOPLEFT", X, -64)
 	page.windowScale = windowStepper.value
 end
 
@@ -636,6 +650,7 @@ local function RefreshGeneral(page)
 	for _, entry in ipairs(CK.LANGUAGES) do
 		if entry.code == code then page.language:SetValueText(LanguageLabel(entry)) end
 	end
+	page.theme:SetValueText(L["THEME_" .. Skin.theme])
 	page.windowScale:SetText(string.format("%d%%", math.floor(CK.db.settings.windowScale * 100 + 0.5)))
 end
 

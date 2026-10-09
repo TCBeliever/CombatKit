@@ -11,6 +11,7 @@ local function wear(id) for k, s in pairs(W.sets) do s[2] = (k == id) end end
 
 W.specIndex = 1; W.activeConfig[HAVOC] = 101; wear(1)
 CombatKitLoadoutDB = { settings = { auto = true } }   -- off by default; these tests are about the switching
+CombatKitDB = { settings = { theme = "dusk" } }      -- saved earlier: the other theme
 local CK = T.boot()
 fire("PLAYER_ENTERING_WORLD")
 local LO = CK.modules.Loadout
@@ -41,6 +42,10 @@ eq(#LO.GetSpecs(), 3, "an empty record past the last spec is not a spec")
 -- ---------------------------------------------------------------- HUD: the Loadout section
 local hud = CK.HUD.GetFrame()
 check(hud and hud:IsShown(), "the HUD is there after login")
+-- the saved theme is in force before anything is drawn
+local function painted(c, name) local r, g, b = Skin.Color(name); return c[1] == r and c[2] == g and c[3] == b end
+eq(Skin.theme, "dusk", "the saved theme is read at login")
+check(painted(hud.__bg, "bg"), "and the HUD is drawn in it")
 local rows = hud.sections.loadout.rows
 eq(rows[1].value:GetText(), "Havoc", "row 1: the spec")
 check(rows[1].right:GetText():find(L["Not set up"], 1, true), "nothing set up yet")
@@ -233,6 +238,26 @@ eq(hudPage.hudShow.label:GetText(), "Show the HUD", "and back to English")
 check(pick(general.language, nil), "language: follow the game")
 eq(CK.db.settings.locale, nil, "auto is stored as nothing")
 eq(CK.activeLocale, startLocale, "the game's language again")
+
+-- theme: saved, in force, and what is on screen takes the colours at once
+eq(general.theme.text:GetText(), L["THEME_dusk"], "the page names the theme in force")
+check(painted(main.__bg, "bg"), "the window was drawn in it")
+general.theme:Click()
+local themes = T.frames.CombatKitOptionList
+check(themes.buttons[1].item.swatch ~= nil and themes.buttons[1].icon:IsShown(), "each theme shows its colour in the list")
+themes:Hide()
+local duskBg = { Skin.Color("bg") }
+check(pick(general.theme, "tide"), "theme: Tide")
+eq(CK.db.settings.theme, "tide", "saved")
+eq(Skin.theme, "tide", "in force")
+check(not painted(duskBg, "bg"), "another palette")
+eq(general.theme.text:GetText(), L["THEME_tide"], "and the page says so")
+check(painted(main.__bg, "bg"), "the window is repainted at once")
+check(painted(hud.__bg, "bg"), "so is the HUD")
+CK.SetTheme("neon")
+eq(CK.db.settings.theme, "tide", "a theme that does not exist reads as the first")
+check(pick(general.theme, "dusk"), "theme: Dusk again")
+check(painted(duskBg, "bg") and painted(main.__bg, "bg"), "and back")
 
 O.SetWindowScale(9); eq(CK.db.settings.windowScale, 2, "window size is capped")
 O.SetWindowScale(1.2); eq(main.__scale, 1.2, "the window is rescaled")

@@ -17,7 +17,7 @@ From CurseForge, or take the zip of the latest [release](../../releases) and unp
 
 ## Getting around
 
-`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. There is a tab per module (Loadout, Stats, Range, Extras) and **Settings** at the right. The tab of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, window scale) and HUD.
+`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. There is a tab per module (Loadout, Stats, Range, Extras) and **Settings** at the right. The tab of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, theme, window scale) and HUD.
 
 Switching on works at once. Switching off stops the module at once; the memory of what was already loaded comes back with the next reload, because the game cannot unload code. The small features under Extras share one addon, which is only loaded while at least one of them is on. The settings window itself is loaded the first time you open it.
 
@@ -72,7 +72,7 @@ Small things that do not deserve an addon of their own. One with settings has a 
 
 ## Look and weight
 
-Flat panels drawn by the addon itself, no Blizzard frame skin. The palette is one table in `Skin.lua`. English and 繁體中文, switchable in **Settings > General**; more translations are welcome, every `Locales.lua` is a plain table.
+Flat panels drawn by the addon itself, no Blizzard frame skin. Two themes, *Tide* (blue) and *Dusk* (violet), switchable in **Settings > General**; each is one table in `Skin.lua`, and another one is a table and a name. English and 繁體中文, switchable there too; more translations are welcome, every `Locales.lua` is a plain table.
 
 ## Development
 
