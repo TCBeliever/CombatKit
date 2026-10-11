@@ -37,7 +37,8 @@ T.OWN_CAST_WINDOW = 3                         -- an external I cast myself, seen
 T.DELAYED_WINDOW = 60                         -- a trap or totem can wait this long before it lands
 T.NEGATIVES_TO_REARM = 2
 T.BAD_CONTROLS_TO_PAUSE = 5
-T.ROLE_ORDER = { defensive = 1, cc = 2, offensive = 3 }
+T.ROLE_ORDER = { trinket = 0, defensive = 1, cc = 2, offensive = 3 }
+T.TRINKET = { id = 336126, name = "PvP trinket", role = "trinket", kind = "trinket", cd = 120, auras = {} }
 
 T.solo = false
 T.UNITS = { "party1", "party2" }               -- the teammates, 2v2 and 3v3
@@ -128,11 +129,18 @@ function T.Rebuild()
 			for _, e in ipairs(T.entries[unit] or {}) do
 				if e.guid == r.guid then old[e.key] = e end
 			end
-			for _, ability in ipairs(ns.Spells.For(r.class, r.spec)) do
-				local e = old[ability.id] or NewEntry(unit, ability)
-				e.guid, e.ability = r.guid, ability
-				Resolve(e, r)
+			if ns.db and ns.db.showTrinket ~= false then
+				local e = old[T.TRINKET.id] or NewEntry(unit, T.TRINKET)
+				e.guid, e.cd, e.charges, e.basis = r.guid, T.TRINKET.cd, 1, "game"
 				list[#list + 1] = e
+			end
+			for _, ability in ipairs(ns.Spells.For(r.class, r.spec, r.role)) do
+				if ns.Allowed(ability) then
+					local e = old[ability.id] or NewEntry(unit, ability)
+					e.guid, e.ability = r.guid, ability
+					Resolve(e, r)
+					list[#list + 1] = e
+				end
 			end
 			Sorted(list)
 		end
@@ -144,7 +152,7 @@ function T.Rebuild()
 		local still = false
 		for _, unit in ipairs(T.UNITS) do
 			for _, e in ipairs(T.entries[unit]) do
-				if e.key == id and e.kind ~= "self" then
+				if e.key == id and e.kind ~= "self" and e.kind ~= "trinket" then
 					still = true
 					if state.candidates[unit] then e.queue, e.started = state.queue, state.started end
 				end
@@ -160,7 +168,7 @@ end
 function T.RefreshUncertainty()
 	for _, unit in ipairs(T.UNITS) do
 		for _, e in ipairs(T.entries[unit]) do
-			if e.kind ~= "self" then
+			if e.kind ~= "self" and e.kind ~= "trinket" then
 				local state = T.shared[e.key]
 				e.uncertain = state ~= nil and state.ambiguous == true and state.candidates[unit] == true
 			end
@@ -230,7 +238,9 @@ function T.Needed()
 	local needed, seen = {}, {}
 	for _, unit in ipairs(T.UNITS) do
 		for _, e in ipairs(T.entries[unit] or {}) do
-			if e.kind == "self" then
+			if e.kind == "trinket" then
+				-- not scanned
+			elseif e.kind == "self" then
 				needed[unit] = (needed[unit] or 0) + 1
 			elseif not seen[e.key] then
 				seen[e.key] = true
@@ -477,7 +487,9 @@ local function Requests()
 	local seen = {}
 	for _, unit in ipairs(T.UNITS) do
 		for _, e in ipairs(T.entries[unit] or {}) do
-			if e.kind == "self" then
+			if e.kind == "trinket" then
+				-- nothing to ask: C_PvP has it
+			elseif e.kind == "self" then
 				add(e, unit)
 			elseif not seen[e.key] then
 				seen[e.key] = true

@@ -140,7 +140,6 @@ S.BY_CLASS = {
 		A(122470, "Touch of Karma", 90, 10, { auras = { 125174 }, specs = set(269) }),
 		A(116849, "Life Cocoon", 120, 12, { kind = "ally", specs = set(270), mods = { flat(202424, 45, { pvp = true }) } }),
 		A(115176, "Zen Meditation", 300, 8, { specs = set(268) }),
-		O(123904, "Invoke Xuen", 120, 20, { specs = set(269) }),
 		E(119381, "Leg Sweep", 60, 3, { mods = { flat(344359, 10) } }),
 		E(115078, "Paralysis", 45, 4, { mods = { flat(344359, 15) } }),
 	},
@@ -168,7 +167,6 @@ S.BY_CLASS = {
 		E(8122, "Psychic Scream", 40, 8, { mods = { flat(196704, 10) } }),
 		E(64044, "Psychic Horror", 45, 4, { specs = set(258) }),
 		E(15487, "Silence", 30, 4, { specs = set(258) }),
-		E(88625, "Holy Word: Chastise", 60, 4, { auras = { 200196, 200200 }, specs = set(257) }),
 	},
 	ROGUE = {
 		A(31224, "Cloak of Shadows", 120, 5, { mods = { percent(441415, 10) } }),
@@ -218,12 +216,32 @@ for class, list in pairs(S.BY_CLASS) do
 	end
 end
 
--- The abilities of a class, narrowed to a spec when it is known.
-function S.For(class, spec)
+-- the role each spec plays: with the spec unknown, the role the group assigned narrows the list
+S.ROLE_OF = {
+	[250] = "TANK", [581] = "TANK", [104] = "TANK", [268] = "TANK", [66] = "TANK", [73] = "TANK",
+	[105] = "HEALER", [1468] = "HEALER", [270] = "HEALER", [65] = "HEALER", [256] = "HEALER", [257] = "HEALER", [264] = "HEALER",
+}
+local function RoleOf(spec) return S.ROLE_OF[spec] or "DAMAGER" end
+
+-- The abilities of a class, narrowed to a spec when it is known, else to the
+-- specs of the role (TANK | HEALER | DAMAGER) when that is.
+function S.For(class, spec, role)
 	local list, out = S.BY_CLASS[class], {}
 	if not list then return out end
 	for _, a in ipairs(list) do
-		if not a.specs or not spec or a.specs[spec] then out[#out + 1] = a end
+		local keep = not a.specs
+		if not keep then
+			if spec then
+				keep = a.specs[spec] == true
+			elseif role == "TANK" or role == "HEALER" or role == "DAMAGER" then
+				for sp in pairs(a.specs) do
+					if RoleOf(sp) == role then keep = true end
+				end
+			else
+				keep = true
+			end
+		end
+		if keep then out[#out + 1] = a end
 	end
 	return out
 end

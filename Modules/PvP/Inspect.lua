@@ -20,6 +20,7 @@ I.MAX_TRIES = 6
 
 I.cache = {}            -- guid -> { spec=, talents=, pvp=, traitComplete=, pvpComplete=, complete=, at= }
 I.tries = {}            -- guid -> attempts since the last complete read
+I.noted = {}            -- guid -> when the log last said it could not be inspected
 I.inflight = nil        -- { unit=, guid=, at= }
 I.lastRequest = -1e9
 I.stats = { requests = 0, ready = 0, reads = 0 }
@@ -185,8 +186,12 @@ function I.Tick(now, roster, units)
 				I.inflight = { unit = unit, guid = r.guid, at = now }
 				I.lastRequest = now
 				I.stats.requests = I.stats.requests + 1
+				U.Log("inspect", unit, nil, "requested (try " .. I.tries[r.guid] .. ")")
 				pcall(NotifyInspect, unit)
 				return
+			elseif (I.noted[r.guid] or -1e9) < now - 30 then
+				I.noted[r.guid] = now
+				U.Log("inspect", unit, nil, "cannot inspect now (out of range?)")
 			end
 		end
 	end
@@ -200,7 +205,8 @@ function I.OnReady(guid, roster, units)
 	for _, unit in ipairs(units) do
 		local r = roster[unit]
 		if r and r.guid == guid and unit ~= "player" then
-			I.Read(unit, guid)
+			local c = I.cache[guid]
+			if not (c and c.complete and U.clock() - c.at < I.THROTTLE) then I.Read(unit, guid) end
 			hit = unit
 		end
 	end
@@ -212,7 +218,7 @@ function I.OnReady(guid, roster, units)
 end
 
 function I.Reset()
-	I.cache, I.tries, I.inflight = {}, {}, nil
+	I.cache, I.tries, I.noted, I.inflight = {}, {}, {}, nil
 end
 
 function I.Describe(unit, guid)

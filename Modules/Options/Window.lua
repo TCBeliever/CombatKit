@@ -4,36 +4,39 @@ local L, Skin = CK.L, CK.Skin
 -- ===========================================================================
 -- The settings window: a shell that sections plug into.
 --
--- A section is one tab at the top, and the pages behind it. With more than one
--- page the tab has a tree on the left to pick from:
---   { key=, order=, tab = function() -> the tab's label,
---     module= (its pages need that module running; while it is off the tab is
---              dimmed and offers to switch it on), right= (tab sits at the right),
+-- A section is one entry in the list at the left, and the pages behind it.
+-- With more than one page, the pages are tabs in a strip across the top of
+-- the right side:
+--   { key=, order=, tab = function() -> the entry's label,
+--     module= (its pages need that module running; while it is off the entry is
+--              dimmed and offers to switch it on), right= (entry sits at the bottom),
 --     dimmed = function() -> bool, for a section that is never "off" as a whole,
---     GetNodes = function() -> { { key=, label=, indent=, tag=, here= }, ... },
+--     GetNodes = function() -> { { key=, label=, tag=, here=, parent=, subLabel= }, ... },
+--       a node with `parent` (another node's key) is a page under that one: it is
+--       shown in a second strip, under the first, while its parent or a sibling is
+--       open; the parent itself leads that strip, as `subLabel` when it has one,
 --     GetHeader = function(node) -> title, description,
 --     Build = function(body)            -- once, the first time it is opened
 --     Refresh = function(node, body)    -- every time something changed
 --     DefaultNode = function() -> node to open on, OnSelect = function(node),
 --     OnWindowHide = function() }
 -- Module pages live in Pages/; the last section is the kit's own: Modules,
--- General and HUD, behind the tab at the right.
+-- General and HUD, behind the entry at the bottom of the list.
 -- ===========================================================================
 
 local O = {}
 CK.Options = O
 
 -- layout units; the whole window is scaled by settings.windowScale (1.5 by default)
-local W, H        = 640, 464
+local W, H        = 758, 464   -- the right side is as wide as the whole window used to be
 local TITLE_H     = 28
-local TAB_H       = 24
-local TOP         = TITLE_H + TAB_H - 2   -- title bar and tab strip share a border line each
-local TAB_PAD     = 14
-local LEFT_W      = 176   -- the tree at its widest: the least room a page can count on
-local LEFT_MIN    = 90    -- and at its narrowest, with short page names
-local RIGHT_X     = LEFT_W + 14
+local TOP         = TITLE_H - 1   -- the title bar's bottom border line
+local SIDE_W      = 118           -- the list of sections at the left
+local SIDE_ROW    = 26
+local TAB_H       = 24            -- the strip of a section's pages
+local TAB_PAD     = 12
+local RIGHT_X     = SIDE_W + 14
 local RIGHT_W     = W - RIGHT_X - 14
-local TREE_ROW    = 22
 local DESC_GAP    = 20    -- between the description, however many lines it takes, and the page
 local BODY_Y_BARE = -32   -- below a title that has no description
 local WINDOW_SCALE_MIN, WINDOW_SCALE_MAX = 0.8, 2.0
@@ -73,7 +76,7 @@ local function FirstNode(def)
 	return first and first.key
 end
 
--- node: optional; without one the tab opens where it was left, else on its default page
+-- node: optional; without one the section opens where it was left, else on its default page
 function O.Select(sectionKey, node)
 	local def = byKey[sectionKey]
 	if not def then return end
@@ -98,63 +101,13 @@ function O.Changed()
 end
 
 -- ---------------------------------------------------------------------------
--- Top: the tabs
+-- Left: the sections
 -- ---------------------------------------------------------------------------
 
 local function CreateTab(parent, def)
 	local b = CreateFrame("Button", nil, parent)
-	b:SetHeight(TAB_H - 2)   -- between the strip's two border lines
+	b:SetHeight(SIDE_ROW)
 	b.section = def.key
-	b.sel = Skin.Fill(b, "BACKGROUND", "selected")
-	b.sel:SetAllPoints()
-	b.bar = Skin.Fill(b, "BORDER", "accent")
-	b.bar:SetPoint("TOPLEFT")
-	b.bar:SetPoint("TOPRIGHT")
-	b.bar:SetHeight(2)
-	b.hover = Skin.Fill(b, "BACKGROUND", "hover", 0.5)
-	b.hover:SetAllPoints()
-	b.hover:Hide()
-	b.text = Skin.Label(b, "", "GameFontHighlight")
-	b.text:SetPoint("CENTER")
-	b:SetScript("OnEnter", function(self) self.hover:Show() end)
-	b:SetScript("OnLeave", function(self) self.hover:Hide() end)
-	b:SetScript("OnClick", function(self) O.Select(self.section) end)
-	return b
-end
-
-local function RefreshTabs()
-	local x = 1
-	for _, def in ipairs(sections) do
-		local b = main.tabs[def.key]
-		if not b then
-			b = CreateTab(main.tabBar, def)
-			main.tabs[def.key] = b
-		end
-		local isSelected = selected.section == def.key
-		local dimmed = not IsOn(def) or (def.dimmed ~= nil and def.dimmed())
-		b.text:SetText(def.tab())
-		b.text:SetTextColor(Skin.Color(dimmed and "dim" or "text"))
-		b.sel:SetShown(isSelected)
-		b.bar:SetShown(isSelected)
-		b.dimmed = dimmed
-		b:SetWidth(b.text:GetStringWidth() + TAB_PAD * 2)
-		b:ClearAllPoints()
-		if def.right then
-			b:SetPoint("TOPRIGHT", -1, -1)
-		else
-			b:SetPoint("TOPLEFT", x, -1)
-			x = x + b:GetWidth()
-		end
-	end
-end
-
--- ---------------------------------------------------------------------------
--- Left: the pages of the selected tab
--- ---------------------------------------------------------------------------
-
-local function CreateTreeRow(parent)
-	local b = CreateFrame("Button", nil, parent)
-	b:SetHeight(TREE_ROW)
 	b.sel = Skin.Fill(b, "BACKGROUND", "selected")
 	b.sel:SetAllPoints()
 	b.bar = Skin.Fill(b, "BORDER", "accent")
@@ -164,88 +117,163 @@ local function CreateTreeRow(parent)
 	b.hover = Skin.Fill(b, "BACKGROUND", "hover", 0.5)
 	b.hover:SetAllPoints()
 	b.hover:Hide()
-	b.tag = Skin.Label(b, "", nil, "accent")
-	b.tag:SetPoint("RIGHT", -8, 0)
 	b.text = Skin.Label(b, "", "GameFontHighlight")
+	b.text:SetPoint("LEFT", 12, 0)
+	b.text:SetPoint("RIGHT", -6, 0)
 	b.text:SetJustifyH("LEFT")
 	b.text:SetWordWrap(false)
+	b:SetScript("OnEnter", function(self) self.hover:Show() end)
+	b:SetScript("OnLeave", function(self) self.hover:Hide() end)
+	b:SetScript("OnClick", function(self) O.Select(self.section) end)
+	return b
+end
+
+-- the sections from the top; those marked `right` from the bottom
+local function RefreshTabs()
+	local y, bottom = -6, 6
+	for _, def in ipairs(sections) do
+		local b = main.tabs[def.key]
+		if not b then
+			b = CreateTab(main.side, def)
+			main.tabs[def.key] = b
+		end
+		local isSelected = selected.section == def.key
+		local dimmed = not IsOn(def) or (def.dimmed ~= nil and def.dimmed())
+		b.text:SetText(def.tab())
+		b.text:SetTextColor(Skin.Color(dimmed and "dim" or "text"))
+		b.sel:SetShown(isSelected)
+		b.bar:SetShown(isSelected)
+		b.dimmed = dimmed
+		b:ClearAllPoints()
+		if def.right then
+			b:SetPoint("BOTTOMLEFT", 1, bottom)
+			b:SetPoint("BOTTOMRIGHT", -1, bottom)
+			bottom = bottom + SIDE_ROW
+		else
+			b:SetPoint("TOPLEFT", 1, y)
+			b:SetPoint("TOPRIGHT", -1, y)
+			y = y - SIDE_ROW
+		end
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Top right: the pages of the selected section, as tabs
+-- ---------------------------------------------------------------------------
+
+local function CreateTreeRow(parent)
+	local b = CreateFrame("Button", nil, parent)
+	b:SetHeight(TAB_H)
+	b.sel = Skin.Fill(b, "BACKGROUND", "selected")
+	b.sel:SetAllPoints()
+	b.bar = Skin.Fill(b, "BORDER", "accent")
+	b.bar:SetPoint("BOTTOMLEFT")
+	b.bar:SetPoint("BOTTOMRIGHT")
+	b.bar:SetHeight(2)
+	b.hover = Skin.Fill(b, "BACKGROUND", "hover", 0.5)
+	b.hover:SetAllPoints()
+	b.hover:Hide()
+	b.text = Skin.Label(b, "", "GameFontHighlight")
+	b.text:SetPoint("LEFT", TAB_PAD, 0)
+	b.text:SetWordWrap(false)
+	b.tag = Skin.Label(b, "", nil, "accent")
+	b.tag:SetPoint("LEFT", b.text, "RIGHT", 4, 0)
 	b:SetScript("OnEnter", function(self) self.hover:Show() end)
 	b:SetScript("OnLeave", function(self) self.hover:Hide() end)
 	b:SetScript("OnClick", function(self) O.Select(self.section, self.node) end)
 	return b
 end
 
--- The pages of the selected section; one page needs no tree
+-- The pages of the selected section; one page needs no strip
 local function TreeNodes()
 	local def = byKey[selected.section]
 	return (def and IsOn(def)) and def.GetNodes() or {}
 end
 
--- How wide the page is: what the tree leaves, or nearly the window without one.
--- Set by RefreshTree, which runs before the page is refreshed.
+-- How wide the page is: the right side, whatever the strip above it holds.
 function O.PageWidth()
-	return main and main.pageW or RIGHT_W
+	return RIGHT_W
 end
 
--- The tree is as wide as its widest row, within limits; the page gets the rest.
+-- The strip of page tabs, flowing left to right and wrapping to another line
+-- when a section has more pages than fit. Pages under another (parent) make a
+-- second strip, under the first, while that family is open. The detail below
+-- moves down as far as the strips reach.
 local function RefreshTree()
 	local def, nodes = byKey[selected.section], TreeNodes()
-	-- a single page needs no list: the page moves to the left edge and takes its room
 	local showTree = #nodes > 1
 	main.tree:SetShown(showTree)
 
-	local y, used, widest = -6, 0, 0
+	local top, children = {}, {}
+	for _, node in ipairs(nodes) do
+		if node.parent then
+			children[node.parent] = children[node.parent] or {}
+			table.insert(children[node.parent], node)
+		else
+			top[#top + 1] = node
+		end
+	end
+	-- the family that is open: the top node selected, or the parent of the one selected
+	local family
+	for _, node in ipairs(top) do
+		if node.key == selected.node then family = node end
+		for _, child in ipairs(children[node.key] or {}) do
+			if child.key == selected.node then family = node end
+		end
+	end
+
+	local x, line, used = 0, 0, 0
+	local function place(node, label, isSelected)
+		used = used + 1
+		local b = main.treeRows[used]
+		if not b then
+			b = CreateTreeRow(main.tree)
+			main.treeRows[used] = b
+		end
+		b.section, b.node = def.key, node.key
+		b.text:SetText(label)
+		b.text:SetTextColor(Skin.Color(node.here and "ok" or "text"))
+		b.tag:SetText(node.tag or "")
+		local w = TAB_PAD + b.text:GetStringWidth() + TAB_PAD
+		if node.tag and node.tag ~= "" then w = w + b.tag:GetStringWidth() + 4 end
+		w = math.ceil(w)
+		if x > 0 and x + w > RIGHT_W then
+			x, line = 0, line + 1
+		end
+		b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", x, -line * TAB_H)
+		b:SetWidth(w)
+		x = x + w
+		b.sel:SetShown(isSelected)
+		b.bar:SetShown(isSelected)
+		b:Show()
+	end
 	if showTree then
-		for _, node in ipairs(nodes) do
-			used = used + 1
-			local b = main.treeRows[used]
-			if not b then
-				b = CreateTreeRow(main.tree)
-				main.treeRows[used] = b
+		for _, node in ipairs(top) do
+			place(node, node.label, node == family or node.key == selected.node)
+		end
+		if family and children[family.key] then
+			x, line = 0, line + 1
+			place(family, family.subLabel or family.label, family.key == selected.node)
+			for _, child in ipairs(children[family.key]) do
+				place(child, child.label, child.key == selected.node)
 			end
-			b.section, b.node = def.key, node.key
-			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", 1, y)
-			b:SetPoint("TOPRIGHT", -1, y)
-			local indent = node.indent or 10
-			b.text:ClearAllPoints()
-			b.text:SetPoint("LEFT", indent, 0)
-			b.text:SetText(node.label)
-			b.text:SetTextColor(Skin.Color(node.here and "ok" or "text"))
-			b.tag:SetText(node.tag or "")
-			-- measured before the right edge binds it: a name too long for the widest tree is
-			-- cut. Some slack, since the width is fractional and the frame snaps to pixels.
-			local w = indent + b.text:GetStringWidth() + 16
-			if node.tag and node.tag ~= "" then w = w + b.tag:GetStringWidth() + 4 end
-			widest = math.max(widest, w)
-			b.text:SetPoint("RIGHT", b.tag, "LEFT", -4, 0)
-			local isSelected = selected.node == node.key
-			b.sel:SetShown(isSelected)
-			b.bar:SetShown(isSelected)
-			b:Show()
-			y = y - TREE_ROW
 		end
 	end
 	for i = used + 1, #main.treeRows do main.treeRows[i]:Hide() end
 
-	local x = 14
-	if showTree then
-		main.treeW = math.max(LEFT_MIN, math.min(LEFT_W, math.ceil(widest) + 2))   -- the rows sit 1 in from each edge
-		main.tree:SetWidth(main.treeW)
-		x = main.treeW + 14
-	end
-	main.pageW = W - x - 14
+	local stripH = showTree and (line + 1) * TAB_H or 0
+	main.tree:SetHeight(math.max(stripH, 1))
 	main.detail:ClearAllPoints()
-	main.detail:SetPoint("TOPLEFT", x, -TOP - 12)
-	main.detail:SetWidth(main.pageW)
-	main.detail.desc:SetWidth(main.pageW)
+	main.detail:SetPoint("TOPLEFT", RIGHT_X, -TOP - 12 - (showTree and stripH + 8 or 0))
+	main.detail:SetPoint("BOTTOMRIGHT", -14, 12)
 end
 
 -- ---------------------------------------------------------------------------
 -- Right: the selected page
 -- ---------------------------------------------------------------------------
 
--- The tab of a module that is off: what it is, and a check box to switch it on.
+-- The entry of a module that is off: what it is, and a check box to switch it on.
 local function ShowOff(def)
 	local d = main.detail
 	d.title:SetText(def.tab())
@@ -260,8 +288,6 @@ local function ShowOff(def)
 		text = Skin.Text("bad", L["STATE_missing"])
 	elseif state == "stale" then
 		text = Skin.Text("warn", L["STATE_stale"])
-	elseif CK.MODULE_BY_NAME[def.module].beta then
-		text = Skin.Text("accent", L["STATE_beta"])
 	end
 	off.state:SetText(text)
 	off:Show()
@@ -316,7 +342,7 @@ function O.Refresh()
 	if not main or not main:IsShown() then return end
 	Skin.HideOptionList()
 	FixSelection()
-	RefreshTree()     -- sizes itself to its rows: the page gets what is left
+	RefreshTree()     -- the strip first: the detail sits under it
 	RefreshDetail()
 	RefreshTabs()
 end
@@ -337,7 +363,7 @@ end
 -- Window
 -- ---------------------------------------------------------------------------
 
--- The tab to open on: what was asked for, else the first module that is on.
+-- The section to open on: what was asked for, else the first module that is on.
 local function InitialSelection()
 	if openOn then
 		local sectionKey, node = openOn:match("^([^/]+)/(.+)$")
@@ -376,23 +402,25 @@ local function CreateMain()
 	f.close = Skin.CloseButton(bar, function() f:Hide() end)
 	f.close:SetPoint("RIGHT", -4, 0)
 
-	local tabBar = Skin.Panel(f, "bg")
-	tabBar:SetPoint("TOPLEFT", 0, -TITLE_H + 1)
-	tabBar:SetPoint("TOPRIGHT", 0, -TITLE_H + 1)
-	tabBar:SetHeight(TAB_H)
-	f.tabBar = tabBar
+	-- the sections, down the left
+	local side = Skin.Panel(f, "panel")
+	side:SetPoint("TOPLEFT", 0, -TOP)
+	side:SetPoint("BOTTOMLEFT")
+	side:SetWidth(SIDE_W)
+	f.side = side
 	f.tabs = {}   -- by section key
 
-	local tree = Skin.Panel(f, "panel")
-	tree:SetPoint("TOPLEFT", 0, -TOP)
-	tree:SetPoint("BOTTOMLEFT")
-	tree:SetWidth(LEFT_W)
+	-- the pages of the section, across the top of the right side
+	local tree = CreateFrame("Frame", nil, f)
+	tree:SetPoint("TOPLEFT", RIGHT_X, -TOP - 6)
+	tree:SetPoint("TOPRIGHT", -14, -TOP - 6)
+	tree:SetHeight(TAB_H)
 	f.tree = tree
 	f.treeRows = {}
 
 	local d = CreateFrame("Frame", nil, f)
 	d:SetPoint("TOPLEFT", RIGHT_X, -TOP - 12)
-	d:SetSize(RIGHT_W, H - TOP - 24)
+	d:SetPoint("BOTTOMRIGHT", -14, 12)
 	f.detail = d
 	d.title = Skin.Label(d, "", "GameFontHighlightLarge")
 	d.title:SetPoint("TOPLEFT", 0, 0)
@@ -416,7 +444,7 @@ local function CreateMain()
 	f.off = off
 
 	f:SetScript("OnShow", function()
-		wipe(lastNode)   -- a fresh look: every tab opens on its default page again
+		wipe(lastNode)   -- a fresh look: every section opens on its default page again
 		local sectionKey, node = InitialSelection()
 		O.Select(sectionKey, node)
 		CK.HUD.Refresh()   -- always visible while the window is open
@@ -458,15 +486,16 @@ function O.GetFrame() return main end
 -- ---------------------------------------------------------------------------
 
 -- One row per module that is switched as a whole. The small features of a module
--- like Extras are switched on their own pages, in that module's tab.
+-- like Extras are switched on their own pages, in that module's section.
 local function BuildModules(page)
 	page.rows = {}
 	local above   -- the description above: a row follows it, however many lines it takes
 	for _, def in ipairs(CK.MODULES) do
 		if not def.features then
 			local row = {}
-			row.check = CK.Bind(Skin.Checkbox(page, "", function(checked) CK.SetModuleEnabled(def.name, checked) end),
-				"MOD_" .. def.name)
+			local listKey = "MODLIST_" .. def.name
+			if not (CK.locales.enUS[listKey] or CK.locales.zhTW[listKey]) then listKey = "MOD_" .. def.name end
+			row.check = CK.Bind(Skin.Checkbox(page, "", function(checked) CK.SetModuleEnabled(def.name, checked) end), listKey)
 			if above then
 				row.check:SetPoint("TOPLEFT", above, "BOTTOMLEFT", -20, -12)
 			else
@@ -509,8 +538,6 @@ local function RefreshModules(page)
 			text = Skin.Text("bad", L["STATE_missing"])
 		elseif state == "stale" and not on then
 			text = Skin.Text("warn", L["STATE_stale"])
-		elseif CK.MODULE_BY_NAME[row.module].beta then
-			text = Skin.Text("accent", L["STATE_beta"])
 		end
 		row.state:SetText(text)
 	end
@@ -578,12 +605,9 @@ local function BuildGeneral(page)
 	page.theme = Skin.Dropdown(page, 220, ThemeItems, function(_, item) CK.SetTheme(item.value) end)
 	page.theme:SetPoint("TOPLEFT", X, -32)
 
-	Skin.Field(page, "Window scale", 0, -64)
-	local windowStepper = Skin.Stepper(page, function(dir)
-		O.SetWindowScale(CK.db.settings.windowScale + dir * 0.1)
-	end)
-	windowStepper:SetPoint("TOPLEFT", X, -64)
-	page.windowScale = windowStepper.value
+	page.windowScale = Skin.Slider(page, "Window scale", { min = WINDOW_SCALE_MIN, max = WINDOW_SCALE_MAX, step = 0.1,
+		format = Skin.Percent, parse = Skin.ParsePercent, onChange = function(v) O.SetWindowScale(v) end })
+	page.windowScale:SetPoint("TOPLEFT", 0, -64)
 end
 
 -- The HUD stays on screen while this window is open, so every change shows at once.
@@ -601,20 +625,13 @@ local function BuildHud(page)
 		O.Changed()
 	end)
 
-	Row("Scale", -32)
-	local hudStepper = Skin.Stepper(page, function(dir)
-		CK.HUD.SetScale(CK.db.hud.scale + dir * CK.HUD.SCALE_STEP)
-	end)
-	hudStepper:SetPoint("TOPLEFT", X, -32)
-	page.hudScale = hudStepper.value
-
+	page.hudScale = Skin.Slider(page, "Scale", { min = CK.HUD.SCALE_MIN or 0.5, max = CK.HUD.SCALE_MAX or 2, step = CK.HUD.SCALE_STEP,
+		format = Skin.Percent, parse = Skin.ParsePercent, onChange = function(v) CK.HUD.SetScale(v) end })
+	page.hudScale:SetPoint("TOPLEFT", 0, -28)
 	-- down to 0%: no background at all, only the texts (and the border, if it is on)
-	Row("Background opacity", -64)
-	local alphaStepper = Skin.Stepper(page, function(dir)
-		CK.HUD.SetBackgroundAlpha(CK.db.hud.bgAlpha + dir * CK.HUD.ALPHA_STEP)
-	end)
-	alphaStepper:SetPoint("TOPLEFT", X, -64)
-	page.bgAlpha = alphaStepper.value
+	page.bgAlpha = Skin.Slider(page, "Background opacity", { min = 0, max = 1, step = CK.HUD.ALPHA_STEP,
+		format = Skin.Percent, parse = Skin.ParsePercent, onChange = function(v) CK.HUD.SetBackgroundAlpha(v) end })
+	page.bgAlpha:SetPoint("TOPLEFT", 200, -28)
 
 	page.border = Check("Show the border", -96, function(checked) CK.HUD.SetBorder(checked) end)
 
@@ -641,8 +658,8 @@ end
 
 local function RefreshHud(page)
 	page.hudShow:SetChecked(CK.db.hud.show ~= "never")
-	page.hudScale:SetText(string.format("%d%%", math.floor(CK.db.hud.scale * 100 + 0.5)))
-	page.bgAlpha:SetText(string.format("%d%%", math.floor(CK.db.hud.bgAlpha * 100 + 0.5)))
+	page.hudScale:SetValue(CK.db.hud.scale)
+	page.bgAlpha:SetValue(CK.db.hud.bgAlpha)
 	page.border:SetChecked(CK.db.hud.border)
 	page.font:SetValueText(CK.db.hud.font and CK.db.hud.fontName or L["Game default"])
 	page.anchor:SetValueText(L["ANCHOR_" .. CK.db.hud.anchor])
@@ -655,7 +672,7 @@ local function RefreshGeneral(page)
 		if entry.code == code then page.language:SetValueText(LanguageLabel(entry)) end
 	end
 	page.theme:SetValueText(L["THEME_" .. Skin.theme])
-	page.windowScale:SetText(string.format("%d%%", math.floor(CK.db.settings.windowScale * 100 + 0.5)))
+	page.windowScale:SetValue(CK.db.settings.windowScale)
 end
 
 O.AddSection({

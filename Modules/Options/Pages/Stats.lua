@@ -27,19 +27,14 @@ local function PlaceList(p)
 end
 
 local function Build(p)
-	Skin.Field(p, "Decimals", 0, 0)
-	local stepper = Skin.Stepper(p, function(dir)
-		ST.db.decimals = math.max(0, math.min(2, ST.db.decimals + dir))
-		Changed()
-	end)
-	stepper:SetPoint("TOPLEFT", O.FIELD_X, 0)
-	p.decimals = stepper.value
+	p.decimals = Skin.Slider(p, "Decimals", { min = 0, max = 2, onChange = function(v) ST.db.decimals = v; Changed() end })
+	p.decimals:SetPoint("TOPLEFT", 0, 0)
 
 	p.english = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		ST.db.english = checked or nil
 		Changed()
 	end), "English on the HUD")
-	p.english:SetPoint("TOPLEFT", O.FIELD_X, -29)
+	p.english:SetPoint("TOPLEFT", 0, -(Skin.SLIDER_H + 10))
 
 	p.rows = {}
 	for i = 1, #ST.STATS do
@@ -58,7 +53,7 @@ local function Build(p)
 end
 
 local function Refresh(p)
-	p.decimals:SetText(tostring(ST.db.decimals))
+	p.decimals:SetValue(ST.db.decimals)
 	p.english:SetChecked(ST.db.english)
 	for i, key in ipairs(ST.db.order) do
 		local r = p.rows[i]

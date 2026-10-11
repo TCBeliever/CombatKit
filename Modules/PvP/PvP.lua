@@ -27,6 +27,7 @@ ns.defaults = {
 	spacing   = 2,
 	maxPerRow = 8,
 	fontSize  = 12,
+	attach    = true,       -- next to the party frames; off: where the rows were dragged to
 	side      = "RIGHT",    -- which side of the party frame the row sits on
 	offset    = 6,
 	offsetY   = 0,
@@ -34,6 +35,8 @@ ns.defaults = {
 	glow      = true,
 	showOffensive = true,   -- burst cooldowns after the defensives
 	showCC    = true,       -- crowd control after the defensives
+	showTrinket = true,     -- the PvP trinket, first in the row (C_PvP knows its cooldown)
+	disabled  = {},         -- ability id -> true: not tracked (Monitoring page)
 	cooldowns = {},         -- ability id -> seconds set by hand (/ckpvp cd)
 	solo = false,           -- /ckpvp solo: kept across reloads, so a test session needs no typing
 	rows = {   -- where a row goes when no party frame is found for its unit
@@ -77,6 +80,10 @@ local STATE = { Inactive = 0, Waiting = 1, StartUp = 2, Engaged = 3, PostRound =
 
 function ns.IsRunning() return running end
 function ns.IsLive() return live end
+-- the icons are on screen from the moment the arena is entered, every cooldown ready,
+-- until the module has a reason to show nothing
+local function Showing() return inArena and not unavailable and not ns.Tracker.paused end
+function ns.IsShowing() return Showing() end
 function ns.IsSolo() return solo end
 
 local function Refused()
@@ -101,6 +108,25 @@ end
 
 function ns.Stats() return ns.Tracker.stats end
 
+-- Is this ability tracked at all? The Monitoring page's role switches and per-ability list.
+function ns.Allowed(ability)
+	local db = ns.db
+	if db.disabled[ability.id] then return false end
+	if ability.role == "offensive" and db.showOffensive == false then return false end
+	if ability.role == "cc" and db.showCC == false then return false end
+	return true
+end
+
+-- the settings about what is tracked changed: entries again, the same timers kept
+function ns.RebuildEntries()
+	ns.Tracker.Rebuild()
+	if inArena then
+		ns.Probe.backend.Prepare(ns.Tracker.WATCHED, ns.Tracker.Needed())
+		ns.Display.PrepareGlow()
+	end
+	ns.Refresh()
+end
+
 local function IsArena()
 	local ok, _, kind = pcall(IsInInstance)
 	return ok and canaccessvalue(kind) == true and kind == "arena"
@@ -124,6 +150,19 @@ end
 -- Roster
 -- ---------------------------------------------------------------------------
 
+-- A teammate that is a bot (a match against NPCs): nothing to inspect, no cooldowns
+-- worth showing. A bot answers UnitIsPlayer or carries a player GUID with extra parts.
+local function IsNpc(unit, guid)
+	if type(UnitIsPlayer) == "function" and U.Plain(UnitIsPlayer, unit) == false then return true end
+	if type(guid) == "string" and guid:match("^Player%-") then
+		local _, dashes = guid:gsub("%-", "")
+		if dashes > 2 then return true end
+	end
+	return false
+end
+ns.IsNpc = IsNpc
+
+local npcNoted = {}
 local function ReadRoster()
 	local roster, enemies, signature = {}, {}, {}
 	for _, unit in ipairs(ns.Tracker.UNITS) do
@@ -131,11 +170,17 @@ local function ReadRoster()
 		if U.Plain(UnitExists, unit) == true and friendly then
 			local ok, _, class = pcall(UnitClass, unit)
 			local guid = U.Plain(UnitGUID, unit)
-			if ok and canaccessvalue(class) and type(class) == "string" and type(guid) == "string" then
+			if ok and canaccessvalue(class) and type(class) == "string" and type(guid) == "string" and IsNpc(unit, guid) then
+				if not npcNoted[guid] then
+					npcNoted[guid] = true
+					U.Log("roster", unit, nil, "a bot: not tracked")
+				end
+			elseif ok and canaccessvalue(class) and type(class) == "string" and type(guid) == "string" then
 				local info = ns.Inspect.InfoFor(guid)
-				roster[unit] = { guid = guid, class = class, spec = info and info.spec or nil, info = info }
+				local role = U.Plain(UnitGroupRolesAssigned, unit)
+				roster[unit] = { guid = guid, class = class, spec = info and info.spec or nil, info = info, role = role }
 				signature[#signature + 1] = unit .. "=" .. guid .. ":" .. tostring(info and info.spec) .. ":"
-					.. tostring(info and info.at)
+					.. tostring(info and info.at) .. ":" .. tostring(role)
 			end
 		end
 	end
@@ -154,6 +199,9 @@ local function SyncRoster(force)
 	local roster, enemies, signature = ReadRoster()
 	if force or signature ~= lastSignature then
 		lastSignature = signature
+		if C_PvP and C_PvP.RequestCrowdControlSpell then
+			for unit in pairs(roster) do pcall(C_PvP.RequestCrowdControlSpell, unit) end
+		end
 		ns.Tracker.SetRoster(roster, enemies)
 		ns.Probe.backend.Prepare(ns.Tracker.WATCHED, ns.Tracker.Needed())
 		ns.Display.PrepareGlow()
@@ -276,7 +324,8 @@ local driver = CreateFrame("Frame")
 local EVENTS = { "PLAYER_ENTERING_WORLD", "GROUP_ROSTER_UPDATE", "INSPECT_READY", "PVP_MATCH_STATE_CHANGED",
 	"PVP_MATCH_ACTIVE", "PVP_MATCH_COMPLETE", "PVP_MATCH_INACTIVE", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
 	"LOSS_OF_CONTROL_ADDED", "LOSS_OF_CONTROL_UPDATE", "PLAYER_TARGET_CHANGED", "TRAIT_CONFIG_UPDATED",
-	"PLAYER_SPECIALIZATION_CHANGED", "PLAYER_LOGOUT", "PLAYER_REGEN_DISABLED" }
+	"PLAYER_SPECIALIZATION_CHANGED", "PLAYER_LOGOUT", "PLAYER_REGEN_DISABLED",
+	"ARENA_COOLDOWNS_UPDATE", "ARENA_CROWD_CONTROL_SPELL_UPDATE" }
 
 driver:SetScript("OnEvent", function(_, event, arg1, _, arg3)
 	if event == "PLAYER_LOGOUT" then
@@ -311,6 +360,10 @@ driver:SetScript("OnEvent", function(_, event, arg1, _, arg3)
 	end
 	if event == "PLAYER_REGEN_DISABLED" then
 		if inArena then U.Log("combat", nil, nil, "start") end
+		return
+	end
+	if event == "ARENA_COOLDOWNS_UPDATE" or event == "ARENA_CROWD_CONTROL_SPELL_UPDATE" then
+		ns.Display.Dirty()   -- a teammate's trinket: the game tells, the icon follows at the next paint
 		return
 	end
 	if event == "PLAYER_REGEN_ENABLED" and inArena then U.Log("combat", nil, nil, "end") end
@@ -357,14 +410,14 @@ local function OnUpdate(_, elapsed)
 			ns.Snapshot("error")
 		end
 	end
-	if inArena or ns.Display.IsTesting() then ns.Display.Update(GetTime(), live) end
+	if inArena or ns.Display.IsTesting() then ns.Display.Update(GetTime(), Showing()) end
 end
 
 -- the display, from the settings
 function ns.Refresh()
 	if inArena or ns.Display.IsTesting() then
 		ns.Display.Dirty()
-		ns.Display.Update(GetTime(), live)
+		ns.Display.Update(GetTime(), Showing())
 	else
 		ns.Display.HideAll()
 	end
@@ -411,6 +464,10 @@ ns.SNAPSHOT_EVERY = 5
 function ns.Snapshot(why)
 	if not ns.db then return end
 	local now = GetTime()
+	if inArena then
+		local rows = ns.Display.Describe()
+		if #rows > 0 then ns.rowsLastArena = rows end
+	end
 	local entries = {}
 	for _, unit in ipairs(ns.Tracker.UNITS) do
 		local r = ns.Tracker.roster[unit]
@@ -438,7 +495,7 @@ function ns.Snapshot(why)
 	ns.db.debug = {
 		at = date("%Y-%m-%d %H:%M:%S"), why = why or "tick", version = C_AddOns.GetAddOnMetadata("CombatKit", "Version"),
 		status = ns.StatusLines(), entries = entries, log = U.LogLines(U.LOG_CAP), lastError = ns.lastError,
-		talents = talents,
+		talents = talents, rows = ns.Display.Describe(), rowsLastArena = ns.rowsLastArena,
 	}
 end
 

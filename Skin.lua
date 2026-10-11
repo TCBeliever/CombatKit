@@ -5,8 +5,8 @@ local ADDON, ns = ...
 -- templates and no texture or font files; everything is drawn with the white
 -- 8x8 texture. Fonts stay the game's own so every locale keeps its glyphs.
 --
--- Only what frames on screen need lives here. Buttons, check boxes and the
--- other settings widgets are added to this table by CombatKit_Options.
+-- Only what frames on screen need lives here, plus the button and the check
+-- box; the other settings widgets are added to this table by CombatKit_Options.
 -- ===========================================================================
 
 local Skin = {}
@@ -127,6 +127,98 @@ function Skin.Label(parent, text, template, colour)
 	Skin.Paint(fs, function(f) f:SetTextColor(Skin.Color(colour or "text")) end)
 	fs:SetText(text or "")
 	return fs
+end
+
+-- ---------------------------------------------------------------------------
+-- Two widgets the core itself needs (the landing): the button and the check box.
+-- The rest of the settings widgets are in CombatKit_Options.
+-- ---------------------------------------------------------------------------
+
+-- At rest: plain, or picked out when the widget is the chosen one of a group.
+local function Rest(self)
+	self:SetBackdropColor(Skin.Color(self.selected and "selected" or "element"))
+	self:SetBackdropBorderColor(Skin.Color(self.selected and "accent" or "border"))
+end
+
+local function Hoverable(widget)
+	widget:HookScript("OnEnter", function(self)
+		if self.disabled then return end
+		self:SetBackdropColor(Skin.Color("hover"))
+		self:SetBackdropBorderColor(Skin.Color("accent"))
+	end)
+	widget:HookScript("OnLeave", Rest)
+end
+Skin.Hoverable = Hoverable
+Skin.Rest = Rest
+
+-- w is a minimum: a label longer than that (other language) widens the button.
+-- SetLabel instead of SetText keeps that true when the language changes.
+function Skin.Button(parent, text, w, h, onClick)
+	local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+	b:SetSize(w, h or 20)
+	Skin.Backdrop(b, "element")
+	Skin.Paint(b, Rest)   -- a lit button stays lit through a theme switch
+	local fs = Skin.Label(b, "")
+	fs:SetPoint("CENTER")
+	b:SetFontString(fs)
+	function b:SetLabel(label)
+		self:SetText(label or "")
+		self:SetWidth(math.max(w, fs:GetStringWidth() + 18))
+	end
+	b:SetLabel(text)
+	-- one of several buttons that stand for a choice: the chosen one stays lit
+	function b:SetSelected(on)
+		self.selected = on and true or false
+		Rest(self)
+	end
+	function b:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		self:SetAlpha(self.disabled and 0.55 or 1)
+	end
+	Hoverable(b)
+	b:SetScript("OnClick", function(self, ...)
+		if not self.disabled then onClick(self, ...) end
+	end)
+	return b
+end
+
+-- A plain Button that behaves like a check box. onChange(checked)
+function Skin.Checkbox(parent, text, onChange)
+	local c = CreateFrame("Button", nil, parent)
+	c:SetHeight(18)
+	c.box = Skin.Fill(c, "BACKGROUND", "border")
+	c.box:SetSize(14, 14)
+	c.box:SetPoint("LEFT")
+	c.fill = Skin.Fill(c, "BORDER", "element")
+	c.fill:SetSize(12, 12)
+	c.fill:SetPoint("CENTER", c.box)
+	c.mark = Skin.Fill(c, "ARTWORK", "accent")
+	c.mark:SetSize(8, 8)
+	c.mark:SetPoint("CENTER", c.box)
+	c.mark:Hide()
+	c.label = Skin.Label(c, "")
+	c.label:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
+
+	-- the click area follows the label, whatever the language
+	function c:SetLabel(label)
+		self.label:SetText(label or "")
+		self:SetWidth(14 + 6 + self.label:GetStringWidth())
+	end
+	c:SetLabel(text)
+
+	function c:SetChecked(v)
+		self.checked = v and true or false
+		self.mark:SetShown(self.checked)
+	end
+	function c:GetChecked() return self.checked or false end
+
+	c:SetScript("OnEnter", function(self) self.box:SetColorTexture(Skin.Color("accent")) end)
+	c:SetScript("OnLeave", function(self) self.box:SetColorTexture(Skin.Color("border")) end)
+	c:SetScript("OnClick", function(self)
+		self:SetChecked(not self.checked)
+		onChange(self.checked)
+	end)
+	return c
 end
 
 Skin.SetTheme(Skin.THEMES[1].key)   -- until the saved one is read

@@ -26,6 +26,10 @@ CK.AddLocale("enUS", {
 	["PVP_STATS"]     = "%d scans, %d uses seen, %d discarded",
 	["PVP_SCAN_START"] = "scan: reading %d spells from the client, a few seconds...",
 	["PVP_SCAN_DONE"]  = "scan done: %d spells, %d talent tree entries. /reload writes it to the saved variables.",
+	["PVP_ROW_party1"] = "Teammate 1",
+	["PVP_ROW_party2"] = "Teammate 2",
+	["PVP_ROW_player"] = "You (solo)",
+	["PvP trinket"]    = "PvP trinket",
 })
 
 CK.AddLocale("zhTW", {
@@ -52,4 +56,8 @@ CK.AddLocale("zhTW", {
 	["PVP_STATS"]     = "掃描 %d 次，看到 %d 次使用，捨棄 %d 次",
 	["PVP_SCAN_START"] = "scan：正在從客戶端讀取 %d 個法術，幾秒鐘...",
 	["PVP_SCAN_DONE"]  = "scan 完成：%d 個法術、%d 個天賦樹節點。/reload 後寫入設定檔。",
+	["PVP_ROW_party1"] = "隊友 1",
+	["PVP_ROW_party2"] = "隊友 2",
+	["PVP_ROW_player"] = "你（單人模式）",
+	["PvP trinket"]    = "PvP 飾品",
 })

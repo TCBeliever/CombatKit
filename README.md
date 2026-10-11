@@ -18,7 +18,7 @@ From CurseForge, or take the zip of the latest [release](../../releases) and unp
 
 ## Getting around
 
-`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. There is a tab per module (Loadout, Stats, Range, PvP, Extras) and **Settings** at the right. The tab of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, theme, window scale) and HUD.
+`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. The modules (Loadout, Stats, Range, PvP, Extras) are listed down the left, **Settings** at the bottom; a module with several pages has them as tabs across the top of its page. The entry of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, theme, window scale) and HUD.
 
 Switching on works at once. Switching off stops the module at once; the memory of what was already loaded comes back with the next reload, because the game cannot unload code. The small features under Extras share one addon, which is only loaded while at least one of them is on. The settings window itself is loaded the first time you open it.
 

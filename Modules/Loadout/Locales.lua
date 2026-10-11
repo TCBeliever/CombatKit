@@ -6,6 +6,8 @@ local CK = CombatKit
 CK.AddLocale("enUS", {
 	["GROUP_pve"] = "PvE",
 	["GROUP_pvp"] = "PvP",
+	["GROUPTAB_pve"] = "PvE scenarios",
+	["GROUPTAB_pvp"] = "PvP scenarios",
 
 	["SCN_world"]   = "Open world",
 	["SCN_delve"]   = "Delves",
@@ -71,4 +73,6 @@ CK.AddLocale("zhTW", {
 	["%s interrupted. Click the HUD to apply again."] = "%s被中斷。要套用時點一下 HUD。",
 	["Spec change"]   = "專精切換",
 	["Talent change"] = "天賦變更",
+	["GROUPTAB_pve"] = "pve 場景",
+	["GROUPTAB_pvp"] = "pvp 場景",
 })

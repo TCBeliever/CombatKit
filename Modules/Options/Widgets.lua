@@ -2,57 +2,12 @@ local CK = CombatKit
 local Skin = CK.Skin
 
 -- ===========================================================================
--- The settings widgets, drawn with the core's palette: button, check box,
--- close button, dropdown, stepper. They are added to CombatKit.Skin so pages
--- read the same whether a helper lives in the core or here.
+-- The settings widgets, drawn with the core's palette: close button, edit box,
+-- dropdown, stepper, slider. They are added to CombatKit.Skin so pages read
+-- the same whether a helper lives in the core (button, check box) or here.
 -- ===========================================================================
 
--- At rest: plain, or picked out when the widget is the chosen one of a group.
-local function Rest(self)
-	self:SetBackdropColor(Skin.Color(self.selected and "selected" or "element"))
-	self:SetBackdropBorderColor(Skin.Color(self.selected and "accent" or "border"))
-end
-
-local function Hoverable(widget)
-	widget:HookScript("OnEnter", function(self)
-		if self.disabled then return end
-		self:SetBackdropColor(Skin.Color("hover"))
-		self:SetBackdropBorderColor(Skin.Color("accent"))
-	end)
-	widget:HookScript("OnLeave", Rest)
-end
-Skin.Hoverable = Hoverable
-
--- w is a minimum: a label longer than that (other language) widens the button.
--- SetLabel instead of SetText keeps that true when the language changes.
-function Skin.Button(parent, text, w, h, onClick)
-	local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
-	b:SetSize(w, h or 20)
-	Skin.Backdrop(b, "element")
-	Skin.Paint(b, Rest)   -- a lit button stays lit through a theme switch
-	local fs = Skin.Label(b, "")
-	fs:SetPoint("CENTER")
-	b:SetFontString(fs)
-	function b:SetLabel(label)
-		self:SetText(label or "")
-		self:SetWidth(math.max(w, fs:GetStringWidth() + 18))
-	end
-	b:SetLabel(text)
-	-- one of several buttons that stand for a choice: the chosen one stays lit
-	function b:SetSelected(on)
-		self.selected = on and true or false
-		Rest(self)
-	end
-	function b:SetDisabled(disabled)
-		self.disabled = disabled and true or false
-		self:SetAlpha(self.disabled and 0.55 or 1)
-	end
-	Hoverable(b)
-	b:SetScript("OnClick", function(self, ...)
-		if not self.disabled then onClick(self, ...) end
-	end)
-	return b
-end
+local Rest, Hoverable = Skin.Rest, Skin.Hoverable   -- the button and the check box live in the core's Skin
 
 -- Two thin rotated bars: an X or a chevron, without a texture file.
 local function Bars(parent, length, colour, a1, x1, a2, x2)
@@ -98,45 +53,6 @@ function Skin.ArrowButton(parent, up, onClick)
 	b.bars = Bars(b, 6, "dim", up and a or -a, -2, up and -a or a, 2)
 	b:SetScript("OnClick", onClick)
 	return b
-end
-
--- A plain Button that behaves like a check box. onChange(checked)
-function Skin.Checkbox(parent, text, onChange)
-	local c = CreateFrame("Button", nil, parent)
-	c:SetHeight(18)
-	c.box = Skin.Fill(c, "BACKGROUND", "border")
-	c.box:SetSize(14, 14)
-	c.box:SetPoint("LEFT")
-	c.fill = Skin.Fill(c, "BORDER", "element")
-	c.fill:SetSize(12, 12)
-	c.fill:SetPoint("CENTER", c.box)
-	c.mark = Skin.Fill(c, "ARTWORK", "accent")
-	c.mark:SetSize(8, 8)
-	c.mark:SetPoint("CENTER", c.box)
-	c.mark:Hide()
-	c.label = Skin.Label(c, "")
-	c.label:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
-
-	-- the click area follows the label, whatever the language
-	function c:SetLabel(label)
-		self.label:SetText(label or "")
-		self:SetWidth(14 + 6 + self.label:GetStringWidth())
-	end
-	c:SetLabel(text)
-
-	function c:SetChecked(v)
-		self.checked = v and true or false
-		self.mark:SetShown(self.checked)
-	end
-	function c:GetChecked() return self.checked or false end
-
-	c:SetScript("OnEnter", function(self) self.box:SetColorTexture(Skin.Color("accent")) end)
-	c:SetScript("OnLeave", function(self) self.box:SetColorTexture(Skin.Color("border")) end)
-	c:SetScript("OnClick", function(self)
-		self:SetChecked(not self.checked)
-		onChange(self.checked)
-	end)
-	return c
 end
 
 -- A one-line text box. onCommit(text) when the player is done with it.
@@ -337,6 +253,90 @@ function Skin.Stepper(parent, onStep)
 	plus:SetWidth(20)
 	plus:SetPoint("LEFT", holder.value, "RIGHT", 2, 0)
 	return holder
+end
+
+-- A number to set: its name above, a slider with the ends marked, and under it a
+-- box the number can be typed into. opts: min, max, step (1), width (170),
+-- format(v) -> text, parse(text) -> number | nil, onChange(v). The block is
+-- Skin.SLIDER_H tall; .value is the box (its text is what the number reads as).
+Skin.SLIDER_H = 58
+function Skin.Percent(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end
+function Skin.ParsePercent(text)
+	local n = tonumber((text or ""):gsub("%%", ""):gsub("%s", ""))
+	if not n then return nil end
+	return n / 100
+end
+function Skin.Slider(parent, key, opts)
+	local w = opts.width or 170
+	local step = opts.step or 1
+	local format = opts.format or function(v) return tostring(v) end
+	local parse = opts.parse or tonumber
+	local f = CreateFrame("Frame", nil, parent)
+	f:SetSize(w, Skin.SLIDER_H)
+	f.label = CK.Bind(Skin.Label(f, "", nil, "dim"), key)
+	f.label:SetPoint("TOP", 0, 0)
+
+	local s = CreateFrame("Slider", nil, f)
+	s:SetOrientation("HORIZONTAL")
+	s:SetSize(w - 8, 12)
+	s:SetPoint("TOP", 0, -17)
+	s:SetMinMaxValues(opts.min, opts.max)
+	s:SetValueStep(step)
+	s:SetObeyStepOnDrag(true)
+	local track = Skin.Fill(s, "BACKGROUND", "element")
+	track:SetPoint("LEFT")
+	track:SetPoint("RIGHT")
+	track:SetHeight(4)
+	s:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+	local thumb = s:GetThumbTexture()
+	if thumb then
+		thumb:SetSize(8, 14)
+		Skin.Paint(thumb, function(t) t:SetVertexColor(Skin.Color("accent")) end)
+	end
+	f.slider = s
+	f.lo = Skin.Label(f, format(opts.min), nil, "dim")
+	f.lo:SetPoint("BOTTOMLEFT", 0, 2)
+	f.hi = Skin.Label(f, format(opts.max), nil, "dim")
+	f.hi:SetPoint("BOTTOMRIGHT", 0, 2)
+
+	local function snap(v)
+		v = math.max(opts.min, math.min(opts.max, v))
+		v = math.floor(v / step + 0.5) * step
+		return math.floor(v * 1000 + 0.5) / 1000   -- the step may be a fraction
+	end
+	f.value = Skin.EditBox(f, 64, function(text)
+		local n = parse(text)
+		if n == nil then
+			f.value:SetText(format(f.current))
+			return
+		end
+		n = snap(n)
+		f:SetValue(n)
+		opts.onChange(n)
+	end)
+	f.value:SetJustifyH("CENTER")
+	f.value:SetPoint("BOTTOM", 0, 0)
+
+	-- what the number reads as, for whoever asks the block itself
+	function f:GetText() return self.value:GetText() end
+
+	-- the number from outside: the slider and the box follow, nothing fires
+	function f:SetValue(v)
+		self.current = v
+		self.setting = true
+		s:SetValue(v)
+		self.setting = false
+		self.value:SetText(format(v))
+	end
+	s:SetScript("OnValueChanged", function(_, v)
+		if f.setting then return end
+		v = snap(v)
+		if v == f.current then return end
+		f.current = v
+		f.value:SetText(format(v))
+		opts.onChange(v)
+	end)
+	return f
 end
 
 -- A dim label in front of a control, bound to its locale key

@@ -32,6 +32,31 @@ check(CombatKitLoadoutDB ~= nil, "a loaded module has its saved variables")
 eq(CK.db.settings.theme, "tide", "a fresh install is in Tide")
 eq(CK.Skin.theme, "tide", "and so is the palette")
 
+-- ---------------------------------------------------------------- the landing: the first login asks about every module
+local landing = CK.Landing.GetFrame()
+check(landing and landing:IsShown(), "a fresh install: the landing is up")
+check(not loaded("CombatKit_Options"), "without loading the settings window")
+eq(#landing.defs, 4, "the four modules that are switched as a whole")
+check(landing.rows[1].check:GetChecked() and not landing.rows[2].check:GetChecked(), "ticked as they would be on: Loadout yes, Stats no")
+landing.rows[4].check:Click()   -- PvP wanted
+CK.Landing.Apply()
+check(not landing:IsShown() and CK.IsModuleEnabled("PvP") and loaded("CombatKit_PvP"), "Apply switches the ticked ones on")
+check(CK.IsModuleEnabled("Loadout") and not loaded("CombatKit_Stats"), "and leaves the rest as they were")
+check(CK.db.settings.asked.Stats and CK.db.settings.asked.PvP, "every module shown is now asked about")
+CK.SetModuleEnabled("PvP", false)
+-- the next login: nothing new, nothing asked; a module added later is asked about alone
+fire("PLAYER_LOGIN")
+check(not landing:IsShown(), "asked once: the next login shows nothing")
+CK.db.settings.asked.PvP = nil
+fire("PLAYER_LOGIN")
+check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "PvP", "a module never asked about: the landing shows it alone")
+check(landing.intro:GetText() == CK.L["LANDING_NEW"], "as new, not as a welcome")
+CK.Landing.Later()
+check(not landing:IsShown() and CK.db.settings.asked.PvP == nil, "Later: closed, and asked again next time")
+SlashCmdList.COMBATKIT("landing")
+check(landing:IsShown() and #landing.defs == 4, "/ck landing shows it for every module")
+CK.Landing.Later()
+
 -- ---------------------------------------------------------------- switching a module off and on
 local LO = CK.modules.Loadout
 fire("PLAYER_ENTERING_WORLD")

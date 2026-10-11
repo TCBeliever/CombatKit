@@ -503,12 +503,13 @@ O.AddSection({
 		local nodes = {}
 		local curKind, curKey = CurrentNode()
 		for _, group in ipairs(LO.GROUPS) do
-			nodes[#nodes + 1] = { key = "group:" .. group, label = LO.GroupName(group),
+			-- the group's tab; split into scenarios, those are a second strip under it, the group first
+			nodes[#nodes + 1] = { key = "group:" .. group, label = L["GROUPTAB_" .. group], subLabel = LO.GroupName(group),
 				here = (curKind == "group" and curKey == group) }
 			if LO.char.split[group] then
 				for _, s in ipairs(LO.SCENARIOS) do
 					if s.group == group then
-						nodes[#nodes + 1] = { key = "scenario:" .. s.key, label = LO.ScenarioName(s.key), indent = 22,
+						nodes[#nodes + 1] = { key = "scenario:" .. s.key, label = LO.ScenarioName(s.key), parent = "group:" .. group,
 							tag = LO.char.scenarios[s.key].custom and L["own"] or nil,
 							here = (curKind == "scenario" and curKey == s.key) }
 					end

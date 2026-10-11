@@ -61,7 +61,9 @@ for class, list in pairs(PV.Spells.BY_CLASS) do
 end
 check(count > 50, "a few dozen abilities")
 eq(#PV.Spells.For("PRIEST", 256), 5, "a Discipline priest: four defensives and Psychic Scream")
-eq(#PV.Spells.For("PRIEST"), 12, "spec unknown: the whole class, crowd control and burst included")
+eq(#PV.Spells.For("PRIEST"), 11, "spec unknown: the whole class, crowd control and burst included")
+eq(#PV.Spells.For("PRIEST", nil, "HEALER"), 7, "spec unknown but healing: the Shadow-only ones are left out")
+eq(#PV.Spells.For("PRIEST", nil, "DAMAGER"), 6, "spec unknown, dealing damage: Shadow plus the class-wide ones")
 check(PV.Spells.BY_ID[228260].role == "offensive" and PV.Spells.BY_ID[33206].role == "defensive"
 	and PV.Spells.BY_ID[8122].kind == "enemy" and PV.Spells.BY_ID[8122].role == "cc", "roles and kinds")
 eq(#PV.Spells.For("UNKNOWN"), 0, "an unknown class: nothing")
@@ -102,6 +104,19 @@ check(postSort ~= nil and PV.Display.FrameSortHooked(), "FrameSort's post-sort c
 local found, source = PV.Display.FindFrame("party1")
 check(found == fsFrame and source == "FrameSort", "a teammate's frame is found through FrameSort")
 check(PV.Display.FindFrame("party2") == nil, "a frame FrameSort does not list is not invented")
+-- in arena the team is a raid group: a frame carrying raid2 for the same player as party2 counts
+W.units.party2 = { friendly = true, guid = "G2" }
+W.units.raid2 = { friendly = true, guid = "G2" }
+local raidFrame = T.Mock("Frame", "CompactRaidFrame2"); raidFrame.unit = "raid2"; _G.CompactRaidFrame2 = raidFrame
+found, source = PV.Display.FindFrame("party2")
+check(found == raidFrame and source == "Blizzard", "a raid-style frame is matched by GUID, not by token")
+_G.CompactRaidFrame2 = nil; W.units.party2 = nil; W.units.raid2 = nil
+-- EllesmereUI: its own lookup
+local euiFrame = T.Mock("Button", "ERFPartyButton1"); euiFrame.unit = "party2"
+EllesmereUI = { GetUnitFrame = function(unit) if unit == "party2" then return euiFrame end end }
+found, source = PV.Display.FindFrame("party2")
+check(found == euiFrame and source == "EllesmereUI", "an EllesmereUI frame is found through its API")
+EllesmereUI = nil
 postSort()   -- sorting happened: the rows re-anchor at the next paint
 check(PV.enabled and PV.IsRunning(), "switched on")
 eq(PV.State(), "idle", "no arena: idle")
@@ -113,23 +128,26 @@ W.units.party2 = { friendly = true, class = "PALADIN", guid = "G2", spec = 65, t
 W.inInstance, W.instanceType, W.matchState = true, "arena", 1
 fire("PLAYER_ENTERING_WORLD")
 eq(PV.State(), "ready", "in the arena, gates closed: ready")
-eq(#PV.Tracker.Entries("party1"), 12, "spec not known yet: the whole class is watched")
+eq(#PV.Tracker.Entries("party1"), 12, "spec not known yet: the whole class is watched, the trinket first")
+check(PV.Tracker.Entries("party1")[1].kind == "trinket", "the PvP trinket leads the row")
 PV._Tick(1)
 check(W.inspected == "party1", "the slow tick inspects the first teammate")
 fire("INSPECT_READY", "G1")
-eq(#PV.Tracker.Entries("party1"), 5, "spec read: narrowed to Discipline")
+eq(#PV.Tracker.Entries("party1"), 6, "spec read: narrowed to Discipline, plus the trinket")
 W.now = W.now + 2
 PV._Tick(1)
 fire("INSPECT_READY", "G2")
 local function entry(unit, id)
 	for _, e in ipairs(PV.Tracker.Entries(unit)) do if e.key == id then return e end end
 end
-eq(#PV.Tracker.Entries("party2"), 7, "a Holy paladin: four defensives, two crowd controls, Avenging Wrath")
+eq(#PV.Tracker.Entries("party2"), 8, "a Holy paladin: the trinket, four defensives, two crowd controls, Avenging Wrath")
 local p2 = PV.Tracker.Entries("party2")
-check(p2[5].ability.role == "cc" and p2[7].key == 31884, "defensives, then crowd control, then the burst cooldown")
+check(p2[1].kind == "trinket" and p2[6].ability.role == "cc" and p2[8].key == 31884, "trinket, defensives, crowd control, then the burst cooldown")
 local ds = entry("party2", 642)
 check(ds.cd == 210 and ds.basis == "talents", "his Unbreakable Spirit was read: Divine Shield 210 s")
 check(not PV.IsLive(), "nothing is scanned before the gates open")
+PV._Tick(0.2)
+check(PV.Display.Rows().party1 and PV.Display.Rows().party1:IsShown(), "but the rows are up already, every cooldown ready")
 
 W.matchState = 3
 fire("PVP_MATCH_STATE_CHANGED")
@@ -156,8 +174,10 @@ eq(available, 0, "and on cooldown")
 check(nextIn > 85 and nextIn <= 90, "for its base cooldown")
 local row = PV.Display.Rows().party1
 check(row and row:IsShown(), "the teammate has a row")
-eq(#row.icons, 5, "with one icon per ability")
-local icon = row.icons[3]
+local shownIcons = 0
+for _, b in ipairs(row.icons) do if b:IsShown() then shownIcons = shownIcons + 1 end end
+eq(shownIcons, 6, "with one icon per ability, the trinket included")
+local icon = row.icons[4]
 check(icon.cd:IsShown() and icon.glow:IsShown(), "the icon shows the cooldown and (no lane in the stubs) the plain glow")
 check(icon.time:GetText() == "1:30" or icon.time:GetText() == "1:29", "and the time left")
 local firstReady = rapture.queue[1]
@@ -273,6 +293,17 @@ check(scream and scream.active and PV.Tracker.Charges(scream, W.now) == 0, "Psyc
 W.buffs.arena1 = nil
 tick(4)
 W.units.arena1 = nil
+W.units.party1 = { friendly = true, class = "DEMONHUNTER", guid = "G6", spec = 577, talents = {}, pvp = {} }
+fire("GROUP_ROSTER_UPDATE")
+W.inspected = "party1"; fire("INSPECT_READY", "G6")
+
+-- ---------------------------------------------------------------- a bot teammate is left alone
+W.units.party1 = { friendly = true, class = "PRIEST", guid = "Player-4222-2-44318-00000000004BDA05", spec = 256, talents = {}, pvp = {} }
+fire("GROUP_ROSTER_UPDATE")
+eq(#PV.Tracker.Entries("party1"), 0, "a bot by its GUID: no entries, no row")
+W.units.party1 = { friendly = true, class = "PRIEST", guid = "G9", npc = true, talents = {}, pvp = {} }
+fire("GROUP_ROSTER_UPDATE")
+eq(#PV.Tracker.Entries("party1"), 0, "a bot by UnitIsPlayer: the same")
 W.units.party1 = { friendly = true, class = "DEMONHUNTER", guid = "G6", spec = 577, talents = {}, pvp = {} }
 fire("GROUP_ROSTER_UPDATE")
 W.inspected = "party1"; fire("INSPECT_READY", "G6")
@@ -447,14 +478,47 @@ check(PV.Display.IsTesting(), "sample rows on")
 local sample = PV.Display.Rows().party2
 local shown = 0
 for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
-check(sample:IsShown() and shown == 6, "a sample row for the second teammate, an Arms warrior: two defensives, three crowd controls, Avatar")
+check(sample:IsShown() and shown == 7, "a sample row for the second teammate, an Arms warrior: trinket, two defensives, three crowd controls, Avatar")
 page.offensive:Click()
 page.cc:Click()
 shown = 0
 for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
-eq(shown, 2, "burst cooldowns and crowd control can be hidden")
+eq(shown, 3, "burst cooldowns and crowd control can be left out")
 page.offensive:Click()
 page.cc:Click()
+-- the monitoring page: one class at a time, every ability a switch
+local watch = page.pages.watch
+page.classPick("WARRIOR")
+local found
+for _, r in ipairs(watch.abilities) do if r:IsShown() and r.id == 97462 then found = r end end
+check(found ~= nil and found:GetChecked(), "the warrior's abilities are listed, Rallying Cry ticked")
+found:Click()
+check(PV.db.disabled[97462] == true, "unticked: not tracked")
+shown = 0
+for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
+eq(shown, 6, "and gone from the warrior's sample row")
+found:Click()
+check(PV.db.disabled[97462] == nil, "ticked again")
+page.trinket:Click()
+shown = 0
+for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
+eq(shown, 6, "without the trinket")
+page.trinket:Click()
+-- the side: party1's sample sits by the FrameSort frame; above it when asked
+local sample1 = PV.Display.Rows().party1
+check(sample1.__point[1] == "TOPLEFT" and sample1.__point[2] == fsFrame and sample1.__point[3] == "TOPRIGHT", "right of the frame by default")
+PV.db.side = "TOP"; PV.Refresh()
+check(sample1.__point[1] == "BOTTOMLEFT" and sample1.__point[3] == "TOPLEFT", "above the frame when asked")
+PV.db.side = "BOTTOM"; PV.Refresh()
+check(sample1.__point[1] == "TOPLEFT" and sample1.__point[3] == "BOTTOMLEFT", "below the frame when asked")
+PV.db.side = "RIGHT"; PV.Refresh()
+page.attach:Click()
+check(PV.db.attach == false and sample1.__point[2] == UIParent, "not attached: the row stays at its own place even with a frame there")
+page.unlock:Click()
+check(sample1.bg:IsShown(), "and can be dragged once unlocked")
+page.unlock:Click()
+page.attach:Click()
+check(PV.db.attach and sample1.__point[2] == fsFrame, "attached again: back by the frame")
 page.unlock:Click()
 check(not PV.Display.IsLocked() and sample.bg:IsShown(), "unlocked: the loose row shows its handle")
 main:Hide()

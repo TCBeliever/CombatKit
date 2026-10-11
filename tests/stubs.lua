@@ -79,7 +79,11 @@ end
 function IsControlKeyDown() return W.ctrl or false end
 function IsInGroup() return W.inGroup or false end
 -- W.role: the role the group assigned ("TANK" | "HEALER" | "DAMAGER"); none by default
-function UnitGroupRolesAssigned() return W.role or "NONE" end
+function UnitGroupRolesAssigned(unit)
+	local u = unit and W.units and W.units[unit]
+	if u and u.role then return u.role end
+	return W.role or "NONE"
+end
 function UnitCastingInfo() if W.casting then return "Casting" end end
 function UnitChannelInfo() return nil end
 -- ---------------------------------------------------------------------------
@@ -133,6 +137,7 @@ function UnitExists(unit) return W.units[unit] ~= nil end
 function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
 function UnitCanAssist(_, unit) return W.units[unit] ~= nil and W.units[unit].friendly == true end
+function UnitIsPlayer(unit) local u = W.units[unit]; return u ~= nil and not u.npc end
 function GetCursorPosition() return 500, 400 end
 -- Trinkets. W.gear[slot] = { pvp = bool, named = bool }: a PvP item's tooltip
 -- names the Gladiator set; a Gladiator item is named for it as well.
@@ -224,9 +229,14 @@ Enum = {
 	PvPMatchState = { Inactive = 0, Engaged = 3 },
 	LoadConfigResult = { Error = 0, NoChangesNecessary = 1, LoadInProgress = 2, Ready = 3 },
 }
+-- W.trinket[unit] = a duration object the game would hand out; W.trinketSpell[unit] = its spell
+W.trinket, W.trinketSpell = {}, {}
 C_PvP = {
 	IsWarModeDesired = function() return W.warMode end,
 	GetActiveMatchState = function() return W.matchState end,
+	GetArenaCrowdControlDuration = function(unit) return W.trinket[unit] end,
+	GetArenaCrowdControlInfo = function(unit) return W.trinketSpell[unit] end,
+	RequestCrowdControlSpell = function(unit) log("ccspell:" .. unit) end,
 }
 C_ChallengeMode = {
 	IsChallengeModeActive = function() return W.challengeActive end,

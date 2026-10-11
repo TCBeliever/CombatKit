@@ -29,7 +29,7 @@ ns.MODULES = {
 	{ name = "Loadout", default = true },
 	{ name = "Stats",   default = false },
 	{ name = "Range",   default = false },
-	{ name = "PvP",     default = false, beta = true },
+	{ name = "PvP",     default = false },
 	{ name = "Misc",    features = { "RightClick", "CombatAlert" } },
 }
 ns.MODULE_BY_NAME = {}
@@ -186,7 +186,8 @@ end
 --   CombatKitDB = {
 --     version  = 1,
 --     settings = { windowScale=, locale= ("enUS" | "zhTW"; absent = follow the game),
---                  theme= (a key of Skin.THEMES) },
+--                  theme= (a key of Skin.THEMES),
+--                  asked = { <module> = true: the landing asked about it } },
 --     hud      = { show = "always" | "never", scale=, locked=, point=, relPoint=, x=, y=,
 --                  bgAlpha= (0 = no background), border=, font= (file; absent = the game's), fontName=,
 --                  anchor = the corner the box grows away from ("TOPLEFT" ...) },
@@ -210,6 +211,7 @@ local function InitDB()
 			if db[section][k] == nil then db[section][k] = v end
 		end
 	end
+	db.settings.asked = db.settings.asked or {}
 	db.modules = db.modules or {}
 	for _, def in ipairs(ns.MODULES) do
 		if def.features then
@@ -285,12 +287,24 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 			if Wanted(def) then StartModule(def) end
 		end
 		ns.HUD.Refresh()
+		-- the first time, and whenever a module appears the player was never asked about
+		local pending, why = ns.PendingModules()
+		if #pending > 0 then ns.Landing.Show(pending, why) end
 	end
 end)
 
 SLASH_COMBATKIT1 = "/combatkit"
 SLASH_COMBATKIT2 = "/ck"
-SlashCmdList.COMBATKIT = function() ns.ToggleOptions() end
+SlashCmdList.COMBATKIT = function(msg)
+	if strtrim(msg or ""):lower() == "landing" then
+		-- to look at it: every module, as the first login shows them
+		local defs = {}
+		for _, def in ipairs(ns.MODULES) do if not def.features then defs[#defs + 1] = def end end
+		ns.Landing.Show(defs, "first")
+		return
+	end
+	ns.ToggleOptions()
+end
 
 function CombatKit_OnAddonCompartmentClick()
 	ns.ToggleOptions()

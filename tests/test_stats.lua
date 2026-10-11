@@ -112,7 +112,7 @@ end
 local listX = page.rows[1].up.__point[2]
 check(listX > page.english.__point[2] + page.english:GetWidth(), "the list is the right column, clear of the fields on the left")
 local listRight = listX + 18 + 2 + 18 + 10 + page.rows[1].check:GetWidth()
-check(listRight > CK.Options.RIGHT_W and listRight < CK.Options.PageWidth(), "in the room the tree leaves free on a single page, a margin from its edge")
+check(listRight < CK.Options.PageWidth(), "a margin from the page's right edge")
 
 -- English names on the HUD, whatever language the window is in
 check(not page.english:GetChecked(), "English names: off by default")

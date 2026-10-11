@@ -56,18 +56,57 @@ local function Visible(frame)
 	return ok and v == true
 end
 
--- the frame showing `unit`, and which addon draws it
+-- Does the frame show `unit`? By its unit token, or by GUID when the frame carries
+-- another token for the same player (a raid token in arena). Never UnitIsUnit: in
+-- arena that answers a secret, and a secret in a condition throws.
+local function Shows(frame, unit)
+	if not frame or not Visible(frame) then return false end
+	local u = UnitOf(frame)
+	if u == nil then return false end
+	if u == unit then return true end
+	if unit == "player" and u:match("^raid%d+$") then
+		return U.Plain(UnitIsUnit, u, "player") == true
+	end
+	if u:match("^raid%d+$") or u:match("^party%d$") then
+		local want = U.Plain(UnitGUID, unit)
+		return type(want) == "string" and U.Plain(UnitGUID, u) == want
+	end
+	return false
+end
+
+-- the frame showing `unit` on screen, and which addon draws it. The sample rows ask
+-- too: with the party frames shown (a group, or the frame addon's own test mode)
+-- they sit next to them, otherwise they stand on their own.
 function D.FindFrame(unit)
-	local function match(frame)
-		if not frame or not Visible(frame) then return false end
-		local u = UnitOf(frame)
-		return u == unit or (u ~= nil and UnitIsUnit(u, unit))
+	local function match(frame) return Shows(frame, unit) end
+	-- DandersFrames
+	if type(DandersFrames_GetPartyFrame) == "function" then
+		local index = tonumber(unit:match("^party(%d)$"))
+		local ok, f = pcall(DandersFrames_GetPartyFrame, index or 0)
+		if ok and match(f) then return f, "DandersFrames" end
 	end
 	if type(DandersFrames_GetAllFrames) == "function" then
 		local ok, frames = pcall(DandersFrames_GetAllFrames)
 		if ok and type(frames) == "table" then
 			for _, f in pairs(frames) do
 				if match(f) then return f, "DandersFrames" end
+			end
+		end
+	end
+	-- EllesmereUI: its lookup, then the buttons of its party and raid headers
+	local eui = EllesmereUI
+	if type(eui) == "table" and type(eui.GetUnitFrame) == "function" then
+		local ok, f = pcall(eui.GetUnitFrame, unit)
+		if ok and match(f) then return f, "EllesmereUI" end
+	end
+	for _, name in ipairs({ "ERFPartyHeader", "ERFFlatHeader", "ERFGroupHeader1" }) do
+		local header = _G[name]
+		if header and header.GetChildren then
+			local ok, children = pcall(function() return { header:GetChildren() } end)
+			if ok then
+				for _, f in ipairs(children) do
+					if match(f) then return f, "EllesmereUI" end
+				end
 			end
 		end
 	end
@@ -89,6 +128,7 @@ function D.FindFrame(unit)
 		local f = _G["CompactPartyFrameMember" .. i]
 		if match(f) then return f, "Blizzard" end
 		if PartyFrame and match(PartyFrame["MemberFrame" .. i]) then return PartyFrame["MemberFrame" .. i], "Blizzard" end
+		if match(_G["CompactRaidFrame" .. i]) then return _G["CompactRaidFrame" .. i], "Blizzard" end
 	end
 	if unit == "player" and match(PlayerFrame) then return PlayerFrame, "Blizzard" end
 	return nil
@@ -114,6 +154,7 @@ local function MakeLane(holder, ids)
 	local included = {}
 	for _, id in ipairs(ids) do included[id] = true end
 	local lane = { host = host, container = container }
+	lane.holder = holder
 	container:AddAuraSlot("glow", "HELPFUL", {
 		candidateFilters = { includeSpellIDs = included },
 		initializeFrame = function(button)
@@ -147,28 +188,50 @@ function D.PrepareGlow()
 	if laneFailed or not ns.db.glow then return end
 	if InCombatLockdown() then lanesPending = true return end
 	lanesPending = false
-	local wanted = {}
+	-- what the icons need now; a lane no longer needed is given a new filter before a new one is made
+	local wanted, need = {}, {}
 	for _, unit in ipairs(ns.Tracker.UNITS) do
 		for _, e in ipairs(ns.Tracker.Entries(unit)) do
 			for _, holder in ipairs(Holders(e)) do
 				if Present(holder) then
 					local key = unit .. ":" .. e.key .. ":" .. holder
 					wanted[key] = true
-					if not lanes[key] then
-						local ok, lane = pcall(MakeLane, holder, e.ability.auras)
-						if not ok then
-							laneFailed = true
-							U.Log("glow", holder, e.key, "lane failed: " .. tostring(lane))
-							return
-						end
-						lanes[key] = lane
-					end
+					if not lanes[key] then need[#need + 1] = { key = key, holder = holder, ids = e.ability.auras } end
 				end
 			end
 		end
 	end
+	local free = {}
 	for key, lane in pairs(lanes) do
-		if not wanted[key] then lane.host:Hide(); lane.icon = nil end
+		if not wanted[key] then
+			lane.host:Hide()
+			lane.icon = nil
+			free[lane.holder] = free[lane.holder] or {}
+			table.insert(free[lane.holder], key)
+		end
+	end
+	for _, n in ipairs(need) do
+		local reused = false
+		local spare = free[n.holder] and table.remove(free[n.holder])
+		if spare then
+			local lane = lanes[spare]
+			local included = {}
+			for _, id in ipairs(n.ids) do included[id] = true end
+			if pcall(lane.container.SetAuraSlotCandidateFilters, lane.container, "glow", { includeSpellIDs = included }) then
+				lanes[spare] = nil
+				lanes[n.key] = lane
+				reused = true
+			end
+		end
+		if not reused then
+			local ok, lane = pcall(MakeLane, n.holder, n.ids)
+			if not ok then
+				laneFailed = true
+				U.Log("glow", n.holder, nil, "lane failed: " .. tostring(lane))
+				return
+			end
+			lanes[n.key] = lane
+		end
 	end
 end
 
@@ -278,12 +341,20 @@ end
 -- Next to its frame when there is one, else where it was dragged to.
 local function Place(row)
 	local db = ns.db
-	local frame = (not testing) and D.FindFrame(row.unit) or nil
+	local frame, provider = nil, nil
+	if db.attach ~= false then frame, provider = D.FindFrame(row.unit) end
 	row.anchored = frame ~= nil
+	row.provider = provider
+	row.frameName = frame and (frame.GetName and frame:GetName()) or nil
 	row:ClearAllPoints()
 	if frame then
-		if db.side == "LEFT" then
+		local side = db.side
+		if side == "LEFT" then
 			row:SetPoint("TOPRIGHT", frame, "TOPLEFT", -db.offset, db.offsetY)
+		elseif side == "TOP" then
+			row:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", db.offsetY, db.offset)
+		elseif side == "BOTTOM" then
+			row:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", db.offsetY, -db.offset)
 		else
 			row:SetPoint("TOPLEFT", frame, "TOPRIGHT", db.offset, db.offsetY)
 		end
@@ -320,9 +391,47 @@ local function Countdown(seconds)
 	return tostring(math.ceil(seconds))
 end
 
+-- the trinket's icon and cooldown are the game's: C_PvP names the spell the teammate
+-- carries (medallion or racial) and holds a Duration the Cooldown frame can be fed
+local function PaintTrinket(b, e)
+	local db = ns.db
+	local spellID
+	if C_PvP and C_PvP.GetArenaCrowdControlInfo then
+		local ok, id = pcall(C_PvP.GetArenaCrowdControlInfo, e.unit)
+		if ok and type(id) == "number" and canaccessvalue(id) and id > 0 then spellID = id end
+	end
+	b.icon:SetTexture(C_Spell.GetSpellTexture(spellID or e.ability.id) or 134400)
+	local duration
+	if C_PvP and C_PvP.GetArenaCrowdControlDuration then
+		local ok, d = pcall(C_PvP.GetArenaCrowdControlDuration, e.unit)
+		if ok and d ~= nil then duration = d end
+	end
+	if duration ~= nil and b.cd.SetCooldownFromDurationObject then
+		local ok = pcall(b.cd.SetCooldownFromDurationObject, b.cd, duration)
+		if ok then
+			b.cd:Show()
+			b.cd:SetHideCountdownNumbers(not db.showTimer)   -- the game draws these: the time may be secret
+		else
+			b.cd:Hide()
+		end
+	else
+		b.cd:Clear()
+		b.cd:Hide()
+	end
+	b.cdStart = nil
+	b.icon:SetDesaturated(false)
+	b.icon:SetAlpha(1)
+	b.time:SetText("")
+	b.charges:Hide()
+	b.glow:Hide()
+	b.mark:Hide()
+end
+
 local function Paint(b, e, now)
 	local db = ns.db
 	local a = e.ability
+	if e.kind == "trinket" then return PaintTrinket(b, e) end
+	b.cd:SetHideCountdownNumbers(true)
 	b.icon:SetTexture(C_Spell.GetSpellTexture(a.id) or 134400)
 	local fontSize = db.fontSize or 12
 	if b.fontSize ~= fontSize then
@@ -370,27 +479,24 @@ end
 local function SampleEntries(unit)
 	local s = SAMPLE[unit]
 	local out = {}
+	if ns.db.showTrinket ~= false then
+		local t = ns.Tracker.TRINKET
+		out[#out + 1] = { ability = t, kind = "trinket", unit = unit, queue = {}, charges = 1, cd = t.cd }
+	end
 	for i, ability in ipairs(ns.Spells.For(s.class, s.spec)) do
-		local e = { ability = ability, kind = ability.kind, queue = {}, active = i == 1, uncertain = i == 2,
-			charges = ability.charges or 1, cd = ability.cd }
-		if i == 2 then e.queue[1] = GetTime() + ability.cd * 0.6 end
-		if i == 3 then e.unknown = true end
-		out[#out + 1] = e
+		if ns.Allowed(ability) then
+			local e = { ability = ability, kind = ability.kind, queue = {}, active = i == 1, uncertain = i == 2,
+				charges = ability.charges or 1, cd = ability.cd }
+			if i == 2 then e.queue[1] = GetTime() + ability.cd * 0.6 end
+			if i == 3 then e.unknown = true end
+			out[#out + 1] = e
+		end
 	end
 	return out
 end
 
 local function Entries(unit)
-	local list = testing and SampleEntries(unit) or ns.Tracker.Entries(unit)
-	if ns.db.showOffensive ~= false and ns.db.showCC ~= false then return list end
-	local out = {}
-	for _, e in ipairs(list) do
-		local role = e.ability.role
-		if (role ~= "offensive" or ns.db.showOffensive ~= false) and (role ~= "cc" or ns.db.showCC ~= false) then
-			out[#out + 1] = e
-		end
-	end
-	return out
+	return testing and SampleEntries(unit) or ns.Tracker.Entries(unit)
 end
 
 -- FrameSort moved the frames: the rows follow at the next paint
@@ -422,8 +528,8 @@ function D.Update(now, live)
 			for i, e in ipairs(list) do Paint(row.icons[i], e, now) end
 			local loose = unlocked and not row.anchored
 			row.bg:SetShown(loose)
-			row.label:SetShown(loose)
-			row.label:SetText(unit)
+			row.label:SetShown(loose or testing or unlocked)   -- unlocked: every row says whose it is
+			row.label:SetText(CK.L["PVP_ROW_" .. unit])
 			row:EnableMouse(loose)
 			row:Show()
 		end
@@ -447,7 +553,7 @@ end
 function D.SetLocked(locked)
 	unlocked = not locked
 	dirty = true
-	D.Update(GetTime(), ns.IsLive())
+	D.Update(GetTime(), ns.IsShowing())
 end
 
 function D.ResetPositions()
@@ -456,8 +562,26 @@ function D.ResetPositions()
 		r.point, r.relPoint, r.x, r.y = p.point, p.relPoint, p.x, p.y
 	end
 	dirty = true
-	D.Update(GetTime(), ns.IsLive())
+	D.Update(GetTime(), ns.IsShowing())
 end
 
 function D.Rows() return rows end
+
+-- for the snapshot: where each row is and what it is attached to
+function D.Describe()
+	local out = {}
+	for _, unit in ipairs(ns.Tracker.UNITS) do
+		local row = rows[unit]
+		if row and row:IsShown() then
+			local x, y = row:GetLeft(), row:GetTop()
+			local shown = 0
+			for _, b in ipairs(row.icons) do if b:IsShown() then shown = shown + 1 end end
+			out[#out + 1] = string.format("%s: %d icons, %s%s, at %s,%s", unit, shown,
+				row.anchored and ("attached to " .. tostring(row.provider) .. " " .. tostring(row.frameName)) or "loose",
+				row.anchored and (" side " .. tostring(ns.db.side)) or "",
+				tostring(x and math.floor(x + 0.5)), tostring(y and math.floor(y + 0.5)))
+		end
+	end
+	return out
+end
 function D.LanesPending() return lanesPending end
