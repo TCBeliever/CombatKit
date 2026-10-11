@@ -33,8 +33,6 @@ ns.defaults = {
 	offsetY   = 0,
 	showTimer = true,
 	glow      = true,
-	showOffensive = true,   -- burst cooldowns after the defensives
-	showCC    = true,       -- crowd control after the defensives
 	showTrinket = true,     -- the PvP trinket, first in the row (C_PvP knows its cooldown)
 	disabled  = {},         -- ability id -> true: not tracked (Monitoring page)
 	cooldowns = {},         -- ability id -> seconds set by hand (/ckpvp cd)
@@ -110,11 +108,7 @@ function ns.Stats() return ns.Tracker.stats end
 
 -- Is this ability tracked at all? The Monitoring page's role switches and per-ability list.
 function ns.Allowed(ability)
-	local db = ns.db
-	if db.disabled[ability.id] then return false end
-	if ability.role == "offensive" and db.showOffensive == false then return false end
-	if ability.role == "cc" and db.showCC == false then return false end
-	return true
+	return ns.db.disabled[ability.id] ~= true
 end
 
 -- the settings about what is tracked changed: entries again, the same timers kept

@@ -479,16 +479,18 @@ local sample = PV.Display.Rows().party2
 local shown = 0
 for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
 check(sample:IsShown() and shown == 7, "a sample row for the second teammate, an Arms warrior: trinket, two defensives, three crowd controls, Avatar")
+-- the monitoring page: one class at a time, every ability a switch, a category's box for all of them
+local watch = page.pages.watch
+page.classPick("WARRIOR")
 page.offensive:Click()
 page.cc:Click()
 shown = 0
 for _, b in ipairs(sample.icons) do if b:IsShown() then shown = shown + 1 end end
-eq(shown, 3, "burst cooldowns and crowd control can be left out")
+eq(shown, 3, "the warrior's burst cooldowns and crowd control unticked as categories: left out")
+check(PV.db.disabled[107574] and PV.db.disabled[107570] and not PV.db.disabled[118038], "by ability, the defensives untouched")
 page.offensive:Click()
 page.cc:Click()
--- the monitoring page: one class at a time, every ability a switch
-local watch = page.pages.watch
-page.classPick("WARRIOR")
+check(not PV.db.disabled[107574] and not PV.db.disabled[107570], "ticked again as categories")
 local found
 for _, r in ipairs(watch.abilities) do if r:IsShown() and r.id == 97462 then found = r end end
 check(found ~= nil and found:GetChecked(), "the warrior's abilities are listed, Rallying Cry ticked")

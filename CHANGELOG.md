@@ -35,7 +35,7 @@ First public release.
 
 - Settings: a *Theme* in Settings > General. *Tide* is the blue it always had; *Dusk*, in violet, is new. The window and the HUD take the colours at once.
 
-## 1.0.0
+## 1.0.0 (2026-10-12)
 
 - **PvP** (beta, off by default): your arena teammates' defensive cooldowns, externals, crowd control and burst cooldowns as icons next to their party frames (DandersFrames, FrameSort's sorted frames or the game's own; a loose row to drag when none is found). A cooldown starts when the buff the ability leaves is seen (a crowd control: its debuff on an enemy), through the game's own aura frames, and counts down the cooldown the teammate's inspected talents give it (a subset of talents is known; `/ckpvp cd` sets one by hand). An external is credited to the teammate who could have cast it: the player's own casts, who was crowd controlled and "it cannot be on the caster" settle it; still two: both icons share the estimate and show "?". A teammate who arrives mid-round shows "?" until a first use. Arena only; a new round resets everything. The glow while a buff is up is drawn by the game. When the client refuses the reads the module says so and shows nothing. Settings: icon size, spacing, font size, max per row, side, offset, remaining time, highlight, crowd control and burst cooldowns on or off, sample rows; `/ckpvp status | log | entries`, and `/ckpvp solo` to try the whole thing on yourself, anywhere, with no group.
 - Settings: the modules are listed down the left of the window, Settings at the bottom; a module with several pages has them as tabs across the top of its page.

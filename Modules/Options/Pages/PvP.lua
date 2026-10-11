@@ -1,9 +1,10 @@
 local CK = CombatKit
 local L, Skin, O = CK.L, CK.Skin, CK.Options
 
--- Settings of the PvP module (beta), two pages: the icons (how they look, where
--- the rows go, below a divider the debug corner), and Monitoring (what is
--- tracked: the trinket, the roles, and every ability of a class as a switch).
+-- Settings of the PvP module (beta), three pages: Display (how the icons look,
+-- where the rows go), Monitoring (what is tracked: the trinket, and every
+-- ability of a class as a switch, by category) and Debug (the tracker's state,
+-- solo mode).
 
 local X = O.FIELD_X + 20
 local PV   -- the module, set whenever the section is used
@@ -39,7 +40,7 @@ local function Retrack()
 end
 
 -- ---------------------------------------------------------------------------
--- The icons
+-- Display: the icons
 -- ---------------------------------------------------------------------------
 
 local function BuildIcons(p)
@@ -101,42 +102,10 @@ local function BuildIcons(p)
 	p.unlock:SetPoint("LEFT", p.test, "RIGHT", 16, 0)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() PV.Display.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
-
-	-- the debug corner, under a line with its name on it
-	y = -(Skin.SLIDER_H * 2 + 102)
-	local line = Skin.Fill(p, "ARTWORK", "border")
-	line:SetPoint("TOPLEFT", 0, y)
-	line:SetPoint("TOPRIGHT", 0, y)
-	line:SetHeight(1)
-	p.debugTitle = Skin.Label(p, "debug", nil, "dim")
-	p.debugTitle:SetPoint("TOP", p, "TOP", 0, y + 7)
-	p.debugTitle:SetDrawLayer("OVERLAY", 7)
-	local cover = Skin.Fill(p, "OVERLAY", "bg")
-	cover:SetPoint("TOPLEFT", p.debugTitle, "TOPLEFT", -6, 0)
-	cover:SetPoint("BOTTOMRIGHT", p.debugTitle, "BOTTOMRIGHT", 6, 0)
-
-	y = y - 24
-	Skin.Field(p, "Status", 0, y)
-	p.state = Skin.Label(p, "")
-	p.state:SetPoint("TOPLEFT", X, y)
-	p.stats = Skin.Label(p, "", nil, "dim")
-	p.stats:SetPoint("TOPLEFT", X, y - 16)
-	p.solo = Check("Solo mode", y - 44, function(checked)
-		PV.SetSolo(checked)
-		O.Refresh()
-	end)
-	Skin.Tooltip(p.solo, "Solo mode", "SOLO_TIP")
 end
 
 local function RefreshIcons(p)
 	local db = PV.db
-	local state, reason = PV.State()
-	local colour = (state == "unavailable" or state == "paused") and "bad" or (state == "scanning" and "ok" or "text")
-	local text = Skin.Text(colour, L["PVP_STATE_" .. state])
-	if reason then text = text .. " " .. Skin.Text("dim", reason) end
-	p.state:SetText(text)
-	local s = PV.Stats()
-	p.stats:SetText(string.format(L["PVP_STATS"], s.scans, s.positives, s.invalid))
 	p.iconSize:SetValue(db.iconSize)
 	p.spacing:SetValue(db.spacing)
 	p.fontSize:SetValue(db.fontSize)
@@ -151,35 +120,35 @@ local function RefreshIcons(p)
 	p.glow:SetChecked(db.glow)
 	p.test:SetChecked(PV.Display.IsTesting())
 	p.unlock:SetChecked(not PV.Display.IsLocked())
-	p.solo:SetChecked(PV.IsSolo())
 end
 
 -- ---------------------------------------------------------------------------
 -- Monitoring: what is tracked
 -- ---------------------------------------------------------------------------
 
-local ROW_H = 22
+local ROW_H = 20
+local CATEGORIES = { { "defensive", "Defensive" }, { "offensive", "Offensive cooldowns" }, { "cc", "Crowd control" } }
 
-local function AbilityLabel(a)
+local function SpellName(a)
 	local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(a.id)
 	if type(name) ~= "string" or not canaccessvalue(name) or name == "" then name = a.name end
-	local role = a.role == "cc" and L["Crowd control"] or (a.role == "offensive" and L["Offensive cooldowns"] or L["Defensive"])
-	return name .. "  " .. Skin.Text("dim", string.format("%s · %ds", role, a.cd))
+	return name
+end
+
+-- a check box with the spell's icon between the box and the name
+local function AbilityRow(parent, onChange)
+	local c = Skin.Checkbox(parent, "", onChange)
+	c.iconTex = c:CreateTexture(nil, "ARTWORK")
+	c.iconTex:SetSize(16, 16)
+	c.iconTex:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
+	c.iconTex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	c.label:ClearAllPoints()
+	c.label:SetPoint("LEFT", c.iconTex, "RIGHT", 6, 0)
+	return c
 end
 
 local function BuildWatch(p)
-	local function Check(key, x, y, onChange)
-		local c = CK.Bind(Skin.Checkbox(p, "", onChange), key)
-		c:SetPoint("TOPLEFT", x, y - 1)
-		return c
-	end
-	Skin.Field(p, "Track", 0, 0)
-	p.trinket = Check("PvP trinket", X, 0, function(checked) PV.db.showTrinket = checked; Retrack() end)
-	p.offensive = Check("Offensive cooldowns", X + 150, 0, function(checked) PV.db.showOffensive = checked; Retrack() end)
-	p.cc = Check("Crowd control", X + 330, 0, function(checked) PV.db.showCC = checked; Retrack() end)
-
-	-- one class at a time: its abilities, each a switch
-	Skin.Field(p, "Class", 0, -34)
+	Skin.Field(p, "Class", 0, 0)
 	p.class = CLASSES[1]
 	local _, own = UnitClass("player")
 	if type(own) == "string" then p.class = own end
@@ -187,37 +156,107 @@ local function BuildWatch(p)
 		p.class = item.value
 		O.Refresh()
 	end)
-	p.classDrop:SetPoint("TOPLEFT", X, -34)
-	Skin.Field(p, "Abilities", 0, -66)
+	p.classDrop:SetPoint("TOPLEFT", X, 0)
+	p.trinket = CK.Bind(Skin.Checkbox(p, "", function(checked) PV.db.showTrinket = checked; Retrack() end), "PvP trinket")
+	p.trinket:SetPoint("LEFT", p.classDrop, "RIGHT", 16, 0)
+
+	-- a category's own box ticks or unticks everything under it, for the class shown
+	p.headers = {}
+	for _, cat in ipairs(CATEGORIES) do
+		local role = cat[1]
+		local h = CK.Bind(Skin.Checkbox(p, "", function(checked)
+			for _, a in ipairs(PV.Spells.BY_CLASS[p.class] or {}) do
+				if a.role == role then
+					if checked then PV.db.disabled[a.id] = nil else PV.db.disabled[a.id] = true end
+				end
+			end
+			Retrack()
+		end), cat[2])
+		h.role = role
+		p.headers[role] = h
+	end
+	p.offensive, p.cc, p.defensive = p.headers.offensive, p.headers.cc, p.headers.defensive
 	p.abilities = {}
 end
 
 local function RefreshWatch(p)
 	local db = PV.db
 	p.trinket:SetChecked(db.showTrinket ~= false)
-	p.offensive:SetChecked(db.showOffensive ~= false)
-	p.cc:SetChecked(db.showCC ~= false)
 	p.classDrop:SetValueText(ClassName(p.class))
 	local list = PV.Spells.BY_CLASS[p.class] or {}
-	local half = math.ceil(#list / 2)
-	for i, a in ipairs(list) do
-		local c = p.abilities[i]
-		if not c then
-			c = Skin.Checkbox(p, "", function(checked)
-				if checked then db.disabled[c.id] = nil else db.disabled[c.id] = true end
-				Retrack()
-			end)
-			p.abilities[i] = c
+	local y, used = -34, 0
+	for _, cat in ipairs(CATEGORIES) do
+		local role = cat[1]
+		local header = p.headers[role]
+		local any, all = false, true
+		for _, a in ipairs(list) do
+			if a.role == role then
+				any = true
+				if db.disabled[a.id] then all = false end
+			end
 		end
-		c.id = a.id
-		c:SetLabel(AbilityLabel(a))
-		c:SetChecked(not db.disabled[a.id])
-		c:ClearAllPoints()
-		local col, line = (i > half) and 1 or 0, (i > half) and (i - half - 1) or (i - 1)
-		c:SetPoint("TOPLEFT", X + col * 300, -66 - line * ROW_H)
-		c:Show()
+		header:SetShown(any)
+		if any then
+			header:ClearAllPoints()
+			header:SetPoint("TOPLEFT", 0, y)
+			header:SetChecked(all)
+			y = y - ROW_H
+			for _, a in ipairs(list) do
+				if a.role == role then
+					used = used + 1
+					local c = p.abilities[used]
+					if not c then
+						c = AbilityRow(p, function(checked)
+							if checked then db.disabled[c.id] = nil else db.disabled[c.id] = true end
+							Retrack()
+						end)
+						p.abilities[used] = c
+					end
+					c.id = a.id
+					c.iconTex:SetTexture(C_Spell.GetSpellTexture(a.id) or 134400)
+					c:SetLabel(SpellName(a))
+					c:SetWidth(c:GetWidth() + 22)   -- the icon between the box and the name
+					c:SetChecked(not db.disabled[a.id])
+					c:ClearAllPoints()
+					c:SetPoint("TOPLEFT", 24, y)
+					c:Show()
+					y = y - ROW_H
+				end
+			end
+		end
 	end
-	for i = #list + 1, #p.abilities do p.abilities[i]:Hide() end
+	for i = used + 1, #p.abilities do p.abilities[i]:Hide() end
+end
+
+-- ---------------------------------------------------------------------------
+-- Debug
+-- ---------------------------------------------------------------------------
+
+local function BuildDebug(p)
+	Skin.Field(p, "Status", 0, 0)
+	p.state = Skin.Label(p, "")
+	p.state:SetPoint("TOPLEFT", X, 0)
+	p.stats = Skin.Label(p, "", nil, "dim")
+	p.stats:SetPoint("TOPLEFT", X, -16)
+	p.solo = CK.Bind(Skin.Checkbox(p, "", function(checked)
+		PV.SetSolo(checked)
+		O.Refresh()
+	end), "Solo mode")
+	p.solo:SetPoint("TOPLEFT", X, -45)
+	Skin.Tooltip(p.solo, "Solo mode", "SOLO_TIP")
+	p.hint = Skin.Label(p, "/ckpvp status | log | entries | cd <spellID> <seconds> | scan | solo", nil, "dim")
+	p.hint:SetPoint("TOPLEFT", X, -76)
+end
+
+local function RefreshDebug(p)
+	local state, reason = PV.State()
+	local colour = (state == "unavailable" or state == "paused") and "bad" or (state == "scanning" and "ok" or "text")
+	local text = Skin.Text(colour, L["PVP_STATE_" .. state])
+	if reason then text = text .. " " .. Skin.Text("dim", reason) end
+	p.state:SetText(text)
+	local s = PV.Stats()
+	p.stats:SetText(string.format(L["PVP_STATS"], s.scans, s.positives, s.invalid))
+	p.solo:SetChecked(PV.IsSolo())
 end
 
 -- ---------------------------------------------------------------------------
@@ -230,34 +269,38 @@ O.AddSection({
 	order = 35,
 	tab = function() return L["MOD_PvP"] end,
 	GetNodes = function()
-		return { { key = "pvp", label = L["MOD_PvP"] }, { key = "watch", label = L["Monitoring"] } }
+		return { { key = "pvp", label = L["Display"] }, { key = "watch", label = L["Monitoring"] },
+			{ key = "debug", label = L["PAGE_debug"] } }
 	end,
 	GetHeader = function(node)
 		if node == "watch" then return L["Monitoring"], nil end
+		if node == "debug" then return L["PAGE_debug"], nil end
 		return "arena party CD " .. Skin.Text("accent", "beta"), L["MODDESC_PvP"]
 	end,
 	Build = function(body)
 		PV = CK.modules.PvP
 		body.pages = {}
-		for _, key in ipairs({ "pvp", "watch" }) do
+		for _, key in ipairs({ "pvp", "watch", "debug" }) do
 			local page = CreateFrame("Frame", nil, body)
 			page:SetAllPoints()
 			body.pages[key] = page
 		end
 		BuildIcons(body.pages.pvp)
 		BuildWatch(body.pages.watch)
+		BuildDebug(body.pages.debug)
 		-- the controls by name on the body too, whichever page holds them (the tests look there)
 		for _, key in ipairs({ "iconSize", "fontSize", "spacing", "maxPerRow", "offsetX", "offsetY", "side", "attach",
-			"timer", "glow", "test", "unlock", "state", "stats", "solo" }) do body[key] = body.pages.pvp[key] end
-		for _, key in ipairs({ "trinket", "offensive", "cc", "classDrop" }) do body[key] = body.pages.watch[key] end
+			"timer", "glow", "test", "unlock" }) do body[key] = body.pages.pvp[key] end
+		for _, key in ipairs({ "trinket", "offensive", "cc", "defensive", "classDrop" }) do body[key] = body.pages.watch[key] end
+		for _, key in ipairs({ "state", "stats", "solo" }) do body[key] = body.pages.debug[key] end
 		body.classPick = function(token) body.pages.watch.class = token; O.Refresh() end
 	end,
 	Refresh = function(node, body)
 		PV = CK.modules.PvP
 		for key, page in pairs(body.pages) do page:SetShown(key == node) end
-		if node == "watch" then RefreshWatch(body.pages.watch) else RefreshIcons(body.pages.pvp) end
-		-- the lists read by the tests stay current whichever page is up
-		if node ~= "watch" then RefreshWatch(body.pages.watch) end
+		RefreshIcons(body.pages.pvp)
+		RefreshWatch(body.pages.watch)
+		RefreshDebug(body.pages.debug)
 	end,
 	OnWindowHide = function()
 		local module = CK.modules.PvP
