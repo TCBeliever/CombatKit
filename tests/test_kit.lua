@@ -23,7 +23,7 @@ local CK = T.boot()
 check(loaded("CombatKit"), "the core is loaded")
 check(loaded("CombatKit_Loadout"), "Loadout is on by default, so it is loaded at login")
 check(not loaded("CombatKit_Options"), "the settings window is not loaded until it is opened")
-for _, name in ipairs({ "CombatKit_Stats", "CombatKit_Range", "CombatKit_Misc" }) do
+for _, name in ipairs({ "CombatKit_Stats", "CombatKit_Range", "CombatKit_PvP", "CombatKit_Misc" }) do
 	check(not loaded(name), name .. " is off by default, so it is never loaded")
 end
 eq(CK.GetModuleState("Loadout"), "on", "state: on")

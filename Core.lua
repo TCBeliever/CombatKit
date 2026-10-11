@@ -29,6 +29,7 @@ ns.MODULES = {
 	{ name = "Loadout", default = true },
 	{ name = "Stats",   default = false },
 	{ name = "Range",   default = false },
+	{ name = "PvP",     default = false, beta = true },
 	{ name = "Misc",    features = { "RightClick", "CombatAlert" } },
 }
 ns.MODULE_BY_NAME = {}

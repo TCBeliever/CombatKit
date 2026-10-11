@@ -38,9 +38,34 @@ function IsInInstance() return W.inInstance, W.instanceType end
 function GetInstanceInfo() return "X", W.instanceType, W.difficultyID end
 function InCombatLockdown() return W.combat end
 function GetTime() return W.now end
+function date(fmt) return "2026-01-01 00:00:00" end
 function UnitName() return "Tester" end
 function GetRealmName() return "Realm" end
-function UnitClass() return "Demon Hunter", "DEMONHUNTER" end
+-- W.units[unit].class / .guid: another unit's class and GUID; the player is a demon hunter
+function UnitClass(unit)
+	local u = W.units and W.units[unit]
+	if u and u.class then return u.class, u.class end
+	return "Demon Hunter", "DEMONHUNTER"
+end
+function UnitGUID(unit)
+	local u = W.units and W.units[unit]
+	if unit == "player" then return "Player-0-ME" end
+	return u and (u.guid or ("Player-0-" .. unit)) or nil
+end
+-- inspecting: the spec a unit has (W.units[unit].spec) is handed out when asked
+function CanInspect(unit) return W.units[unit] ~= nil end
+function NotifyInspect(unit) W.inspected = unit; log("inspect:" .. unit) end
+-- W.playerLoc = { { locType=, priority= } }: the player's own crowd control; W.loc[unit] = { { priority= } }
+W.playerLoc, W.loc = {}, {}
+C_LossOfControl = {
+	GetActiveLossOfControlDataCount = function() return #W.playerLoc end,
+	GetActiveLossOfControlData = function(i) return W.playerLoc[i] end,
+	GetActiveLossOfControlDataCountByUnit = function(unit) return #(W.loc[unit] or {}) end,
+	GetActiveLossOfControlDataByUnit = function(unit, i) return (W.loc[unit] or {})[i] end,
+}
+Constants = { TraitConsts = { INSPECT_TRAIT_CONFIG_ID = -1 } }
+function ClearInspectPlayer() end
+function GetInspectSpecialization(unit) local u = W.units[unit]; return u and u.spec or 0 end
 function GetMaxBattlefieldID() return 3 end
 function GetBattlefieldStatus(i)
 	local b = W.battlefield[i]
@@ -64,6 +89,7 @@ function UnitChannelInfo() return nil end
 -- ---------------------------------------------------------------------------
 T.SECRET = setmetatable({}, { __tostring = function() return "<secret>" end })
 function issecretvalue(v) return v == T.SECRET end
+function canaccessvalue(v) return v ~= T.SECRET end
 W.stats = { crit = 23.44, spellcrit = 30.04, rangedcrit = 10, haste = 18.02, mastery = 41.5, versRating = 6.5, versFlat = 1.5,
 	leech = 3.2, avoidance = 1.1, dodge = 12.34, parry = 8, block = 0, primary = 12345, ilvl = 702.56, armor = 9876 }
 local function Stat(name, second)
@@ -106,6 +132,7 @@ STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 function UnitExists(unit) return W.units[unit] ~= nil end
 function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
+function UnitCanAssist(_, unit) return W.units[unit] ~= nil and W.units[unit].friendly == true end
 function GetCursorPosition() return 500, 400 end
 -- Trinkets. W.gear[slot] = { pvp = bool, named = bool }: a PvP item's tooltip
 -- names the Gladiator set; a Gladiator item is named for it as well.
@@ -133,6 +160,7 @@ C_Item = {
 }
 C_Spell = {
 	GetOverrideSpell = function() return nil end,
+	GetSpellTexture = function(id) return "icon" .. id end,
 	GetSpellInfo = function(id)
 		for _, s in ipairs(W.spells) do if s[1] == id then return { spellID = id, maxRange = s[2] } end end
 	end,
@@ -205,6 +233,9 @@ C_ChallengeMode = {
 	HasSlottedKeystone = function() return W.keystone end,
 }
 C_SpecializationInfo = {
+	-- W.units[u].pvp = { talentID, ... }: the slots of an inspected unit; a talent's spell has its own id
+	GetInspectSelectedPvpTalent = function(unit, i) local u = W.units[unit]; return u and u.pvp and u.pvp[i] or 0 end,
+	GetPvpTalentInfo = function(id) return { spellID = id } end,
 	GetSpecialization = function() return W.specIndex end,
 	GetSpecializationInfo = function(i)
 		local s = W.specs[i]
@@ -226,8 +257,24 @@ C_ClassTalents = {
 	UpdateLastSelectedSavedConfigID = function(specID, id) W.activeConfig[specID] = id end,
 	GetActiveConfigID = function() return W.activeTraitConfig end,
 }
+-- the inspect config (-1) holds the talents of the unit last inspected: W.units[u].talents = { spellID = rank }
+local function inspectTalents()
+	local u = W.inspected and W.units[W.inspected]
+	local list = {}
+	for spellID, rank in pairs(u and u.talents or {}) do list[#list + 1] = { spellID, rank } end
+	table.sort(list, function(a, b) return a[1] < b[1] end)
+	return list
+end
 C_Traits = {
-	GetConfigInfo = function(id) return W.configNames[id] and { name = W.configNames[id] } or nil end,
+	GetConfigInfo = function(id)
+		if id == -1 then return { treeIDs = { 1 } } end
+		return W.configNames[id] and { name = W.configNames[id] } or nil
+	end,
+	HasValidInspectData = function() return W.inspectValid ~= false end,
+	GetTreeNodes = function() local ids = {} for i = 1, #inspectTalents() do ids[i] = i end return ids end,
+	GetNodeInfo = function(_, nodeID) local t = inspectTalents()[nodeID]; return t and { activeEntry = { rank = t[2], entryID = nodeID } } end,
+	GetEntryInfo = function(_, entryID) return { definitionID = entryID } end,
+	GetDefinitionInfo = function(defID) local t = inspectTalents()[defID]; return t and { spellID = t[1] } end,
 }
 C_EquipmentSet = {
 	GetEquipmentSetIDs = function() local t = {} for id in pairs(W.sets) do t[#t + 1] = id end table.sort(t) return t end,
@@ -268,6 +315,8 @@ local function Mock(kind, name)
 		UnregisterEvent = function(self, e) self.__events[e] = nil end,
 		UnregisterAllEvents = function(self) self.__events = {} end,
 		IsShown = function(self) return self.__shown end,
+		IsVisible = function(self) return self.__shown end,
+		Clear = function(self) self.__cleared = true end,
 		Show = function(self)
 			local was = self.__shown
 			self.__shown = true
@@ -299,6 +348,7 @@ local function Mock(kind, name)
 		CreateAnimation = function() return Mock("Animation") end,
 		GetStringWidth = function(self) if self.__secret then return T.SECRET end return 60 end,
 		GetWidth = function() return 120 end,
+		GetFrameLevel = function() return 1 end,
 		GetEffectiveScale = function(self) return self.__scale or 1 end,
 		-- what SetPoint last set; after a drag the game picks a point of its own
 		GetPoint = function(self)
@@ -371,6 +421,7 @@ T.ADDONS = {
 	CombatKit_Loadout = "Modules/Loadout/",
 	CombatKit_Stats   = "Modules/Stats/",
 	CombatKit_Range   = "Modules/Range/",
+	CombatKit_PvP     = "Modules/PvP/",
 	CombatKit_Misc    = "Modules/Misc/",
 	CombatKit_Options = "Modules/Options/",
 }

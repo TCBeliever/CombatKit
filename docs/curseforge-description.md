@@ -3,6 +3,7 @@ CombatKit is a modular combat addon with a small resource footprint. It bundles:
 - **Loadout**: spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
+- **PvP** (beta): your arena teammates' defensive and burst cooldowns next to their party frames.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No libraries, no texture or font files. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
@@ -18,6 +19,10 @@ Crit, haste, mastery, versatility, leech, avoidance, movement speed, primary sta
 **Range**
 
 Distance to your target and focus as colour-coded numbers, and one at the cursor for your mouseover. Works in combat, for friendly and hostile units. Font, update rate, which units to show, hide at melee range, drag to place.
+
+**PvP** (beta)
+
+Arena only. Your teammates' defensive cooldowns, externals, crowd control and burst cooldowns as icons next to their party frames (DandersFrames, FrameSort or the game's own). The game draws the buffs into hidden aura frames and the module only learns yes or no, then counts down the cooldown the teammate's inspected talents give it. Externals are credited by who could have cast them; a new round resets everything; when the client refuses the reads, the module says so and shows nothing.
 
 **Extras**
 

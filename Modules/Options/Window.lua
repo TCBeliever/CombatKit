@@ -260,6 +260,8 @@ local function ShowOff(def)
 		text = Skin.Text("bad", L["STATE_missing"])
 	elseif state == "stale" then
 		text = Skin.Text("warn", L["STATE_stale"])
+	elseif CK.MODULE_BY_NAME[def.module].beta then
+		text = Skin.Text("accent", L["STATE_beta"])
 	end
 	off.state:SetText(text)
 	off:Show()
@@ -507,6 +509,8 @@ local function RefreshModules(page)
 			text = Skin.Text("bad", L["STATE_missing"])
 		elseif state == "stale" and not on then
 			text = Skin.Text("warn", L["STATE_stale"])
+		elseif CK.MODULE_BY_NAME[row.module].beta then
+			text = Skin.Text("accent", L["STATE_beta"])
 		end
 		row.state:SetText(text)
 	end

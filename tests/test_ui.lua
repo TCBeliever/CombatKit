@@ -357,7 +357,7 @@ check(rows[3].value.__point[1] == "TOPRIGHT", "gear too")
 go("kit", "modules")
 local mods = main.bodies.kit.pages.modules
 check(mods.Loadout.check:GetChecked() and not mods.Stats.check:GetChecked(), "the page shows what is on")
-check(rawget(mods, "Range") ~= nil and rawget(mods, "RightClick") == nil and rawget(mods, "CombatAlert") == nil and #mods.rows == 3,
+check(rawget(mods, "Range") ~= nil and rawget(mods, "RightClick") == nil and rawget(mods, "CombatAlert") == nil and #mods.rows == 4,
 	"modules only: the small features are switched in their own tab")
 check(not mods.reload:IsShown(), "no reload note while nothing was switched off")
 mods.Loadout.check:Click()
