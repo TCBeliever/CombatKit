@@ -29,6 +29,9 @@ CK.AddLocale("enUS", {
 	["PVP_ROW_party1"] = "Teammate 1",
 	["PVP_ROW_party2"] = "Teammate 2",
 	["PVP_ROW_player"] = "You (solo)",
+	["PVP_ROW_REAL"]     = "%s: %s",              -- the row's name, the teammate's name
+	["PVP_ROW_BORROWED"] = "%s (by your frame)",  -- a sample with nobody behind it, in a group
+	["PVP_ROW_LOOSE"]    = "%s (not attached)",   -- a sample with no frame to sit by
 	["PvP trinket"]    = "PvP trinket",
 })
 
@@ -59,5 +62,8 @@ CK.AddLocale("zhTW", {
 	["PVP_ROW_party1"] = "隊友 1",
 	["PVP_ROW_party2"] = "隊友 2",
 	["PVP_ROW_player"] = "你（單人模式）",
+	["PVP_ROW_REAL"]     = "%s：%s",
+	["PVP_ROW_BORROWED"] = "%s（借用你的框架）",
+	["PVP_ROW_LOOSE"]    = "%s（未貼齊）",
 	["PvP trinket"]    = "PvP 飾品",
 })

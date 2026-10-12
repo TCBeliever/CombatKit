@@ -335,7 +335,11 @@ driver:SetScript("OnEvent", function(_, event, arg1, _, arg3)
 		return
 	end
 	if event == "INSPECT_READY" then
-		if inArena and ns.Inspect.OnReady(arg1, ns.Tracker.roster, ns.Tracker.UNITS) then SyncRoster() end
+		if inArena then
+			if ns.Inspect.OnReady(arg1, ns.Tracker.roster, ns.Tracker.UNITS) then SyncRoster() end
+		else
+			ns.Display.OnInspectReady(arg1)   -- a sample row's teammate, while testing
+		end
 		return
 	end
 	if event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
@@ -366,6 +370,8 @@ driver:SetScript("OnEvent", function(_, event, arg1, _, arg3)
 		if inArena then
 			SyncRoster()
 			ns.Display.Dirty()
+		elseif ns.Display.IsTesting() then
+			ns.Refresh()   -- the sample rows follow who is in the group
 		end
 	end
 	if event == "PLAYER_REGEN_ENABLED" and inArena then
@@ -389,6 +395,8 @@ local function OnUpdate(_, elapsed)
 			ns.Inspect.Tick(GetTime(), ns.Tracker.roster, ns.Tracker.UNITS)
 			if ns.Display.LanesPending() and not InCombatLockdown() then ns.Display.PrepareGlow() end
 			ns.Display.Dirty()   -- frames may have appeared
+		elseif ns.Display.IsTesting() then
+			ns.Display.TestTick(GetTime())
 		end
 	end
 	if tickAcc < ns.TICK then return end

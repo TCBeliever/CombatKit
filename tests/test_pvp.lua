@@ -473,6 +473,7 @@ local page = main.bodies.PvP
 check(page.state:GetText():find(CK.L["PVP_STATE_idle"], 1, true), "the page shows the state")
 eq(page.fontSize:GetText(), "12", "font size shown")
 eq(page.maxPerRow:GetText(), "8", "max per row shown")
+W.units.party1, W.units.party2, W.inGroup = nil, nil, false   -- nobody there: the stand-ins
 page.test:Click()
 check(PV.Display.IsTesting(), "sample rows on")
 local sample = PV.Display.Rows().party2
@@ -523,6 +524,35 @@ page.attach:Click()
 check(PV.db.attach and sample1.__point[2] == fsFrame, "attached again: back by the frame")
 page.unlock:Click()
 check(not PV.Display.IsLocked() and sample.bg:IsShown(), "unlocked: the loose row shows its handle")
+page.unlock:Click()
+-- a real teammate: his class, and after the inspect his spec and talents; a sample with nobody behind it
+-- sits by the player's own frame when in a group
+check(sample.label:GetText():find(CK.L["PVP_ROW_LOOSE"]:format(CK.L["PVP_ROW_party2"]), 1, true), "no frame, no group: the label says the row is loose")
+W.units.party1 = { friendly = true, class = "DEMONHUNTER", guid = "G6", spec = 577, talents = {}, pvp = {} }
+W.inGroup = true
+local meFrame = T.Mock("Frame", "CompactPartyFrameMember1"); meFrame.unit = "player"; _G.CompactPartyFrameMember1 = meFrame
+W.inspected = nil
+PV.Inspect.Reset()
+W.now = W.now + 5   -- past the inspector's throttle
+PV.Display.TestTick(W.now)   -- the once-a-second pass while testing
+sample1 = PV.Display.Rows().party1
+shown = 0
+for _, b in ipairs(sample1.icons) do if b:IsShown() then shown = shown + 1 end end
+eq(shown, #PV.Spells.For("DEMONHUNTER") + 1, "a teammate who is there: his class, every spec until he is inspected")
+check(sample1.label:GetText():find(CK.L["PVP_ROW_REAL"]:format(CK.L["PVP_ROW_party1"], "Tester"), 1, true), "and his name on the label")
+eq(W.inspected, "party1", "he is asked for his spec and talents")
+fire("INSPECT_READY", "G6")
+shown = 0
+for _, b in ipairs(sample1.icons) do if b:IsShown() then shown = shown + 1 end end
+eq(shown, #PV.Spells.For("DEMONHUNTER", 577) + 1, "inspected: his spec's abilities")
+check(sample.__point[2] == meFrame and sample.label:GetText():find(CK.L["PVP_ROW_BORROWED"]:format(CK.L["PVP_ROW_party2"]), 1, true),
+	"the second sample, nobody behind it: by the player's own frame, and says so")
+check(sample1.__point[2] == fsFrame, "the first still by its teammate's frame")
+W.inGroup = false
+PV.Refresh()
+check(sample.__point[2] == UIParent, "out of the group: loose again")
+_G.CompactPartyFrameMember1 = nil; W.units.party1 = nil
+PV.Refresh()
 main:Hide()
 check(PV.Display.IsLocked() and not PV.Display.IsTesting(), "closing the window locks and ends the samples")
 check(not sample:IsShown(), "samples gone")

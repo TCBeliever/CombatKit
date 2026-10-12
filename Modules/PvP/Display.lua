@@ -9,7 +9,10 @@ local U = ns.Util
 -- The frame is looked for in DandersFrames first (its frames carry `unit`),
 -- then in the game's own compact party frames. Without one the row stands on
 -- its own at a saved position and can be dragged while the settings have
--- "Unlock" ticked. A test mode shows sample rows outside arena.
+-- "Unlock" ticked. A test mode shows sample rows outside arena: a teammate who
+-- is really there lends his class, spec and talents (he is inspected, as in
+-- arena); a missing one is a stand-in, by the player's own frame when in a
+-- group, so a pair of rows can be seen next to a pair of frames.
 --
 -- The glow while a buff is up is drawn by the game: an AuraContainer slot over
 -- the icon, filtered to the ability's buffs on the unit that carries them,
@@ -28,10 +31,13 @@ local lanes = {}       -- key "unit:id:holder" -> { host=, container=, icon= }
 local laneFailed = false
 local lanesPending = false
 
-local SAMPLE = {
+local SAMPLE = {   -- stand-ins for the sample rows, when nobody is there
 	party1 = { class = "PRIEST", spec = 256 },
 	party2 = { class = "WARRIOR", spec = 71 },
 }
+local TEST_UNITS = { "party1", "party2" }
+local testRoster = {}   -- unit -> { guid= }: the real teammates of a test, for the inspector
+local sampleNames = {}  -- unit -> the real teammate's name, for the row's label
 
 function D.Dirty() dirty = true end
 function D.IsTesting() return testing end
@@ -338,11 +344,28 @@ local function NewRow(unit)
 	return f
 end
 
--- Next to its frame when there is one, else where it was dragged to.
+-- Is this frame already what another shown row hangs on?
+local function Taken(frame, row)
+	for _, other in pairs(rows) do
+		if other ~= row and other:IsShown() and other.frame == frame then return true end
+	end
+	return false
+end
+
+-- Next to its frame when there is one, else where it was dragged to. A sample
+-- row for a teammate who is not there sits by the player's own frame when in
+-- a group: two rows by two frames is what the test is for.
 local function Place(row)
 	local db = ns.db
 	local frame, provider = nil, nil
 	if db.attach ~= false then frame, provider = D.FindFrame(row.unit) end
+	row.borrowed = false
+	if not frame and testing and db.attach ~= false and U.Plain(IsInGroup) == true
+		and U.Plain(UnitExists, row.unit) ~= true then
+		local f, p = D.FindFrame("player")
+		if f and not Taken(f, row) then frame, provider, row.borrowed = f, p, true end
+	end
+	row.frame = frame
 	row.anchored = frame ~= nil
 	row.provider = provider
 	row.frameName = frame and (frame.GetName and frame:GetName()) or nil
@@ -476,18 +499,40 @@ end
 -- Update
 -- ---------------------------------------------------------------------------
 
+-- Who a sample row stands for: the teammate who is really there (his class,
+-- the spec and talents the inspector read, his role while the spec is not
+-- known), else the stand-in.
+local function SampleSource(unit)
+	if U.Plain(UnitExists, unit) == true and U.Plain(UnitCanAssist, "player", unit) ~= false then
+		local ok, _, class = pcall(UnitClass, unit)
+		local guid = U.Plain(UnitGUID, unit)
+		if ok and canaccessvalue(class) and type(class) == "string" and type(guid) == "string"
+			and not (ns.IsNpc and ns.IsNpc(unit, guid)) then
+			local info = ns.Inspect.InfoFor(guid)
+			local name = U.Plain(UnitName, unit)
+			return { class = class, spec = info and info.spec or nil, info = info, guid = guid,
+				role = U.Plain(UnitGroupRolesAssigned, unit),
+				name = type(name) == "string" and canaccessvalue(name) and name or nil, real = true }
+		end
+	end
+	return SAMPLE[unit]
+end
+
 local function SampleEntries(unit)
-	local s = SAMPLE[unit]
+	local s = SampleSource(unit)
+	testRoster[unit] = s.real and { guid = s.guid } or nil
+	sampleNames[unit] = s.real and s.name or nil
 	local out = {}
 	if ns.db.showTrinket ~= false then
 		local t = ns.Tracker.TRINKET
 		out[#out + 1] = { ability = t, kind = "trinket", unit = unit, queue = {}, charges = 1, cd = t.cd }
 	end
-	for i, ability in ipairs(ns.Spells.For(s.class, s.spec)) do
+	for i, ability in ipairs(ns.Spells.For(s.class, s.spec, s.role)) do
 		if ns.Allowed(ability) then
+			local r = ns.Cooldowns.Resolve(ability, s.info, ns.db.cooldowns)
 			local e = { ability = ability, kind = ability.kind, queue = {}, active = i == 1, uncertain = i == 2,
-				charges = ability.charges or 1, cd = ability.cd }
-			if i == 2 then e.queue[1] = GetTime() + ability.cd * 0.6 end
+				charges = r.charges, cd = r.cd }
+			if i == 2 then e.queue[1] = GetTime() + r.cd * 0.6 end
 			if i == 3 then e.unknown = true end
 			out[#out + 1] = e
 		end
@@ -511,10 +556,20 @@ function D.HookFrameSort()
 end
 function D.FrameSortHooked() return hooked end
 
+-- "Teammate 1", with the real teammate's name in a test, and where the row
+-- went when it could not go by its own frame.
+local function RowLabel(row)
+	local text = CK.L["PVP_ROW_" .. row.unit]
+	if testing and sampleNames[row.unit] then text = string.format(CK.L["PVP_ROW_REAL"], text, sampleNames[row.unit]) end
+	if testing and row.borrowed then return string.format(CK.L["PVP_ROW_BORROWED"], text) end
+	if testing and not row.anchored then return string.format(CK.L["PVP_ROW_LOOSE"], text) end
+	return text
+end
+
 -- rows come and go with the roster; icons are repainted every call
 function D.Update(now, live)
 	now = now or GetTime()
-	local units = testing and { "party1", "party2" } or ns.Tracker.UNITS
+	local units = testing and TEST_UNITS or ns.Tracker.UNITS
 	for _, unit in ipairs(units) do
 		local list = (live or testing) and Entries(unit) or {}
 		local row = rows[unit]
@@ -529,7 +584,7 @@ function D.Update(now, live)
 			local loose = unlocked and not row.anchored
 			row.bg:SetShown(loose)
 			row.label:SetShown(loose or testing or unlocked)   -- unlocked: every row says whose it is
-			row.label:SetText(CK.L["PVP_ROW_" .. unit])
+			row.label:SetText(RowLabel(row))
 			row:EnableMouse(loose)
 			row:Show()
 		end
@@ -547,7 +602,34 @@ end
 function D.SetTesting(on)
 	testing = on and true or false
 	dirty = true
-	if testing then D.Update(GetTime(), false) else ns.Refresh() end
+	testRoster, sampleNames = {}, {}
+	if testing then
+		D.Update(GetTime(), false)
+		ns.Inspect.Tick(GetTime(), testRoster, TEST_UNITS)   -- a real teammate: his spec and talents
+	else
+		ns.Refresh()
+	end
+end
+
+-- Once a second while testing: the group and the frames may have changed,
+-- and a teammate still waits to be inspected.
+function D.TestTick(now)
+	if not testing then return end
+	dirty = true
+	D.Update(now, false)
+	ns.Inspect.Tick(now, testRoster, TEST_UNITS)
+end
+
+-- INSPECT_READY while testing: a sample row's teammate was read
+function D.OnInspectReady(guid)
+	if not testing then return nil end
+	local hit = ns.Inspect.OnReady(guid, testRoster, TEST_UNITS)
+	if hit then
+		dirty = true
+		D.Update(GetTime(), false)
+		ns.Inspect.Tick(GetTime(), testRoster, TEST_UNITS)   -- the next one
+	end
+	return hit
 end
 
 function D.SetLocked(locked)

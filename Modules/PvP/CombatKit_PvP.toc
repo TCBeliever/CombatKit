@@ -3,13 +3,13 @@
 ## Notes: CombatKit module (beta). Your arena teammates' defensive cooldowns next to their party frames. Loaded by CombatKit when the module is on.
 ## Notes-zhTW: CombatKit 模組（beta）。競技場隊友的減傷技能冷卻，顯示在隊伍框架旁。模組啟用時由 CombatKit 載入。
 ## Author: Venser
-## Version: 1.0.0
+## Version: 1.0.1
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## OptionalDeps: Blizzard_AuraContainer, DandersFrames
 ## SavedVariables: CombatKitPvPDB
 ## Category: venMOD
-## X-License: MIT
+## X-License: All Rights Reserved: you are free to fork and modify on GitHub, please ask about anything else.
 
 Locales.lua
 Util.lua

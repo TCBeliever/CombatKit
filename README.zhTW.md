@@ -86,4 +86,4 @@
 
 ## 授權
 
-MIT
+保留所有權利，見 [LICENSE](LICENSE)。可以在 GitHub 上 fork 與修改；其他用途請先詢問。
