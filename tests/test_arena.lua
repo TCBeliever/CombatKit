@@ -182,8 +182,44 @@ eq(TR.Get("party1").spells[22812].cd, 50, "two uses 50 s apart: the cooldown is 
 local _, ra = state("party1", 22812, 1558)
 eq(ra, 1600, "and the display follows")
 
+-- what must not correct the estimate
+W.units.player = { friendly = true, class = "DEMONHUNTER", guid = "Player-0-ME" }
+W.units.party1 = { friendly = true, class = "DEMONHUNTER", guid = "Player-1-DH" }
+W.units.party2 = { friendly = true, class = "MAGE", guid = "Player-1-MAGE" }
+fire("GROUP_ROSTER_UPDATE")
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+-- an area buff: allies walk in and out of Darkness for 8 s; one use, no correction
+shown("party2", 196718, 1700)
+shown("player", 196718, 1703)
+hidden("player", 196718, 1705)
+shown("player", 196718, 1706)
+eq(#TR.Get("party1").spells[196718].uses, 1, "allies walking in and out of an area buff: one use")
+eq(TR.Get("party1").spells[196718].cd, 300, "and the estimate untouched")
+shown("party2", 196718, 1720)
+eq(#TR.Get("party1").spells[196718].uses, 2, "a sighting after the effect has run: another use")
+eq(TR.Get("party1").spells[196718].cd, 300, "which still corrects nothing")
+-- a talent may add a charge: two close uses are two charges, not a shorter cooldown
+shown("party1", 198589, 1800); hidden("party1", 198589, 1810)
+shown("party1", 198589, 1830); hidden("party1", 198589, 1840)
+eq(TR.Get("party1").spells[198589].cd, 60, "Blur twice in 30 s: a second charge, the estimate stays")
+-- a reset can bring an ability back: Ice Block twice says nothing about its cooldown
+shown("party2", 45438, 1900); hidden("party2", 45438, 1910)
+shown("party2", 45438, 1930); hidden("party2", 45438, 1940)
+eq(TR.Get("party2").spells[45438].cd, 240, "Ice Block twice: the estimate stays")
+-- two of a class: a use that may be either's corrects neither
+W.units.party2 = { friendly = true, class = "DEMONHUNTER", guid = "Player-1-DH2" }
+fire("GROUP_ROSTER_UPDATE")
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+shown("player", 196718, 2000)
+shown("player", 196718, 2020)
+check(TR.Get("party1").spells[196718].ambiguous and TR.Get("party2").spells[196718].ambiguous, "either demon hunter's Darkness")
+eq(TR.Get("party1").spells[196718].cd, 300, "neither estimate is touched")
+eq(TR.Get("party2").spells[196718].cd, 300, "neither estimate is touched, the other one")
+
 -- ---------------------------------------------------------------- the self-test
 W.units.player = { friendly = true, class = "DEMONHUNTER", guid = "Player-0-ME" }
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-3-DRUID" }
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-3-PRIEST" }
 fire("GROUP_ROSTER_UPDATE")
 W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
 W.now = 2000
@@ -278,6 +314,19 @@ check(not fake.started, "leaving stops the backend")
 check(TR.Get("party1") == nil, "and clears the teammates")
 AR.UI.Refresh()
 check(not AR.UI.Rows().party1:IsShown(), "no row outside")
+
+-- the test switch: sample rows out here, with one icon of each look
+SlashCmdList.COMBATKIT("")
+main.tabs.Arena:Click()
+page.test:Click()
+check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
+check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
+local sample = AR.UI.Rows().player
+check(sample.icons[1].border[1]:IsShown() and sample.icons[3].mark:IsShown(), "one active, one unknown among the samples")
+main:Hide()
+check(not AR.IsTesting(), "closing the window ends the test")
+AR.UI.Refresh()
+check(not AR.UI.Rows().player:IsShown(), "and the rows are gone again")
 
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("Arena", false)

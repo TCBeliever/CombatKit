@@ -25,6 +25,7 @@ ns.UI = UI
 
 local rows = {}
 local locked = true
+local testing = false   -- sample rows on screen wherever you are, to see the look
 local dirty = true
 local UNITS = { "player", "party1", "party2" }
 
@@ -302,21 +303,23 @@ local function Draw(icon, e, at)
 	end
 end
 
--- a row of sample icons: the player's own class, every ability ready
-local function DrawSample(row, grow)
+-- a row of sample icons: the player's own class, one of each look: the
+-- first with its buff up, the second cooling with the estimate dot, the
+-- third unknown, the rest ready
+local function DrawSample(row, grow, at)
 	local _, class = UnitClass("player")
 	local defs = ns.SpellsFor(class, ns.db.externals)
 	Layout(row, #defs, grow)
 	for i, def in ipairs(defs) do
 		local icon = row.icons[i]
 		icon.tex:SetTexture(C_Spell.GetSpellTexture(def.id))
-		icon.tex:SetDesaturated(false)
-		icon.tex:SetAlpha(1)
+		icon.tex:SetDesaturated(i == 2 or i == 3)
+		icon.tex:SetAlpha(i == 3 and 0.6 or 1)
 		SetActive(icon, i == 1)
-		icon.mark:Hide()
-		icon.amb:Hide()
-		icon.dot:Hide()
-		icon.cd:Clear()
+		icon.mark:SetShown(i == 3)
+		icon.amb:SetShown(i == 2 and def.kind == "external")
+		icon.dot:SetShown(i == 2)
+		if i == 2 then icon.cd:SetCooldown(at - 12, def.cd) else icon.cd:Clear() end
 		if def.charges > 1 then icon.count:SetText(def.charges) icon.count:Show() else icon.count:Hide() end
 	end
 end
@@ -329,11 +332,11 @@ function UI.Refresh(at)
 	dirty = false
 	for _, unit in ipairs(UNITS) do
 		local row = Row(unit)
-		if not locked then
+		if not locked or testing then
 			local grow = Place(row)
-			DrawSample(row, grow)
+			DrawSample(row, grow, at)
 			row.label:SetText(L["ARENA_" .. unit])
-			row.bg:SetShown(row.anchor == nil)
+			row.bg:SetShown(not locked and row.anchor == nil)
 			row.warn:Hide()
 			row:SetAlpha(1)
 			row:Show()
@@ -358,6 +361,13 @@ function UI.RefreshIfDirty(at)
 end
 
 function UI.IsLocked() return locked end
+function UI.IsTesting() return testing end
+
+-- sample rows on screen, in the world as in an arena, until switched off
+function UI.SetTest(on)
+	testing = on and true or false
+	UI.Refresh()
+end
 
 -- unlocked: every row shows sample icons and a label; a loose one can be dragged
 function UI.SetLocked(state)

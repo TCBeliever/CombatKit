@@ -150,13 +150,22 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 	end
 end)
 
+-- the rows redraw when the tracker says something changed, and once a second
+-- anyway: a cooldown that ran out changes a state without a word
+local sinceFull = 0
 local function OnUpdate(_, elapsed)
 	acc = acc + elapsed
+	sinceFull = sinceFull + elapsed
 	if acc < 0.2 then return end
 	acc = 0
 	local at = GetTime()
 	if inArena then Tracker.SelfTestCheck(at) end
-	if inArena or not ns.UI.IsLocked() then ns.UI.Refresh(at) else ns.UI.RefreshIfDirty(at) end
+	if sinceFull >= 1 or not ns.UI.IsLocked() or ns.UI.IsTesting() then
+		sinceFull = 0
+		ns.UI.Refresh(at)
+	else
+		ns.UI.RefreshIfDirty(at)
+	end
 end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
@@ -207,6 +216,7 @@ function ns.OnDisable()
 	end
 	Tracker.Clear()
 	ns.UI.SetLocked(true)
+	ns.UI.SetTest(false)
 	ns.UI.Hide()
 end
 
@@ -221,4 +231,6 @@ end
 
 function ns.IsLocked() return ns.UI.IsLocked() end
 function ns.SetLocked(state) ns.UI.SetLocked(state) end
+function ns.IsTesting() return ns.UI.IsTesting() end
+function ns.SetTest(on) ns.UI.SetTest(on) end
 function ns.ResetPositions() ns.UI.ResetPositions() end

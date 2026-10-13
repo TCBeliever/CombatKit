@@ -157,12 +157,27 @@ local function Settle(e, at)
 	e.uses = kept
 end
 
-local function AddUse(e, at)
+-- a sighting within this long of the last use is that use seen again: an
+-- area buff lands on whoever walks into it for as long as it lasts
+local function SameUseWindow(def)
+	if def.area then return (def.lasts or 10) + 1 end
+	return SAME_USE_WINDOW
+end
+
+-- may two close uses of this ability prove the estimate too long? Only when
+-- the use is surely this teammate's and nothing but the cooldown can bring
+-- the ability back: one charge, no talent for another, no reset, not an area
+-- effect walked into twice
+local function CanCorrect(e, trusted)
+	local d = e.def
+	return trusted and d.charges == 1 and not d.extraCharge and not d.noLearn and not d.area
+end
+
+local function AddUse(e, at, trusted)
 	Settle(e, at)
 	local last = e.uses[#e.uses]
-	if last and at - last < SAME_USE_WINDOW then return false end   -- the same use seen again (an area buff)
-	-- a single charge used again before the estimate said it could: the estimate was too long
-	if e.def.charges == 1 and last and at - last < e.cd then
+	if last and at - last < SameUseWindow(e.def) then return false end
+	if last and at - last < e.cd and CanCorrect(e, trusted) then
 		e.cd = at - last
 		e.uses = {}
 	end
@@ -224,7 +239,7 @@ local function Candidates(def, holder, at)
 end
 
 local function Use(t, e, at, holder, ambiguous)
-	if not AddUse(e, at) then return end
+	if not AddUse(e, at, not ambiguous) then return end
 	e.ambiguous = ambiguous or false
 	Notify("use", t, e)
 end
@@ -282,7 +297,7 @@ function Tracker.Expired(unit, spellID, at)
 			local known = durations[spellID]
 			if not known or length < known - 0.25 then
 				durations[spellID] = length
-			elseif length > known + 0.5 and e.def.charges > 1 then
+			elseif length > known + 0.5 and e.def.charges > 1 and not e.def.area then
 				Use(t, e, at - known, unit, e.ambiguous)   -- the refresh, dated by the full length
 			end
 		end

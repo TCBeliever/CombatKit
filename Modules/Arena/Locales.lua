@@ -21,6 +21,7 @@ CK.AddLocale("enUS", {
 	["Grow"] = "Grow",
 	["Grow: right"] = "Grow: right",
 	["Grow: down"] = "Grow: down",
+	["Show sample rows"] = "Show sample rows",
 	["Arena: detection failed, the rows are dimmed."] = "Arena: detection failed, the rows are dimmed.",
 	["Arena: detection is back."] = "Arena: detection is back.",
 })
@@ -46,6 +47,7 @@ CK.AddLocale("zhTW", {
 	["Grow"] = "排列方向",
 	["Grow: right"] = "向右",
 	["Grow: down"] = "向下",
+	["Show sample rows"] = "顯示範例圖示列",
 	["Arena: detection failed, the rows are dimmed."] = "Arena：偵測失效，圖示列變暗。",
 	["Arena: detection is back."] = "Arena：偵測恢復。",
 })

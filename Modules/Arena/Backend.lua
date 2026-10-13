@@ -21,23 +21,28 @@ local ADDON, ns = ...
 -- AsIntendedCDs; this is an independent design of it.
 --
 -- One slot per (unit, spell), kept for the session, filters changed only when
--- the roster changes; the probes are fed once per frame from the root's
--- OnUpdate. The root sits under WorldFrame so hiding the UI never stops the
--- containers from updating. An edge in the frame right after our own filter
--- change, or right after a roster change, is reported as `initial`: the buff
--- was already there as we began to look.
+-- the roster changes. The probes of a unit are fed on the frame after that
+-- unit's UNIT_AURA (the container redraws in its own OnUpdate, after the
+-- event), after our own filter changes, and once a second regardless; the
+-- Cooldown's own timer takes care of OnCooldownDone. The root sits under
+-- WorldFrame so hiding the UI never stops the containers from updating. An
+-- edge in the frames right after our own filter change, or right after a
+-- roster change, is reported as `initial`: the buff was already there as we
+-- began to look.
 -- ===========================================================================
 
 local Backend = {}
 ns.Backend = Backend
 
 local root
-local containers = {}   -- unit -> { unit, frame, slots = { [spellID] = slot }, failed }
+local containers = {}   -- unit -> { unit, frame, slots = { [spellID] = slot }, failed, feedAt }
 local callbacks
 local frameNo = 0
+local sinceSweep = 0
 local NONE = { [1] = true }        -- a filter that matches nothing
 local SETTLE_FRAMES = 2            -- edges this soon after our own change are the state we found, not an event
 local SETTLE_SECONDS = 0.1
+local SWEEP_SECONDS = 1            -- every probe is fed this often whatever happens
 
 local function Root()
 	if root then return root end
@@ -45,9 +50,17 @@ local function Root()
 	root:SetSize(1, 1)
 	root:SetPoint("BOTTOMLEFT")
 	root:SetAlpha(0)
-	root:SetScript("OnUpdate", function()
+	root:SetScript("OnUpdate", function(_, elapsed)
 		frameNo = frameNo + 1
-		Backend.Feed()
+		sinceSweep = sinceSweep + (elapsed or 0)
+		local all = sinceSweep >= SWEEP_SECONDS
+		if all then sinceSweep = 0 end
+		for _, c in pairs(containers) do
+			if all or (c.feedAt and c.feedAt <= frameNo) then
+				c.feedAt = nil
+				Backend.Feed(c)
+			end
+		end
 	end)
 	return root
 end
@@ -71,6 +84,10 @@ local function Container(unit)
 	pcall(frame.SetUnit, frame, unit)
 	pcall(frame.Show, frame)
 	c = { unit = unit, frame = frame, slots = {} }
+	-- the unit's UNIT_AURA: its probes are fed on the next frame
+	c.events = CreateFrame("Frame")
+	pcall(c.events.RegisterUnitEvent, c.events, "UNIT_AURA", unit)
+	c.events:SetScript("OnEvent", function() c.feedAt = frameNo + 1 end)
 	containers[unit] = c
 	return c
 end
@@ -79,8 +96,9 @@ local function Filter(def)
 	return { includeSpellIDs = { [def.aura] = true, [def.id] = true }, maxDuration = 600 }
 end
 
-local function Touch(slot)
+local function Touch(c, slot)
 	slot.changedFrame, slot.changedAt = frameNo, GetTime()
+	c.feedAt = frameNo + 1
 end
 
 local function Edge(c, slot, what)
@@ -155,34 +173,33 @@ function Backend.SetWatch(unit, defs, roster)
 	for id, slot in pairs(c.slots) do
 		if not want[id] and slot.watching then
 			slot.watching = false
-			Touch(slot)
+			Touch(c, slot)
 			SetFilter(c, slot, { includeSpellIDs = NONE, maxDuration = 600 })
 		end
 	end
 	for id, def in pairs(want) do
 		local slot = c.slots[id]
-		local fresh = slot == nil
+		local new = slot == nil
 		slot = Slot(c, def)
 		if not slot.failed then
 			if not slot.watching then
 				slot.watching = true
-				Touch(slot)
-				if not fresh then SetFilter(c, slot, Filter(def)) end
+				Touch(c, slot)
+				if not new then SetFilter(c, slot, Filter(def)) end
 			elseif roster then
-				Touch(slot)
+				Touch(c, slot)
 			end
 		end
 	end
 	return c.frame ~= nil
 end
 
-function Backend.Feed()
-	for _, c in pairs(containers) do
-		for _, slot in pairs(c.slots) do
-			if slot.watching and slot.handle and slot.probe and not slot.failed then
-				local ok = pcall(slot.probe.SetCooldownFromDurationObject, slot.probe, slot.handle, true)
-				if not ok then slot.failed = "feed refused" end
-			end
+-- every watched probe of one container, from the Duration handle
+function Backend.Feed(c)
+	for _, slot in pairs(c.slots) do
+		if slot.watching and slot.handle and slot.probe and not slot.failed then
+			local ok = pcall(slot.probe.SetCooldownFromDurationObject, slot.probe, slot.handle, true)
+			if not ok then slot.failed = "feed refused" end
 		end
 	end
 end

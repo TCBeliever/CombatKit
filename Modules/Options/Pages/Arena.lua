@@ -79,6 +79,14 @@ local function Build(p)
 	p.unlock:SetPoint("TOPLEFT", X, -357)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() AR.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
+
+	-- sample rows on screen right here, to see the look by the party frames or at the loose positions
+	Skin.Field(p, "Test", 0, -388)
+	p.test = CK.Bind(Skin.Checkbox(p, "", function(checked)
+		AR.SetTest(checked)
+		O.Refresh()
+	end), "Show sample rows")
+	p.test:SetPoint("TOPLEFT", X, -389)
 end
 
 local function Refresh(p)
@@ -98,6 +106,7 @@ local function Refresh(p)
 		if g[1] == db.grow then p.grow:SetValueText(L[g[2]]) end
 	end
 	p.unlock:SetChecked(not AR.IsLocked())
+	p.test:SetChecked(AR.IsTesting())
 end
 
 O.AddSection({
@@ -112,5 +121,6 @@ O.AddSection({
 	OnWindowHide = function()
 		local module = CK.modules.Arena
 		if module and not module.IsLocked() then module.SetLocked(true) end
+		if module and module.IsTesting() then module.SetTest(false) end
 	end,
 })
