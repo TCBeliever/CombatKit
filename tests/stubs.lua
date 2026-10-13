@@ -253,9 +253,68 @@ C_ClassTalents = {
 	UpdateLastSelectedSavedConfigID = function(specID, id) W.activeConfig[specID] = id end,
 	GetActiveConfigID = function() return W.activeTraitConfig end,
 }
+-- Talents. W.traits[configID] = { nodes = { { entries = { { spell = id, desc = "..." or { [rank] = "..." } }, ... },
+-- taken = entryIndex or nil, rank = n, subTree = id or nil, subTreeActive = bool } } }; the tree's ID is the
+-- config's; node IDs are the indices, entry IDs (configID + 10) * 1000 + nodeIndex * 10 + entryIndex, unique
+-- across configs as in the game. Config -1 is the inspected one.
+local function traitNode(configID, nodeID)
+	local cfg = W.traits and W.traits[configID]
+	return cfg and cfg.nodes[nodeID]
+end
+local function traitEntryID(configID, nodeID, i) return (configID + 10) * 1000 + nodeID * 10 + i end
+local function traitEntry(entryID)
+	local configID = math.floor(entryID / 1000) - 10
+	local node = traitNode(configID, math.floor((entryID % 1000) / 10))
+	local entry = node and node.entries[entryID % 10]
+	if entry then return entry, node end
+end
 C_Traits = {
-	GetConfigInfo = function(id) return W.configNames[id] and { name = W.configNames[id] } or nil end,
+	GetConfigInfo = function(id)
+		if not W.configNames[id] and not (W.traits and W.traits[id]) then return nil end
+		return { name = W.configNames[id] or ("config" .. id), treeIDs = (W.traits and W.traits[id]) and { id } or {} }
+	end,
+	GetTreeNodes = function(treeID)
+		local cfg = W.traits and W.traits[treeID]
+		local ids = {}
+		for i = 1, cfg and #cfg.nodes or 0 do ids[i] = i end
+		return ids
+	end,
+	GetNodeInfo = function(configID, nodeID)
+		local node = traitNode(configID, nodeID)
+		if not node then return nil end
+		local entryIDs = {}
+		for i = 1, #node.entries do entryIDs[i] = traitEntryID(configID, nodeID, i) end
+		return { ID = nodeID, entryIDs = entryIDs, ranksPurchased = node.taken and (node.rank or 1) or 0,
+			activeEntry = node.taken and { entryID = traitEntryID(configID, nodeID, node.taken), rank = node.rank or 1 } or nil,
+			subTreeID = node.subTree, subTreeActive = node.subTreeActive }
+	end,
+	GetEntryInfo = function(configID, entryID) return traitEntry(entryID) and { definitionID = entryID } or nil end,
+	GetDefinitionInfo = function(definitionID)
+		local entry = traitEntry(definitionID)
+		return entry and { spellID = entry.spell, overrideDescription = entry.override } or nil
+	end,
 }
+-- the talent's tooltip at a rank: its name, then the text for that rank
+C_TooltipInfo.GetTraitEntry = function(entryID, rank)
+	local entry = traitEntry(entryID)
+	if not entry then return nil end
+	local desc = type(entry.desc) == "table" and entry.desc[rank or 1] or entry.desc
+	return { lines = { { leftText = "spell" .. tostring(entry.spell) }, { leftText = desc or "" } } }
+end
+-- W.descriptions[spellID]: a spell's text; "" until "loaded" (the test fills it in)
+C_Spell.GetSpellDescription = function(id) return W.descriptions and W.descriptions[id] or "" end
+C_Spell.RequestLoadSpellData = function(id) log("loadspell:" .. id) end
+-- Inspect: the request is logged, the test answers with INSPECT_READY; W.inspectable[unit] = false refuses
+Constants = Constants or {}
+Constants.TraitConsts = { INSPECT_TRAIT_CONFIG_ID = -1 }
+function CanInspect(unit) return not (W.inspectable and W.inspectable[unit] == false) end
+function NotifyInspect(unit) log("inspect:" .. unit) end
+function ClearInspectPlayer() log("inspect-clear") end
+C_SpecializationInfo.GetInspectSpecialization = function(unit) return W.units[unit] and W.units[unit].spec or 0 end
+-- W.units[unit].pvp = { talentID, ... }; W.pvpTalents the player's; W.pvpTalentInfo[talentID] = { spellID = }
+C_SpecializationInfo.GetInspectSelectedPvpTalent = function(unit, i) return W.units[unit] and W.units[unit].pvp and W.units[unit].pvp[i] end
+C_SpecializationInfo.GetAllSelectedPvpTalentIDs = function() return W.pvpTalents or {} end
+C_SpecializationInfo.GetPvpTalentInfo = function(id) return W.pvpTalentInfo and W.pvpTalentInfo[id] end
 C_EquipmentSet = {
 	GetEquipmentSetIDs = function() local t = {} for id in pairs(W.sets) do t[#t + 1] = id end table.sort(t) return t end,
 	GetEquipmentSetInfo = function(id)

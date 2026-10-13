@@ -383,6 +383,125 @@ check(not AR.IsTesting(), "closing the window ends the test")
 AR.UI.Refresh()
 check(not AR.UI.Rows().player:IsShown(), "and the rows are gone again")
 
+-- ---------------------------------------------------------------- inspect: the talents' say
+-- reading a talent's text
+local IN = AR.Inspect
+local byName = { spell22812 = AR.SPELL_BY_ID[22812], spell61336 = AR.SPELL_BY_ID[61336] }
+local function parsed(text) return IN.Parse(text, byName) end
+local r = parsed("Reduces the cooldown of spell22812 by 15 sec.")
+check(#r == 1 and r[1].def.id == 22812 and r[1].sec == -15, "English: seconds off a named ability")
+r = parsed("spell22812's cooldown is reduced by 20%.")
+check(#r == 1 and r[1].pct == 20 and r[1].sec == 0, "English: a share off")
+r = parsed("使spell22812的冷卻時間縮短30秒。")
+check(#r == 1 and r[1].sec == -30, "Chinese: seconds off")
+r = parsed("spell61336的冷卻時間縮短20%。")
+check(#r == 1 and r[1].def.id == 61336 and r[1].pct == 20, "Chinese: a share off")
+r = parsed("spell61336 gains an additional charge.")
+check(#r == 1 and r[1].charges == 1, "an extra charge")
+r = parsed("spell61336額外獲得1次充能。")
+check(#r == 1 and r[1].charges == 1, "an extra charge, Chinese")
+check(#parsed("Each time you take damage, the cooldown of spell22812 is reduced by 1 sec.") == 0, "a one-off reduction is not a modifier")
+check(#parsed("Reduces the cooldown of spell999 by 10 sec.") == 0, "an ability not watched: nothing")
+r = parsed("Reduces the cooldown of spell22812 and spell61336 by 10 sec.")
+check(#r == 2 and r[1].sec == -10 and r[2].sec == -10, "two named abilities in one sentence: both")
+r = parsed("Increases the cooldown of spell22812 by 30 sec.")
+check(#r == 1 and r[1].sec == 30, "a longer cooldown")
+r = parsed("Reduces the cooldown of spell22812 by 1.5 sec. Deals 10 damage.")
+check(#r == 1 and r[1].sec == -1.5, "a decimal survives the sentence cut")
+r = parsed("Reduces the cooldown of spell22812 by 1 min.")
+check(#r == 1 and r[1].sec == -60, "minutes")
+
+-- into an arena again: a druid with talents to read, the player with their own
+W.inInstance, W.instanceType = true, "arena"
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-2-DRUID", spec = 105, pvp = { 9001 } }
+W.units.party2 = nil
+W.traits = {
+	[-1] = { nodes = {
+		{ entries = { { spell = 90001, desc = { "Reduces the cooldown of spell22812 by 10 sec.", "Reduces the cooldown of spell22812 by 20 sec." } } }, taken = 1, rank = 2 },
+		{ entries = { { spell = 102342 }, { spell = 90002, desc = "Something else." } }, taken = 2 },   -- Ironbark offered, the other choice taken
+		{ entries = { { spell = 90003, desc = "spell61336 gains an additional charge." } }, taken = 1 },
+		{ entries = { { spell = 90004, desc = "Reduces the cooldown of spell61336 by 50%." } }, taken = 1, subTree = 7, subTreeActive = false },  -- a hero tree not chosen
+		{ entries = { { spell = 90005, desc = "Reduces the cooldown of spell61336 by 60 sec." } } },   -- not taken
+	} },
+	[5] = { nodes = { { entries = { { spell = 90020, desc = "Reduces the cooldown of spell198589 by 15 sec." } }, taken = 1 } } },
+}
+W.activeTraitConfig = 5
+W.pvpTalentInfo = { [9001] = { spellID = 90010 } }
+W.descriptions = { [90010] = "" }   -- the PvP talent's text is not loaded yet
+W.pvpTalents = {}
+W.inspectable = nil
+W.now = 5000
+fire("PLAYER_ENTERING_WORLD")
+check(fake.started and TR.Get("party1") and TR.Get("party1").spells[22812].estimate, "entering: the druid's cooldowns are estimates")
+IN.Tick(5000)
+local me = TR.Get("player").spells[198589]
+check(me.cd == 45 and not me.estimate, "the player's own talents are read at once: Blur 45 s, no longer an estimate")
+check(W.log[#W.log] == "inspect:party1", "the druid is asked for")
+check(TR.Get("party1").spells[22812].cd == 60, "nothing changes before the answer")
+fire("INSPECT_READY", "Player-2-DRUID")
+local d = TR.Get("party1")
+check(d.spells[22812].cd == 40 and not d.spells[22812].estimate, "the answer: Barkskin 40 s (rank 2 of the talent)")
+check(d.spells[61336].charges == 3, "Survival Instincts: a third charge")
+check(d.spells[61336].cd == 180, "the hero tree not chosen and the talent not taken count for nothing")
+local function inRow(unit, id)
+	for _, x in ipairs(TR.Get(unit).order) do if x == id then return true end end
+	return false
+end
+check(not inRow("party1", 102342) and d.spells[102342], "Ironbark offered and not taken: out of the row, still known")
+check(IN.Pending("party1"), "the PvP talent's text was missing: asked again later")
+check(W.log[#W.log - 1] == "loadspell:90010" or W.log[#W.log] == "loadspell:90010" or (function()
+	for i = #W.log, 1, -1 do if W.log[i] == "loadspell:90010" then return true end end end)(), "and its text requested")
+IN.Tick(5002)
+check(W.log[#W.log] ~= "inspect:party1", "not before the retry interval")
+W.descriptions[90010] = "Reduces the cooldown of spell22812 by 5 sec."
+IN.Tick(5006)
+check(W.log[#W.log] == "inspect:party1", "asked again after the interval")
+fire("INSPECT_READY", "Player-2-DRUID")
+check(d.spells[22812].cd == 35 and not IN.Pending("party1"), "the PvP talent read: Barkskin 35 s, inspect done")
+AR.UI.Refresh(5006)
+local row = AR.UI.Rows().party1
+eq(#d.order, #AR.SpellsFor("DRUID", true) - 1, "one icon fewer in the row")
+check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")
+
+-- the buff proves the ability after all
+TR.SetAvailable("party1", 22812, false)
+check(not inRow("party1", 22812), "Barkskin taken out")
+shown("party1", 22812, 5010)
+check(inRow("party1", 22812), "Barkskin seen on the druid: back in the row")
+shown("party1", 102342, 5012)
+check(inRow("party1", 102342), "Ironbark seen on the only druid: back as well")
+
+-- a teammate out of inspect range: asked only once in range
+W.inspectable = { party2 = false }
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-2-PRIEST" }
+fire("GROUP_ROSTER_UPDATE")
+IN.Tick(5020)
+check(W.log[#W.log] ~= "inspect:party2", "out of range: no request")
+W.inspectable.party2 = true
+IN.Tick(5026)
+check(W.log[#W.log] == "inspect:party2", "in range: asked")
+IN.Tick(5027)
+check(W.log[#W.log] == "inspect:party2", "one request in flight at a time")
+IN.Tick(5031)   -- no answer in time
+IN.Tick(5032)
+check(W.log[#W.log] == "inspect:party2" and #W.log > 0, "a lost answer: asked again after the interval")
+fire("INSPECT_READY", "Player-2-PRIEST")
+check(not IN.Pending("party2"), "answered (nothing to read in the tree: done)")
+
+-- a new round asks everyone again; giving up after enough tries
+W.matchState = 3
+fire("PVP_MATCH_STATE_CHANGED")
+check(IN.Pending("party1") and IN.Pending("party2"), "the round start wants every teammate's talents again")
+local t0 = 5100
+for i = 1, 30 do IN.Tick(t0); t0 = t0 + 6 end   -- a lost answer costs two ticks: the timeout, then the next request
+check(not IN.Pending("party1"), "never answered: given up")
+SlashCmdList.CKPARTYCD("")
+check(T.said("inspect party1") and T.said("gave up"), "/ckpartycd tells what inspect found or did not")
+
+W.inInstance, W.instanceType = false, nil
+fire("ZONE_CHANGED_NEW_AREA")
+W.traits, W.inspectable = nil, nil
+
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("PartyCD", false)
 check(not AR.IsRunning(), "switched off: stopped")

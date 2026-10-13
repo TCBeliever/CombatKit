@@ -11,6 +11,7 @@ CK.NewModule("PartyCD", ns)
 -- ===========================================================================
 
 local Tracker = ns.Tracker
+local Inspect = ns.Inspect
 local UNITS = { "player", "party1", "party2" }
 local backend
 local inArena = false
@@ -91,6 +92,22 @@ local callbacks = {
 
 local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
 
+-- inspect's answer: the teammate's own cooldowns and charges, and what they do not have
+local function Inspected(unit, results, complete)
+	for id, r in pairs(results) do
+		Tracker.SetCooldown(unit, id, r.cd, r.charges)
+		Tracker.SetAvailable(unit, id, not r.missing)
+	end
+	for _, line in ipairs(Inspect.Debug()) do
+		if line:find("^inspect " .. unit .. ":") then Log("%s%s", line, complete and "" or " (retrying)") end
+	end
+end
+
+-- every teammate's talents asked for, the ones already answered included
+local function InspectAll()
+	for _, t in ipairs(Tracker.Teammates()) do Inspect.Want(t.unit, t.guid, t.class) end
+end
+
 -- who is here: the player, then party1 and party2 while they exist
 local function Roster()
 	local list = {}
@@ -124,13 +141,21 @@ local function ApplyRoster()
 	local names = {}
 	for _, r in ipairs(list) do
 		watched[r.unit] = true
+		local t = Tracker.Get(r.unit)
+		if t and not t.inspectAsked then   -- a new teammate (or a new GUID in the seat)
+			t.inspectAsked = true
+			Inspect.Want(r.unit, r.guid, r.class)
+		end
 		backend.SetWatch(r.unit, ns.SpellsFor(r.class, sel), true)
 		names[#names + 1] = r.unit .. "=" .. r.class
 		-- the trinket: ask the server for the unit's crowd control cooldown data
 		if ns.db.trinket and C_PvP and C_PvP.RequestCrowdControlSpell then pcall(C_PvP.RequestCrowdControlSpell, r.unit) end
 	end
 	for _, unit in ipairs(UNITS) do
-		if not watched[unit] then backend.SetWatch(unit, {}) end
+		if not watched[unit] then
+			backend.SetWatch(unit, {})
+			Inspect.Forget(unit)
+		end
 	end
 	Log("roster %s", table.concat(names, " "))
 	local problems = backend.Problems and backend.Problems()
@@ -154,6 +179,7 @@ local function Scene()
 		Tracker.Clear()
 		Log("enter arena")
 		backend.Start(callbacks)
+		Inspect.Start(Inspected)
 		ApplyRoster()
 		Tracker.RoundStart()
 	elseif not arena and inArena then
@@ -161,6 +187,7 @@ local function Scene()
 		engaged = false
 		Log("leave arena")
 		backend.Stop()
+		Inspect.Stop()
 		Tracker.Clear()
 	elseif arena then
 		ApplyRoster()
@@ -178,6 +205,7 @@ local function MatchState()
 	if ok and state == ENGAGED then
 		engaged = true
 		Tracker.RoundStart()
+		InspectAll()   -- talents may have changed in the waiting room
 		ns.UI.Dirty()
 	elseif ok then
 		engaged = false   -- waiting, starting up, between rounds, complete
@@ -200,6 +228,8 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 		MatchState()
 	elseif event == "ARENA_COOLDOWNS_UPDATE" then
 		ns.UI.Dirty()   -- a trinket cooldown changed: the rows feed it again
+	elseif event == "INSPECT_READY" then
+		if inArena then Inspect.Ready(a) end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		if a == "player" and type(c) == "number" then Tracker.OnPlayerCast(c) end
 	end
@@ -214,7 +244,10 @@ local function OnUpdate(_, elapsed)
 	if acc < 0.2 then return end
 	acc = 0
 	local at = GetTime()
-	if inArena then Tracker.SelfTestCheck(at) end
+	if inArena then
+		Tracker.SelfTestCheck(at)
+		Inspect.Tick(at)
+	end
 	if sinceFull >= 1 or not ns.UI.IsLocked() or ns.UI.IsTesting() then
 		sinceFull = 0
 		ns.UI.Refresh(at)
@@ -224,7 +257,7 @@ local function OnUpdate(_, elapsed)
 end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
-	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE" }
+	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "INSPECT_READY" }
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then
@@ -254,6 +287,7 @@ SlashCmdList.CKPARTYCD = function(msg)
 	else
 		CK.Msg("Party CD: %s, %s", inArena and "in arena" or "not in arena", Tracker.failed and "detection failed" or "detection fine")
 		for _, line in ipairs(Tracker.Debug()) do print("  " .. line) end
+		for _, line in ipairs(Inspect.Debug()) do print("  " .. line) end
 		local problems = backend and backend.Problems and backend.Problems() or {}
 		for _, line in ipairs(problems) do print("  backend: " .. line) end
 	end
@@ -294,6 +328,7 @@ function ns.OnDisable()
 	if inArena then
 		inArena = false
 		backend.Stop()
+		Inspect.Stop()
 	end
 	Tracker.Clear()
 	ns.UI.SetLocked(true)

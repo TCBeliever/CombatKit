@@ -13,6 +13,7 @@
 Locales.lua
 Spells.lua
 Tracker.lua
+Inspect.lua
 Backend.lua
 UI.lua
 PartyCD.lua

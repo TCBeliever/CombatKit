@@ -65,19 +65,30 @@ local function NewEntry(def, known)
 		estimate = true,    -- until inspect has had its say
 		unknown = not known,
 		ambiguous = false,  -- the last use may belong to someone else as well
+		missing = false,    -- inspect says the teammate does not have it: not in the row
 	}
+end
+
+-- the row: the teammate's abilities in the class's order, the missing ones left out
+local function Reorder(t)
+	local order = {}
+	for _, id in ipairs(t.all) do
+		if not t.spells[id].missing then order[#order + 1] = id end
+	end
+	t.order = order
 end
 
 -- the entries a teammate carries: the class's list under the selection
 -- (externals or not, spells switched off); entries that already exist are
 -- kept with their estimates
 local function Fit(t, sel)
-	local spells, order = {}, {}
+	local spells, all = {}, {}
 	for _, def in ipairs(ns.SpellsFor(t.class, sel)) do
 		spells[def.id] = t.spells[def.id] or NewEntry(def, t.known)
-		order[#order + 1] = def.id
+		all[#all + 1] = def.id
 	end
-	t.spells, t.order, t.sig = spells, order, sel.sig
+	t.spells, t.all, t.sig = spells, all, sel.sig
+	Reorder(t)
 end
 
 local function NewTeammate(unit, guid, class, sel, known)
@@ -228,7 +239,7 @@ local function Candidates(def, holder, at)
 	end
 	for _, unit in ipairs(order) do
 		local t = teammates[unit]
-		if t and t.spells[def.id] and unit ~= "player" then
+		if t and t.spells[def.id] and not t.spells[def.id].missing and unit ~= "player" then
 			local okDead, dead = pcall(UnitIsDeadOrGhost, unit)
 			if okDead and dead == true then
 				-- a dead teammate cast nothing
@@ -240,7 +251,9 @@ local function Candidates(def, holder, at)
 		end
 	end
 	if #out == 0 and teammates[holder] and teammates[holder].spells[def.id] and not def.notOnSelf then
-		out[1] = teammates[holder]   -- nobody else could have: the holder did it to themselves
+		local t = teammates[holder]
+		out[1] = t   -- nobody else could have: the holder did it to themselves
+		if t.spells[def.id].missing then t.spells[def.id].missing = false; Reorder(t); Notify("roster") end
 	end
 	return out, false
 end
@@ -258,6 +271,7 @@ function Tracker.Shown(unit, spellID, at, initial)
 	if def.kind == "self" then
 		local e, t = Entry(unit, spellID)
 		if not e then return end
+		if e.missing then e.missing = false; Reorder(t); Notify("roster") end
 		if initial then
 			e.activeSince, e.activeHolder = at, unit   -- up as we began to look: a use of unknown start
 			Notify("active", t, e)
@@ -353,12 +367,23 @@ function Tracker.SelfTestCheck(at)
 	end
 end
 
--- inspect's answer for a teammate: a cooldown that is no longer an estimate
-function Tracker.SetCooldown(unit, spellID, seconds)
+-- inspect's answer for a teammate: a cooldown that is no longer an estimate,
+-- and the charges their talents give
+function Tracker.SetCooldown(unit, spellID, seconds, charges)
 	local e = Entry(unit, spellID)
 	if not e then return end
 	e.cd, e.estimate = seconds, false
+	if type(charges) == "number" and charges > e.charges then e.charges = charges end
 	Notify("use", teammates[unit], e)
+end
+
+-- inspect's answer: the teammate has the ability or not (a buff seen later says yes again)
+function Tracker.SetAvailable(unit, spellID, available)
+	local e, t = Entry(unit, spellID)
+	if not e or e.missing == (not available) then return end
+	e.missing = not available
+	Reorder(t)
+	Notify("roster")
 end
 
 -- for the tests and the status line
