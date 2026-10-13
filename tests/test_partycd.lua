@@ -387,7 +387,7 @@ end
 eq(#shownRows(), #AR.SPELLS.DEMONHUNTER, "one row per demon hunter ability")
 check(spells.headers.defensive:IsShown() and spells.headers.offensive:IsShown() and spells.headers.cc:IsShown(),
 	"the three categories, each with its own box")
-check(spells.trinket:GetChecked() == (AR.db.trinket and true or false), "the trinket box beside the class")
+check(spells.trinket == nil, "no trinket box here: it is on the display page")
 spells.class = "DRUID"; CK.Options.Refresh()
 eq(#shownRows(), #AR.SPELLS.DRUID, "another class: its rows")
 local barkskin

@@ -42,61 +42,69 @@ local function BuildMain(p)
 		AR.db.trinket = checked
 		Changed()
 	end), "The PvP trinket")
-	p.trinket:SetPoint("TOPLEFT", X, -23)
+	p.trinket:SetPoint("TOPLEFT", X, -21)
 
 	-- by the party frames: which side, how far, shifted along the edge
-	Skin.Field(p, "Attach", 0, -54)
+	Skin.Field(p, "Attach", 0, -46)
 	p.attach = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.db.attach = checked
 		Changed()
 	end), "Attach to party frames")
-	p.attach:SetPoint("TOPLEFT", X, -55)
-	Skin.Field(p, "Side", 0, -86)
+	p.attach:SetPoint("TOPLEFT", X, -47)
+	Skin.Field(p, "Side", 0, -70)
 	p.side = Skin.Dropdown(p, 180, Items(SIDES), function(_, item)
 		AR.db.side = item.value
 		Changed()
 	end)
-	p.side:SetPoint("TOPLEFT", X, -86)
+	p.side:SetPoint("TOPLEFT", X, -70)
 
+	-- the numbers, three to a line
+	local COL, SW = 150, 130
 	local function Slider(key, x, y, opts)
+		opts.width = SW
 		local s = Skin.Slider(p, key, opts)
 		s:SetPoint("TOPLEFT", x, y)
 		return s
 	end
-	p.offset = Slider("Offset", 0, -120, { min = -40, max = 80, step = 1,
+	local row1 = -98
+	local row2 = row1 - Skin.SLIDER_H - 6
+	p.offset = Slider("Offset", 0, row1, { min = -40, max = 80, step = 1,
 		onChange = function(v) AR.db.offset = v; Changed() end })
-	p.offsetAlong = Slider("Offset along the frame", 200, -120, { min = -80, max = 80, step = 1,
+	p.offsetAlong = Slider("Offset along the frame", COL, row1, { min = -80, max = 80, step = 1,
 		onChange = function(v) AR.db.offsetAlong = v; Changed() end })
-	p.iconSize = Slider("Icon size", 0, -186, { min = 16, max = 48,
+	p.iconSize = Slider("Icon size", COL * 2, row1, { min = 16, max = 48,
 		onChange = function(v) AR.db.iconSize = v; Changed() end })
-	p.spacing = Slider("Spacing", 200, -186, { min = 0, max = 12,
+	p.spacing = Slider("Spacing", 0, row2, { min = 0, max = 12,
 		onChange = function(v) AR.db.spacing = v; Changed() end })
-	p.maxPerRow = Slider("Max icons per row", 0, -252, { min = 1, max = 12,
+	p.maxPerRow = Slider("Max icons per row", COL, row2, { min = 1, max = 12,
 		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
 
 	-- a row without a frame to hang on: its direction, and dragging it while unlocked
-	Skin.Field(p, "Grow", 0, -320)
+	local y = row2 - Skin.SLIDER_H - 6
+	Skin.Field(p, "Grow", 0, y)
 	p.grow = Skin.Dropdown(p, 180, Items(GROWS), function(_, item)
 		AR.db.grow = item.value
 		Changed()
 	end)
-	p.grow:SetPoint("TOPLEFT", X, -320)
-	Skin.Field(p, "Position", 0, -352)
+	p.grow:SetPoint("TOPLEFT", X, y)
+	y = y - 24
+	Skin.Field(p, "Position", 0, y)
 	p.unlock = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.SetLocked(not checked)
 		O.Refresh()
 	end), "Unlock")
-	p.unlock:SetPoint("TOPLEFT", X, -353)
+	p.unlock:SetPoint("TOPLEFT", X, y - 1)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() AR.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
 
 	-- sample rows on screen right here, to see the look by the party frames or at the loose positions
-	Skin.Field(p, "Test", 0, -384)
+	y = y - 24
+	Skin.Field(p, "Test", 0, y)
 	p.test = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.SetTest(checked)
 		O.Refresh()
 	end), "Show sample rows")
-	p.test:SetPoint("TOPLEFT", X, -385)
+	p.test:SetPoint("TOPLEFT", X, y - 1)
 end
 
 local function RefreshMain(p)
@@ -120,7 +128,7 @@ local function RefreshMain(p)
 end
 
 -- ---------------------------------------------------------------- the spells, per class
--- A class picked at the top, the PvP trinket beside it; under it the class's
+-- A class picked at the top; under it the class's
 -- abilities by category. A category's own box ticks or unticks everything
 -- under it, for the class shown; every ability has its box, its icon between
 -- the box and the name.
@@ -160,11 +168,6 @@ local function BuildSpells(p)
 		O.Refresh()
 	end)
 	p.picker:SetPoint("TOPLEFT", X, 0)
-	p.trinket = CK.Bind(Skin.Checkbox(p, "", function(checked)
-		AR.db.trinket = checked
-		Changed()
-	end), "The PvP trinket")
-	p.trinket:SetPoint("LEFT", p.picker, "RIGHT", 16, 0)
 
 	p.headers = {}
 	for _, cat in ipairs(CATEGORIES) do
@@ -185,7 +188,6 @@ end
 local function RefreshSpells(p)
 	local db = AR.db
 	p.picker:SetValueText(ClassName(p.class))
-	p.trinket:SetChecked(db.trinket)
 	local list = AR.SPELLS[p.class] or {}
 	local y, used = -34, 0
 	for _, cat in ipairs(CATEGORIES) do
