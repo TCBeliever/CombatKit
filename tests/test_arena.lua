@@ -221,9 +221,39 @@ AR.db.showSelf = true
 AR.Apply()
 check(TR.Get("player") ~= nil, "and back")
 
--- unlocked: sample rows anywhere, draggable
+-- hung on the party frame that shows the unit
+eq(row.__point[2], UIParent, "no party frame around: the row sits at its own position")
+local member = CreateFrame("Button", "CompactPartyFrameMember1")
+member:SetAttribute("unit", "party1")
+AR.Apply()
+check(row.__point[1] == "TOPLEFT" and row.__point[2] == member and row.__point[3] == "TOPRIGHT" and row.__point[4] == 4,
+	"party1's row hangs on the right of its frame, 4 px away")
+AR.db.side = "LEFT"; AR.Apply()
+check(row.__point[1] == "TOPRIGHT" and row.__point[3] == "TOPLEFT" and row.__point[4] == -4, "on the left when asked")
+check(row.icons[2].__point[1] == "TOPRIGHT" and row.icons[2].__point[4] == -(AR.db.iconSize + AR.db.spacing), "and the icons grow leftwards")
+AR.db.side = "BOTTOM"; AR.db.offsetAlong = 6; AR.Apply()
+check(row.__point[1] == "TOPLEFT" and row.__point[3] == "BOTTOMLEFT" and row.__point[4] == 6 and row.__point[5] == -4, "below: the offset goes down, the shift goes along")
+AR.db.side = "RIGHT"; AR.db.offsetAlong = 0
+AR.db.maxPerRow = 2; AR.Apply()
+check(row.icons[3].__point[4] == 0 and row.icons[3].__point[5] == -(AR.db.iconSize + AR.db.spacing), "more icons than fit a row: the next line")
+AR.db.maxPerRow = 8
+member:Hide(); AR.Apply()
+eq(row.__point[2], UIParent, "a frame that is hidden: back to the loose position")
+member:Show()
+member:SetAttribute("unit", "raid2")
+W.units.raid2 = W.units.party1
+AR.Apply()
+eq(row.__point[2], member, "a frame naming the same player by another token counts, by GUID")
+W.units.raid2 = nil
+member:SetAttribute("unit", "party1")
+AR.db.attach = false; AR.Apply()
+eq(row.__point[2], UIParent, "attach off: loose")
+AR.db.attach = true; AR.Apply()
+
+-- unlocked: sample rows, a loose one draggable with a background
 AR.SetLocked(false)
-check(not AR.IsLocked() and AR.UI.Rows().player.bg:IsShown(), "unlocked: the background shows")
+check(not AR.IsLocked() and AR.UI.Rows().player.bg:IsShown(), "unlocked: a loose row shows its background")
+check(not AR.UI.Rows().party1.bg:IsShown(), "an attached one does not")
 AR.SetLocked(true)
 
 -- ---------------------------------------------------------------- settings page

@@ -1,21 +1,23 @@
 local ADDON, ns = ...
 local CK = CombatKit
-local L = CK.L
+local L, Skin = CK.L, CK.Skin
 
 -- ===========================================================================
 -- The rows: one per teammate (and one for the player), icons in the order of
--- the spell list. Every icon reads the tracker's state and draws it:
+-- the spell list, hung on the teammate's party frame when one can be found,
+-- at a position of their own otherwise. Every icon reads the tracker's state
+-- and draws it:
 --
 --   ready     bright
---   active    bright, a glow around it (the buff is up)
+--   active    bright, a border in the theme's accent (the buff is up)
 --   cooling   dark, a cooldown swipe with the time left
 --   unknown   dark, a "?" in the middle
 --
 -- a charge count in the corner when the ability has more than one, a small
 -- "?" when the use may belong to another teammate as well, a dot while the
 -- cooldown is the base value and not yet the teammate's own. When detection
--- is broken the rows dim as a whole. Rows are positioned by hand for now;
--- unlocked, they show sample icons and can be dragged.
+-- is broken the rows dim as a whole. Unlocked, the rows show sample icons
+-- and the loose ones can be dragged.
 -- ===========================================================================
 
 local UI = {}
@@ -25,6 +27,97 @@ local rows = {}
 local locked = true
 local dirty = true
 local UNITS = { "player", "party1", "party2" }
+
+local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
+
+-- ---------------------------------------------------------------------------
+-- Finding the frame that shows a unit. A frame counts when it is visible and
+-- names the unit, by its "unit" attribute or a plain `unit` field; a frame
+-- that names the same player by another token (raid2 for party1, the player's
+-- own frame) counts by GUID. Never UnitIsUnit: it answers with a secret in an
+-- arena. Sorted or replaced party frames are asked first, the game's own last.
+-- ---------------------------------------------------------------------------
+
+local function UnitOf(frame)
+	local ok, u = pcall(frame.GetAttribute, frame, "unit")
+	if ok and type(u) == "string" and plain(u) then return u end
+	local v = rawget(frame, "unit")
+	if type(v) == "string" and plain(v) then return v end
+end
+
+local function Shows(frame, unit)
+	if type(frame) ~= "table" then return false end
+	local okV, visible = pcall(frame.IsVisible, frame)
+	if not okV or not visible then return false end
+	local u = UnitOf(frame)
+	if not u then return false end
+	if u == unit then return true end
+	local g1, g2 = UnitGUID(u), UnitGUID(unit)
+	return type(g1) == "string" and plain(g1) and plain(g2) and g1 == g2
+end
+
+-- the first frame in a list (or a list of lists) that shows the unit
+local function FirstShowing(list, unit, depth)
+	if type(list) ~= "table" or (depth or 0) > 3 then return nil end
+	for _, f in pairs(list) do
+		if type(f) == "table" then
+			if f.IsVisible then
+				if Shows(f, unit) then return f end
+			else
+				local hit = FirstShowing(f, unit, (depth or 0) + 1)
+				if hit then return hit end
+			end
+		end
+	end
+end
+
+local PROVIDERS = {
+	-- FrameSort: the party frames as it sorted them
+	function(unit)
+		local sorting = FrameSortApi and FrameSortApi.v3 and FrameSortApi.v3.Sorting
+		if sorting and sorting.GetPartyFrames then
+			local ok, frames = pcall(sorting.GetPartyFrames, sorting)
+			if ok then return FirstShowing(frames, unit) end
+		end
+	end,
+	-- DandersFrames
+	function(unit)
+		if DandersFrames_GetAllFrames then
+			local ok, frames = pcall(DandersFrames_GetAllFrames)
+			if ok then return FirstShowing(frames, unit) end
+		end
+	end,
+	-- EllesmereUI
+	function(unit)
+		if EllesmereUI and EllesmereUI.GetUnitFrame then
+			local ok, f = pcall(EllesmereUI.GetUnitFrame, unit)
+			if ok and Shows(f, unit) then return f end
+		end
+	end,
+	-- the game's own party and raid frames; the player frame for the player
+	function(unit)
+		if unit == "player" and Shows(PlayerFrame, unit) then return PlayerFrame end
+		for i = 1, 5 do
+			local f = _G["CompactPartyFrameMember" .. i]
+			if Shows(f, unit) then return f end
+			f = PartyFrame and PartyFrame["MemberFrame" .. i]
+			if Shows(f, unit) then return f end
+			f = _G["CompactRaidFrame" .. i]
+			if Shows(f, unit) then return f end
+		end
+	end,
+}
+
+local function FindFrame(unit)
+	for _, find in ipairs(PROVIDERS) do
+		local f = find(unit)
+		if f then return f end
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Rows and icons
+-- ---------------------------------------------------------------------------
 
 local function Row(unit)
 	if rows[unit] then return rows[unit] end
@@ -37,7 +130,7 @@ local function Row(unit)
 	f:SetClampedToScreen(true)
 	f:EnableMouse(false)
 	f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", function(self) if not locked then self:StartMoving() end end)
+	f:SetScript("OnDragStart", function(self) if not locked and not self.anchor then self:StartMoving() end end)
 	f:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		local point, _, relPoint, x, y = self:GetPoint()
@@ -60,6 +153,14 @@ local function Row(unit)
 	return f
 end
 
+local function Accent(tex)
+	if Skin.Paint then
+		Skin.Paint(tex, function(t) t:SetColorTexture(Skin.Color("accent")) end)
+	else
+		tex:SetColorTexture(Skin.Color("accent"))
+	end
+end
+
 local function Icon(row, i)
 	local icon = row.icons[i]
 	if icon then return icon end
@@ -71,11 +172,26 @@ local function Icon(row, i)
 	icon.cd:SetAllPoints()
 	icon.cd:SetDrawEdge(false)
 	icon.cd:SetHideCountdownNumbers(false)
-	icon.glow = icon:CreateTexture(nil, "OVERLAY")
-	icon.glow:SetPoint("TOPLEFT", -3, 3)
-	icon.glow:SetPoint("BOTTOMRIGHT", 3, -3)
-	icon.glow:SetColorTexture(1, 0.85, 0.3, 0.45)
-	icon.glow:Hide()
+	-- the active border: four strips just outside the icon
+	icon.border = {}
+	for k = 1, 4 do
+		local t = icon:CreateTexture(nil, "OVERLAY")
+		Accent(t)
+		t:Hide()
+		icon.border[k] = t
+	end
+	icon.border[1]:SetPoint("BOTTOMLEFT", icon, "TOPLEFT", -2, 0)
+	icon.border[1]:SetPoint("BOTTOMRIGHT", icon, "TOPRIGHT", 2, 0)
+	icon.border[1]:SetHeight(2)
+	icon.border[2]:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", -2, 0)
+	icon.border[2]:SetPoint("TOPRIGHT", icon, "BOTTOMRIGHT", 2, 0)
+	icon.border[2]:SetHeight(2)
+	icon.border[3]:SetPoint("TOPRIGHT", icon, "TOPLEFT", 0, 0)
+	icon.border[3]:SetPoint("BOTTOMRIGHT", icon, "BOTTOMLEFT", 0, 0)
+	icon.border[3]:SetWidth(2)
+	icon.border[4]:SetPoint("TOPLEFT", icon, "TOPRIGHT", 0, 0)
+	icon.border[4]:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 0, 0)
+	icon.border[4]:SetWidth(2)
 	icon.count = icon:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
 	icon.count:SetPoint("BOTTOMRIGHT", -1, 1)
 	icon.mark = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -95,26 +211,60 @@ local function Icon(row, i)
 	return icon
 end
 
-local function Layout(row, n)
+local function SetActive(icon, on)
+	for _, t in ipairs(icon.border) do t:SetShown(on) end
+end
+
+-- where a row hangs by the frame, per side: the row's point, the frame's
+-- point, which way the offset goes, and which way the icons grow
+local SIDES = {
+	RIGHT  = { point = "TOPLEFT",    rel = "TOPRIGHT",   dx = 1,  dy = 0,  grow = "right" },
+	LEFT   = { point = "TOPRIGHT",   rel = "TOPLEFT",    dx = -1, dy = 0,  grow = "left" },
+	TOP    = { point = "BOTTOMLEFT", rel = "TOPLEFT",    dx = 0,  dy = 1,  grow = "right" },
+	BOTTOM = { point = "TOPLEFT",    rel = "BOTTOMLEFT", dx = 0,  dy = -1, grow = "right" },
+}
+
+-- hang the row on its unit's frame, or put it at its own position; returns
+-- the direction the icons grow
+local function Place(row)
 	local db = ns.db
-	local size, gap = db.iconSize, db.spacing
+	local frame = db.attach and FindFrame(row.unit) or nil
+	row.anchor = frame
+	row:ClearAllPoints()
+	if frame then
+		local s = SIDES[db.side] or SIDES.RIGHT
+		local x = s.dx ~= 0 and s.dx * db.offset or db.offsetAlong
+		local y = s.dy ~= 0 and s.dy * db.offset or db.offsetAlong
+		row:SetPoint(s.point, frame, s.rel, x, y)
+		return s.grow
+	end
+	local r = db.rows[row.unit]
+	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
+	return db.grow
+end
+
+local function Layout(row, n, grow)
+	local db = ns.db
+	local size, gap, per = db.iconSize, db.spacing, math.max(1, db.maxPerRow)
+	local step = size + gap
 	for i = 1, n do
 		local icon = Icon(row, i)
 		icon:SetSize(size, size)
 		icon:ClearAllPoints()
-		if db.grow == "down" then
-			icon:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -(i - 1) * (size + gap))
+		local col, line = (i - 1) % per, math.floor((i - 1) / per)
+		if grow == "down" then
+			icon:SetPoint("TOPLEFT", row, "TOPLEFT", line * step, -col * step)
+		elseif grow == "left" then
+			icon:SetPoint("TOPRIGHT", row, "TOPRIGHT", -col * step, -line * step)
 		else
-			icon:SetPoint("TOPLEFT", row, "TOPLEFT", (i - 1) * (size + gap), 0)
+			icon:SetPoint("TOPLEFT", row, "TOPLEFT", col * step, -line * step)
 		end
 		icon:Show()
 	end
 	for i = n + 1, #row.icons do row.icons[i]:Hide() end
-	if db.grow == "down" then
-		row:SetSize(size, math.max(1, n) * (size + gap) - gap)
-	else
-		row:SetSize(math.max(1, n) * (size + gap) - gap, size)
-	end
+	local cols, lines = math.min(math.max(n, 1), per), math.max(1, math.ceil(n / per))
+	if grow == "down" then cols, lines = lines, cols end
+	row:SetSize(cols * step - gap, lines * step - gap)
 end
 
 -- one icon from one entry
@@ -123,7 +273,7 @@ local function Draw(icon, e, at)
 	icon.tex:SetTexture(C_Spell.GetSpellTexture(e.def.id))
 	icon.tex:SetDesaturated(state == "cooling" or state == "unknown")
 	icon.tex:SetAlpha(state == "unknown" and 0.6 or 1)
-	icon.glow:SetShown(state == "active")
+	SetActive(icon, state == "active")
 	icon.mark:SetShown(state == "unknown")
 	icon.amb:SetShown(e.ambiguous and state ~= "ready" and state ~= "unknown")
 	if state == "cooling" then
@@ -143,16 +293,16 @@ local function Draw(icon, e, at)
 end
 
 -- a row of sample icons: the player's own class, every ability ready
-local function DrawSample(row)
+local function DrawSample(row, grow)
 	local _, class = UnitClass("player")
 	local defs = ns.SpellsFor(class, ns.db.externals)
-	Layout(row, #defs)
+	Layout(row, #defs, grow)
 	for i, def in ipairs(defs) do
 		local icon = row.icons[i]
 		icon.tex:SetTexture(C_Spell.GetSpellTexture(def.id))
 		icon.tex:SetDesaturated(false)
 		icon.tex:SetAlpha(1)
-		icon.glow:Hide()
+		SetActive(icon, i == 1)
 		icon.mark:Hide()
 		icon.amb:Hide()
 		icon.dot:Hide()
@@ -169,17 +319,19 @@ function UI.Refresh(at)
 	dirty = false
 	for _, unit in ipairs(UNITS) do
 		local row = Row(unit)
-		local r = ns.db.rows[unit]
-		row:ClearAllPoints()
-		row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
 		if not locked then
-			DrawSample(row)
+			local grow = Place(row)
+			DrawSample(row, grow)
+			row.label:SetText(L["ARENA_" .. unit])
+			row.bg:SetShown(row.anchor == nil)
+			row.warn:Hide()
 			row:SetAlpha(1)
 			row:Show()
 		else
 			local t = ns.Tracker.Get(unit)
 			if t and (unit ~= "player" or ns.db.showSelf) and #t.order > 0 then
-				Layout(row, #t.order)
+				local grow = Place(row)
+				Layout(row, #t.order, grow)
 				for i, id in ipairs(t.order) do Draw(row.icons[i], t.spells[id], at) end
 				row:SetAlpha(ns.Tracker.failed and 0.35 or 1)
 				row.warn:SetShown(ns.Tracker.failed)
@@ -197,15 +349,14 @@ end
 
 function UI.IsLocked() return locked end
 
--- unlocked: every row shows sample icons, a label, and can be dragged
+-- unlocked: every row shows sample icons and a label; a loose one can be dragged
 function UI.SetLocked(state)
 	locked = state and true or false
 	for _, unit in ipairs(UNITS) do
 		local row = Row(unit)
 		row:EnableMouse(not locked)
-		row.bg:SetShown(not locked)
-		row.label:SetText(L["ARENA_" .. unit])
 		row.label:SetShown(not locked)
+		if locked then row.bg:Hide() end
 	end
 	UI.Refresh()
 end
@@ -220,6 +371,16 @@ end
 
 function UI.Hide()
 	for _, row in pairs(rows) do row:Hide() end
+end
+
+-- once: sorted frames move after the fact, so FrameSort gets to say when
+function UI.Build()
+	if UI.built then return end
+	UI.built = true
+	local sorting = FrameSortApi and FrameSortApi.v3 and FrameSortApi.v3.Sorting
+	if sorting and sorting.RegisterPostSortCallback then
+		pcall(sorting.RegisterPostSortCallback, sorting, function() UI.Dirty() end)
+	end
 end
 
 function UI.Rows() return rows end

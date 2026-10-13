@@ -21,11 +21,16 @@ local running = false
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
-	showSelf  = true,
-	externals = true,
-	iconSize  = 28,
-	spacing   = 2,
-	grow      = "right",   -- "right" | "down"
+	showSelf    = true,
+	externals   = true,
+	iconSize    = 28,
+	spacing     = 2,
+	maxPerRow   = 8,
+	attach      = true,      -- hang the rows on the party frames when they can be found
+	side        = "RIGHT",   -- "RIGHT" | "LEFT" | "TOP" | "BOTTOM": which side of the frame
+	offset      = 4,         -- distance from the frame
+	offsetAlong = 0,         -- shift along the frame's edge
+	grow        = "right",   -- "right" | "down": a loose row's direction
 	rows = {
 		player = { point = "CENTER", relPoint = "CENTER", x = -260, y = -60 },
 		party1 = { point = "CENTER", relPoint = "CENTER", x = -260, y = -100 },
@@ -187,6 +192,7 @@ function ns.OnEnable()
 	for _, e in ipairs(EVENTS) do pcall(driver.RegisterEvent, driver, e) end
 	pcall(driver.RegisterUnitEvent, driver, "UNIT_SPELLCAST_SUCCEEDED", "player")
 	driver:SetScript("OnUpdate", OnUpdate)
+	ns.UI.Build()
 	ns.UI.SetLocked(true)
 	Scene()
 end

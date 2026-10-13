@@ -345,6 +345,7 @@ local function Mock(kind, name)
 		SetBackdropBorderColor = function(self, r, g, b, a) self.__border = { r, g, b, a } end,
 		SetPoint = function(self, ...) self.__point = { ... } end,
 		SetAttribute = function(self, k, v) self.__attributes = self.__attributes or {}; self.__attributes[k] = v end,
+		GetAttribute = function(self, k) return self.__attributes and self.__attributes[k] end,
 		-- animation groups
 		Play = function(self) self.__playing = true; self.__plays = (self.__plays or 0) + 1 end,
 		Stop = function(self) self.__playing = false end,
