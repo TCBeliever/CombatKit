@@ -47,6 +47,10 @@ end
 
 local function Shows(frame, unit)
 	if type(frame) ~= "table" then return false end
+	if frame.IsForbidden then
+		local okF, forbidden = pcall(frame.IsForbidden, frame)
+		if okF and forbidden then return false end   -- a frame the client has taken away from addons
+	end
 	local okV, visible = pcall(frame.IsVisible, frame)
 	if not okV or not visible then return false end
 	local u = UnitOf(frame)
@@ -94,15 +98,21 @@ local PROVIDERS = {
 			if ok and Shows(f, unit) then return f end
 		end
 	end,
-	-- the game's own party and raid frames; the player frame for the player
+	-- the game's own: compact party frames, the standard party frames, raid
+	-- frames flat or kept in groups; the player frame for the player
 	function(unit)
 		if unit == "player" and Shows(PlayerFrame, unit) then return PlayerFrame end
-		for i = 1, 5 do
+		local party = (MAX_PARTY_MEMBERS or 4) + 1
+		for i = 1, party do
 			local f = _G["CompactPartyFrameMember" .. i]
 			if Shows(f, unit) then return f end
 			f = PartyFrame and PartyFrame["MemberFrame" .. i]
 			if Shows(f, unit) then return f end
-			f = _G["CompactRaidFrame" .. i]
+		end
+		for i = 1, party do
+			local f = _G["CompactRaidFrame" .. i]
+			if Shows(f, unit) then return f end
+			f = _G["CompactRaidGroup1Member" .. i]
 			if Shows(f, unit) then return f end
 		end
 	end,
@@ -373,13 +383,29 @@ function UI.Hide()
 	for _, row in pairs(rows) do row:Hide() end
 end
 
--- once: sorted frames move after the fact, so FrameSort gets to say when
+-- once: whatever moves, re-binds or sorts the party frames marks the rows
+-- dirty, and the next tick places them again. The game's compact frames say
+-- so through CompactUnitFrame_SetUnit and _UpdateVisible (nameplates share
+-- that code, so those are turned away by their back-reference); FrameSort
+-- and DandersFrames through their post-sort callbacks.
 function UI.Build()
 	if UI.built then return end
 	UI.built = true
+	local function Changed(frame)
+		if type(frame) == "table" and rawget(frame, "namePlateFrame") ~= nil then return end
+		UI.Dirty()
+	end
+	if hooksecurefunc then
+		if CompactUnitFrame_SetUnit then pcall(hooksecurefunc, "CompactUnitFrame_SetUnit", Changed) end
+		if CompactUnitFrame_UpdateVisible then pcall(hooksecurefunc, "CompactUnitFrame_UpdateVisible", Changed) end
+	end
 	local sorting = FrameSortApi and FrameSortApi.v3 and FrameSortApi.v3.Sorting
 	if sorting and sorting.RegisterPostSortCallback then
 		pcall(sorting.RegisterPostSortCallback, sorting, function() UI.Dirty() end)
+	end
+	if DandersFrames and DandersFrames.RegisterCallback then
+		UI.owner = UI.owner or CreateFrame("Frame")
+		pcall(DandersFrames.RegisterCallback, UI.owner, "OnFramesSorted", function() UI.Dirty() end)
 	end
 end
 
