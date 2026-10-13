@@ -8,7 +8,8 @@ local X = O.FIELD_X + 20
 local AR   -- the module, set whenever the section is used
 local pages
 
-local GROWS = { { "right", "Grow: right" }, { "down", "Grow: down" } }
+local GROWS = { { "up", "Grow: up" }, { "down", "Grow: down" }, { "left", "Grow: left" }, { "right", "Grow: right" },
+	{ "center", "Grow: center" } }
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
 local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
 	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
@@ -79,7 +80,7 @@ local function BuildMain(p)
 	p.maxPerRow = Slider("Max icons per row", COL, row2, { min = 1, max = 12,
 		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
 
-	-- a row without a frame to hang on: its direction, and dragging it while unlocked
+	-- which way the icons go from the first one, by the frame or not; dragging a loose row while unlocked
 	local y = row2 - Skin.SLIDER_H - 6
 	Skin.Field(p, "Grow", 0, y)
 	p.grow = Skin.Dropdown(p, 180, Items(GROWS), function(_, item)

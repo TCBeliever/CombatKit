@@ -397,6 +397,8 @@ local function Mock(kind, name)
 			return "TOP", nil, "TOP", 10.4, -20.6
 		end,
 		StopMovingOrSizing = function(self) self.__point = { "TOP", nil, "TOP", 10.4, -20.6 } end,
+		-- left, bottom, width, height: where a test put it (__rect), else nowhere yet
+		GetRect = function(self) if self.__rect then return unpack(self.__rect) end end,
 		IsMouseOver = function() return false end,
 		SetScale = function(self, s) self.__scale = s end,
 		SetAlpha = function(self, a) self.__alpha = a end,

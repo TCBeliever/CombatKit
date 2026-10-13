@@ -66,7 +66,7 @@ end
 
 -- a log of what the backend reported and what the tracker made of it, kept
 -- in the saved variables for a match's post-mortem (/ckpartycd log)
-local LOG_LINES = 400
+local LOG_LINES = 300
 local function Log(fmt, ...)
 	if not ns.db then return end
 	ns.db.log = ns.db.log or {}

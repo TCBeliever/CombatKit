@@ -143,12 +143,19 @@ local function Row(unit)
 	f:SetClampedToScreen(true)
 	f:EnableMouse(false)
 	f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", function(self) if not locked and not self.anchor then self:StartMoving() end end)
+	-- while it is dragged the redraws leave its position alone; dropped, the
+	-- point the icons grow from is saved, so a longer or shorter row later
+	-- grows away from where it was put
+	f:SetScript("OnDragStart", function(self)
+		if locked or self.anchor then return end
+		self.moving = true
+		self:StartMoving()
+	end)
 	f:SetScript("OnDragStop", function(self)
+		if not self.moving then return end
 		self:StopMovingOrSizing()
-		local point, _, relPoint, x, y = self:GetPoint()
-		local r = ns.db.rows[self.unit]
-		r.point, r.relPoint, r.x, r.y = point, relPoint, math.floor(x + 0.5), math.floor(y + 0.5)
+		self.moving = false
+		UI.SaveRow(self)
 	end)
 	f.bg = f:CreateTexture(nil, "BACKGROUND")
 	f.bg:SetAllPoints()
@@ -253,32 +260,62 @@ local function SetActive(icon, on)
 	end
 end
 
--- where a row hangs by the frame, per side: the row's point, the frame's
--- point, which way the offset goes, and which way the icons grow
-local SIDES = {
-	RIGHT  = { point = "TOPLEFT",    rel = "TOPRIGHT",   dx = 1,  dy = 0,  grow = "right" },
-	LEFT   = { point = "TOPRIGHT",   rel = "TOPLEFT",    dx = -1, dy = 0,  grow = "left" },
-	TOP    = { point = "BOTTOMLEFT", rel = "TOPLEFT",    dx = 0,  dy = 1,  grow = "right" },
-	BOTTOM = { point = "TOPLEFT",    rel = "BOTTOMLEFT", dx = 0,  dy = -1, grow = "right" },
-}
+-- Which way the icons go from the first one: "right", "left", "down", "up",
+-- or "center" (left to right, every line centred on the row's middle).
+local GROWS = { right = true, left = true, down = true, up = true, center = true }
+local function Grow() return GROWS[ns.db.grow] and ns.db.grow or "right" end
+
+-- the point of a row the icons grow from: it stays put while the row
+-- gets longer or shorter
+local ORIGIN = { right = "TOPLEFT", left = "TOPRIGHT", down = "TOPLEFT", up = "BOTTOMLEFT", center = "TOP" }
+
+-- By the frame: which edge of it (side), how far out (offset), shifted along
+-- that edge (offsetAlong). Along the edge the row lines up with the frame's
+-- end the icons grow from: the top for a side row unless they grow up (the
+-- bottom) or are centred (the middle), the left for a row above or below
+-- unless they grow left (the right) or are centred (the middle).
+local function SidePoints(side, grow)
+	local v = (grow == "up" and "BOTTOM") or (grow == "center" and "") or "TOP"
+	local h = (grow == "left" and "RIGHT") or (grow == "center" and "") or "LEFT"
+	if side == "LEFT" then return v .. "RIGHT", v .. "LEFT", -1, 0 end
+	if side == "TOP" then return "BOTTOM" .. h, "TOP" .. h, 0, 1 end
+	if side == "BOTTOM" then return "TOP" .. h, "BOTTOM" .. h, 0, -1 end
+	return v .. "LEFT", v .. "RIGHT", 1, 0   -- RIGHT
+end
 
 -- hang the row on its unit's frame, or put it at its own position; returns
--- the direction the icons grow
+-- the direction the icons grow. A row being dragged keeps where it is.
 local function Place(row)
 	local db = ns.db
+	local grow = Grow()
 	local frame = db.attach and FindFrame(row.unit) or nil
 	row.anchor = frame
+	if row.moving then return grow end
 	row:ClearAllPoints()
 	if frame then
-		local s = SIDES[db.side] or SIDES.RIGHT
-		local x = s.dx ~= 0 and s.dx * db.offset or db.offsetAlong
-		local y = s.dy ~= 0 and s.dy * db.offset or db.offsetAlong
-		row:SetPoint(s.point, frame, s.rel, x, y)
-		return s.grow
+		local point, rel, dx, dy = SidePoints(db.side, grow)
+		local x = dx ~= 0 and dx * db.offset or db.offsetAlong
+		local y = dy ~= 0 and dy * db.offset or db.offsetAlong
+		row:SetPoint(point, frame, rel, x, y)
+		return grow
 	end
 	local r = db.rows[row.unit]
 	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
-	return db.grow
+	return grow
+end
+
+-- a dropped row: where its growing point is, measured from the screen's
+-- bottom left corner
+function UI.SaveRow(row)
+	local left, bottom, width, height = row:GetRect()
+	if not left then return end
+	local point = ORIGIN[Grow()]
+	local x = point:find("RIGHT") and left + width or (point == "TOP" and left + width / 2) or left
+	local y = point:find("BOTTOM") and bottom or bottom + height
+	local r = ns.db.rows[row.unit]
+	r.point, r.relPoint, r.x, r.y = point, "BOTTOMLEFT", math.floor(x + 0.5), math.floor(y + 0.5)
+	row:ClearAllPoints()
+	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
 end
 
 local function Layout(row, n, grow)
@@ -298,8 +335,14 @@ local function Layout(row, n, grow)
 		local col, line = (i - 1) % per, math.floor((i - 1) / per)
 		if grow == "down" then
 			icon:SetPoint("TOPLEFT", row, "TOPLEFT", line * step, -col * step)
+		elseif grow == "up" then
+			icon:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", line * step, col * step)
 		elseif grow == "left" then
 			icon:SetPoint("TOPRIGHT", row, "TOPRIGHT", -col * step, -line * step)
+		elseif grow == "center" then
+			-- every line centred, the last one too when it is shorter
+			local inLine = math.min(per, n - line * per)
+			icon:SetPoint("TOP", row, "TOP", (col - (inLine - 1) / 2) * step, -line * step)
 		else
 			icon:SetPoint("TOPLEFT", row, "TOPLEFT", col * step, -line * step)
 		end
@@ -307,7 +350,7 @@ local function Layout(row, n, grow)
 	end
 	for i = n + 1, #row.icons do row.icons[i]:Hide() end
 	local cols, lines = math.min(math.max(n, 1), per), math.max(1, math.ceil(n / per))
-	if grow == "down" then cols, lines = lines, cols end
+	if grow == "down" or grow == "up" then cols, lines = lines, cols end
 	row:SetSize(cols * step - gap, lines * step - gap)
 end
 

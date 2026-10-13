@@ -325,6 +325,29 @@ AR.db.showSelf = true
 AR.Apply()
 check(TR.Get("player") ~= nil, "and back")
 
+-- a loose row, unlocked, dragged: the redraws leave it alone, and the drop is saved
+AR.UI.SetLocked(false)
+local loose = AR.UI.Rows().party2
+local before = loose.__point
+loose:GetScript("OnDragStart")(loose)
+check(loose.moving, "dragging")
+AR.UI.Refresh(2300.05)
+check(loose.__point == before, "a redraw while it is dragged does not put it back")
+loose.__rect = { 300, 400, 120, 32 }
+loose:GetScript("OnDragStop")(loose)
+local saved = AR.db.rows.party2
+check(not loose.moving and saved.point == "TOPLEFT" and saved.relPoint == "BOTTOMLEFT" and saved.x == 300 and saved.y == 432,
+	"dropped: its top left corner saved, from the screen's bottom left")
+AR.UI.Refresh(2300.06)
+check(loose.__point[1] == "TOPLEFT" and loose.__point[4] == 300 and loose.__point[5] == 432, "and the next redraw keeps it there")
+AR.db.grow = "up"
+loose:GetScript("OnDragStart")(loose)
+loose:GetScript("OnDragStop")(loose)
+check(AR.db.rows.party2.point == "BOTTOMLEFT" and AR.db.rows.party2.y == 400, "growing up: its bottom left corner is what is saved")
+AR.db.grow = "right"
+AR.UI.ResetPositions()
+AR.UI.SetLocked(true)
+
 -- hung on the party frame that shows the unit
 eq(row.__point[2], UIParent, "no party frame around: the row sits at its own position")
 local member = CreateFrame("Button", "CompactPartyFrameMember1")
@@ -334,7 +357,22 @@ check(row.__point[1] == "TOPLEFT" and row.__point[2] == member and row.__point[3
 	"party1's row hangs on the right of its frame, 4 px away")
 AR.db.side = "LEFT"; AR.Apply()
 check(row.__point[1] == "TOPRIGHT" and row.__point[3] == "TOPLEFT" and row.__point[4] == -4, "on the left when asked")
-check(row.icons[2].__point[1] == "TOPRIGHT" and row.icons[2].__point[4] == -(AR.db.iconSize + AR.db.spacing), "and the icons grow leftwards")
+local step = AR.db.iconSize + AR.db.spacing
+check(row.icons[2].__point[1] == "TOPLEFT" and row.icons[2].__point[4] == step, "the icons still grow rightwards: the side does not decide it")
+AR.db.grow = "left"; AR.Apply()
+check(row.__point[1] == "TOPRIGHT" and row.icons[2].__point[1] == "TOPRIGHT" and row.icons[2].__point[4] == -step, "growing left: from the right end")
+AR.db.side = "RIGHT"; AR.db.grow = "down"; AR.Apply()
+check(row.__point[1] == "TOPLEFT" and row.__point[3] == "TOPRIGHT", "growing down by the frame: from its top")
+check(row.icons[2].__point[1] == "TOPLEFT" and row.icons[2].__point[4] == 0 and row.icons[2].__point[5] == -step, "the second icon under the first")
+AR.db.grow = "up"; AR.Apply()
+check(row.__point[1] == "BOTTOMLEFT" and row.__point[3] == "BOTTOMRIGHT", "growing up: lined up with the frame's bottom")
+check(row.icons[2].__point[1] == "BOTTOMLEFT" and row.icons[2].__point[5] == step, "the second icon above the first")
+AR.db.grow = "center"; AR.Apply()
+check(row.__point[1] == "LEFT" and row.__point[3] == "RIGHT", "centred: on the frame's middle")
+local n = #TR.Get("party1").order + (AR.db.trinket and 1 or 0)
+local per = math.min(n, AR.db.maxPerRow)
+check(row.icons[1].__point[1] == "TOP" and math.abs(row.icons[1].__point[4] + (per - 1) / 2 * step) < 0.01, "the first line centred on the row")
+AR.db.grow = "right"
 AR.db.side = "BOTTOM"; AR.db.offsetAlong = 6; AR.Apply()
 check(row.__point[1] == "TOPLEFT" and row.__point[3] == "BOTTOMLEFT" and row.__point[4] == 6 and row.__point[5] == -4, "below: the offset goes down, the shift goes along")
 AR.db.side = "RIGHT"; AR.db.offsetAlong = 0
