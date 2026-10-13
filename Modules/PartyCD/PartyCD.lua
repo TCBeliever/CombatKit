@@ -248,6 +248,8 @@ end
 -- still have cast it.
 local FULL_CONTROL = 5
 
+local function Priority(data) return data.priority end   -- pcall'd: one function, no closure per entry
+
 local function UnderControl(unit)
 	local api = C_LossOfControl
 	if not (api and api.GetActiveLossOfControlDataCountByUnit and api.GetActiveLossOfControlDataByUnit) then return false end
@@ -256,7 +258,7 @@ local function UnderControl(unit)
 	for i = 1, count do
 		local okD, data = pcall(api.GetActiveLossOfControlDataByUnit, unit, i)
 		if okD and type(data) == "table" then
-			local okP, priority = pcall(function() return data.priority end)
+			local okP, priority = pcall(Priority, data)
 			if okP and type(priority) == "number" and plain(priority) and priority >= FULL_CONTROL then return true end
 		end
 	end
@@ -304,7 +306,7 @@ local function OnUpdate(_, elapsed)
 	if inArena then
 		Tracker.SelfTestCheck(at)
 		Inspect.Tick(at)
-		CheckControl(at)   -- the end of a control comes without an event of its own
+		CheckControl(at)   -- the end of a control comes without an event of its own (its start does, exactly)
 	end
 	if sinceFull >= 1 or not ns.UI.IsLocked() or ns.UI.IsTesting() then
 		sinceFull = 0

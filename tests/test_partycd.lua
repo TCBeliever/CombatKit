@@ -38,15 +38,20 @@ check(def(1122).tag == "burst" and AR.HasTag(def(1122), "control") and def(1122)
 check(def(49028).tag == "burst" and AR.HasTag(def(49028), "defense"), "Dancing Rune Weapon: burst and defense")
 check(AR.UI.GlowOf(def(642)) == "big" and AR.UI.GlowOf(def(22812)) == "defense" and AR.UI.GlowOf(def(408)) == "control"
 	and AR.UI.GlowOf(def(13750)) == "burst" and AR.UI.GlowOf(def(29166)) == "other", "the halo's colour follows the main tag, big first")
+local SEEN_ORDER = { caster = 1, ally = 2, otherAlly = 3, allies = 4, enemy = 5, enemies = 6, enemyLater = 7 }
 for _, list in pairs(AR.SPELLS) do
-	local last = 0
+	local last, lastSeen = 0, 0
 	local order = { defense = 1, burst = 2, control = 3, other = 4 }
 	for _, d in ipairs(list) do
-		check(order[d.tag] ~= nil, d.id .. ": a known main tag")
+		check(order[d.tag] ~= nil and SEEN_ORDER[d.seen] ~= nil, d.id .. ": a known main tag and way of being seen")
+		if order[d.tag] ~= last then lastSeen = 0 end
 		check(order[d.tag] >= last, d.id .. ": the class's list runs by main tag")
-		last = order[d.tag] or last
+		check(SEEN_ORDER[d.seen] >= lastSeen, d.id .. ": within a main tag, by how it is seen")
+		last, lastSeen = order[d.tag] or last, SEEN_ORDER[d.seen] or lastSeen
 	end
 end
+check(def(200183).noLearn and def(325197).noLearn and def(114052).noLearn and def(1122).noLearn,
+	"healing cooldowns that were bursts stay unlearned; Summon Infernal, a burst now, too")
 local druidAll = 0
 for _, d in ipairs(AR.SPELLS.DRUID) do druidAll = druidAll + 1 end
 check(#AR.SpellsFor("DRUID", true) < druidAll, "the short druid cooldowns are not watched until ticked")

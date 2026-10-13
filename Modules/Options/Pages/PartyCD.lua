@@ -154,7 +154,7 @@ end
 -- the box and the name. The categories sit in two columns, each in the
 -- shorter one, so a class with many abilities still fits the window.
 local ROW_H = 20
-local COL_X = 290   -- the second column
+local COL_MIN = 290   -- the second column starts at half the page, never closer than this
 local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Offensive cooldowns" }, { "control", "Crowd control" },
 	{ "other", "Other" } }
 
@@ -223,6 +223,7 @@ local function RefreshSpells(p)
 	p.picker:SetValueText(ClassName(p.class))
 	local list = AR.SPELLS[p.class] or {}
 	local tops, used = { -34, -34 }, 0
+	local colX = math.max(COL_MIN, math.floor((p:GetWidth() or 0) / 2))
 	for _, cat in ipairs(CATEGORIES) do
 		local role = cat[1]
 		local header = p.headers[role]
@@ -236,7 +237,7 @@ local function RefreshSpells(p)
 		header:SetShown(any)
 		if any then
 			local col = tops[2] > tops[1] and 2 or 1
-			local x, y = (col - 1) * COL_X, tops[col]
+			local x, y = (col - 1) * colX, tops[col]
 			header:ClearAllPoints()
 			header:SetPoint("TOPLEFT", x, y)
 			header:SetChecked(all)

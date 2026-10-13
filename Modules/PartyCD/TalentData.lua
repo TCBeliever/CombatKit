@@ -11,10 +11,10 @@ local ADDON, ns = ...
 ns.TalentData = {
 	build = "12.1.0.69933",
 	base = {
-		[48707] = { cd = 60, charges = 1 },  -- Anti-Magic Shell
 		[48792] = { cd = 120, charges = 1 },  -- Icebound Fortitude
 		[49039] = { cd = 120, charges = 1 },  -- Lichborne
 		[55233] = { cd = 90, charges = 1 },  -- Vampiric Blood
+		[48707] = { cd = 60, charges = 1 },  -- Anti-Magic Shell
 		[51052] = { cd = 240, charges = 1 },  -- Anti-Magic Zone
 		[49028] = { cd = 120, charges = 1 },  -- Dancing Rune Weapon
 		[51271] = { cd = 45, charges = 1 },  -- Pillar of Frost

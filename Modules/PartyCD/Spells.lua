@@ -34,7 +34,9 @@ local ADDON, ns = ...
 --
 -- The spells page groups by the main tag (defense, burst, control, other); the
 -- halo's colour follows it too, yellow instead for `big` (an immunity or a
--- large external). Every ability tagged burst is `noLearn` as well.
+-- large external). Every ability tagged burst is `noLearn` as well (a burst
+-- cooldown is often cut or reset by what the player does); a healing cooldown
+-- that was one before keeps it by hand.
 --
 -- The key: every entry is keyed by `id`, the spell the player casts (the
 -- button), never by the aura it leaves. The cooldown, the talents that change
@@ -119,10 +121,10 @@ end
 
 ns.SPELLS = {
 	DEATHKNIGHT = {
-		Ally(48707, 60, "defense", { auras = { 48707, 410358 }, external = false }),  -- Anti-Magic Shell; Spellwarden (PvP talent) puts it on an ally as 410358, but it stays the DK's own
 		Caster(48792, 120, "defense"),          -- Icebound Fortitude
 		Caster(49039, 120, "defense"),          -- Lichborne
 		Caster(55233, 90, "defense", { specs = set(250) }),  -- Vampiric Blood
+		Ally(48707, 60, "defense", { auras = { 48707, 410358 }, external = false }),  -- Anti-Magic Shell; Spellwarden (PvP talent) puts it on an ally as 410358, but it stays the DK's own
 		Allies(51052, 240, 8, "defense", { aura = 145629 }),  -- Anti-Magic Zone
 		Caster(49028, 120, "burst defense", { aura = 81256, specs = set(250) }),  -- Dancing Rune Weapon
 		Caster(51271, 45, "burst", { specs = set(251) }),  -- Pillar of Frost
@@ -207,7 +209,7 @@ ns.SPELLS = {
 		Caster(354540, 90, "defense", { specs = set(268) }),  -- Nimble Brew (PvP talent)
 		Caster(132578, 120, "defense", { specs = set(268) }),  -- Invoke Niuzao, the Black Ox
 		Caster(322118, 120, "defense", { specs = set(270) }),  -- Invoke Yu'lon, the Jade Serpent
-		Caster(325197, 120, "defense", { auras = { 325197, 343818 }, specs = set(270) }),  -- Invoke Chi-Ji, the Red Crane
+		Caster(325197, 120, "defense", { auras = { 325197, 343818 }, noLearn = true, specs = set(270) }),  -- Invoke Chi-Ji, the Red Crane
 		Ally(116849, 120, "defense", { big = true, specs = set(270) }),  -- Life Cocoon
 		Caster(1249625, 90, "burst", { charges = 2, specs = set(269) }),  -- Zenith
 		Enemy(119381, 60, "control"),           -- Leg Sweep
@@ -237,7 +239,7 @@ ns.SPELLS = {
 		Caster(19236, 90, "defense"),           -- Desperate Prayer
 		Caster(64843, 180, "defense", { specs = set(257) }),  -- Divine Hymn: the channel on the priest
 		Caster(421453, 240, "defense", { specs = set(256) }),  -- Ultimate Penitence
-		Caster(200183, 120, "defense", { specs = set(257) }),  -- Apotheosis
+		Caster(200183, 120, "defense", { noLearn = true, specs = set(257) }),  -- Apotheosis
 		Ally(33206, 180, "defense", { big = true, extraCharge = true, specs = set(256) }),  -- Pain Suppression
 		Ally(47788, 180, "defense", { big = true, specs = set(257) }),  -- Guardian Spirit
 		Allies(62618, 180, 10, "defense", { aura = 81782, specs = set(256) }),  -- Power Word: Barrier
@@ -262,7 +264,7 @@ ns.SPELLS = {
 		Caster(108271, 120, "defense"),         -- Astral Shift
 		Caster(108280, 180, "defense", { specs = set(264) }),  -- Healing Tide Totem
 		Caster(409293, 120, "defense"),         -- Burrow (PvP talent)
-		Caster(114052, 180, "defense", { specs = set(264) }),  -- Ascendance (Restoration)
+		Caster(114052, 180, "defense", { noLearn = true, specs = set(264) }),  -- Ascendance (Restoration)
 		Allies(98008, 180, 6, "defense", { aura = 325174, specs = set(264) }),  -- Spirit Link Totem
 		Caster(114050, 180, "burst", { specs = set(262) }),  -- Ascendance (Elemental)
 		Caster(114051, 180, "burst", { specs = set(263) }),  -- Ascendance (Enhancement)
