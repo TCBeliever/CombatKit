@@ -58,7 +58,7 @@ CK.AddLocale("zhTW", {
 	["Side: below"] = "下方",
 	["Offset"] = "與框架的距離",
 	["Offset along the frame"] = "沿框架方向的位移",
-	["Grow"] = "排列方向",
+	["Grow"] = "排列",
 	["Grow: up"] = "向上",
 	["Grow: down"] = "向下",
 	["Grow: left"] = "向左",

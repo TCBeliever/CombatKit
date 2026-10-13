@@ -260,68 +260,90 @@ local function SetActive(icon, on)
 	end
 end
 
--- Which way the icons go from the first one: "right", "left", "down", "up",
--- or "center" (left to right, every line centred on the row's middle).
-local GROWS = { right = true, left = true, down = true, up = true, center = true }
-local function Grow() return GROWS[ns.db.grow] and ns.db.grow or "right" end
+-- The side of the frame a row hangs on, and how its lines line up. A row
+-- by the frame's left or right runs away from the frame (to the right of a
+-- right-hand row, to the left of a left-hand one) and its lines go down from
+-- the frame's top, up from its bottom, or sit centred on its middle: grow
+-- "down", "up" or "center". A row above or below runs along the frame's edge
+-- and its lines stack away from the frame; they start at the frame's left
+-- end, its right end, or are centred: grow "right", "left" or "center". A
+-- loose row (no frame, or not attached) is laid out the same way, from the
+-- point it was dragged to.
+local GROWS_FOR = {
+	RIGHT  = { down = true, up = true, center = true },
+	LEFT   = { down = true, up = true, center = true },
+	TOP    = { right = true, left = true, center = true },
+	BOTTOM = { right = true, left = true, center = true },
+}
 
--- the point of a row the icons grow from: it stays put while the row
--- gets longer or shorter
-local ORIGIN = { right = "TOPLEFT", left = "TOPRIGHT", down = "TOPLEFT", up = "BOTTOMLEFT", center = "TOP" }
+local function Side() return GROWS_FOR[ns.db.side] and ns.db.side or "RIGHT" end
 
--- By the frame: which edge of it (side), how far out (offset), shifted along
--- that edge (offsetAlong). Along the edge the row lines up with the frame's
--- end the icons grow from: the top for a side row unless they grow up (the
--- bottom) or are centred (the middle), the left for a row above or below
--- unless they grow left (the right) or are centred (the middle).
-local function SidePoints(side, grow)
+-- the grow that goes with a side: the one asked for when it fits, else the first
+function UI.GrowFor(side, grow)
+	local fits = GROWS_FOR[side] or GROWS_FOR.RIGHT
+	if fits[grow] then return grow end
+	return (side == "TOP" or side == "BOTTOM") and "right" or "down"
+end
+
+-- the row's point, the frame's point, and which way the offset goes
+local function Points(side, grow)
+	if side == "TOP" or side == "BOTTOM" then
+		local h = (grow == "left" and "RIGHT") or (grow == "center" and "") or "LEFT"
+		if side == "TOP" then return "BOTTOM" .. h, "TOP" .. h, 0, 1 end
+		return "TOP" .. h, "BOTTOM" .. h, 0, -1
+	end
 	local v = (grow == "up" and "BOTTOM") or (grow == "center" and "") or "TOP"
-	local h = (grow == "left" and "RIGHT") or (grow == "center" and "") or "LEFT"
 	if side == "LEFT" then return v .. "RIGHT", v .. "LEFT", -1, 0 end
-	if side == "TOP" then return "BOTTOM" .. h, "TOP" .. h, 0, 1 end
-	if side == "BOTTOM" then return "TOP" .. h, "BOTTOM" .. h, 0, -1 end
-	return v .. "LEFT", v .. "RIGHT", 1, 0   -- RIGHT
+	return v .. "LEFT", v .. "RIGHT", 1, 0
 end
 
 -- hang the row on its unit's frame, or put it at its own position; returns
--- the direction the icons grow. A row being dragged keeps where it is.
+-- the layout { side, grow } for the icons. A row being dragged keeps where it is.
 local function Place(row)
 	local db = ns.db
-	local grow = Grow()
+	local side = Side()
+	local spec = { side = side, grow = UI.GrowFor(side, db.grow) }
 	local frame = db.attach and FindFrame(row.unit) or nil
 	row.anchor = frame
-	if row.moving then return grow end
+	if row.moving then return spec end
 	row:ClearAllPoints()
 	if frame then
-		local point, rel, dx, dy = SidePoints(db.side, grow)
+		local point, rel, dx, dy = Points(spec.side, spec.grow)
 		local x = dx ~= 0 and dx * db.offset or db.offsetAlong
 		local y = dy ~= 0 and dy * db.offset or db.offsetAlong
 		row:SetPoint(point, frame, rel, x, y)
-		return grow
+		return spec
 	end
 	local r = db.rows[row.unit]
 	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
-	return grow
+	return spec
 end
 
--- a dropped row: where its growing point is, measured from the screen's
--- bottom left corner
+-- a dropped row: where the point it is laid out from is, measured from the
+-- screen's bottom left corner
 function UI.SaveRow(row)
 	local left, bottom, width, height = row:GetRect()
 	if not left then return end
-	local point = ORIGIN[Grow()]
-	local x = point:find("RIGHT") and left + width or (point == "TOP" and left + width / 2) or left
-	local y = point:find("BOTTOM") and bottom or bottom + height
+	local side = Side()
+	local point = Points(side, UI.GrowFor(side, ns.db.grow))
+	local x = point:find("LEFT") and left or (point:find("RIGHT") and left + width) or left + width / 2
+	local y = point:find("TOP") and bottom + height or (point:find("BOTTOM") and bottom) or bottom + height / 2
 	local r = ns.db.rows[row.unit]
 	r.point, r.relPoint, r.x, r.y = point, "BOTTOMLEFT", math.floor(x + 0.5), math.floor(y + 0.5)
 	row:ClearAllPoints()
 	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
 end
 
-local function Layout(row, n, grow)
+-- the icons inside a row: lines of up to maxPerRow, laid out as Place says
+local function Layout(row, n, spec)
 	local db = ns.db
 	local size, gap, per = db.iconSize, db.spacing, math.max(1, db.maxPerRow)
 	local step = size + gap
+	local along = spec.side == "TOP" or spec.side == "BOTTOM"
+	local fromRight = spec.side == "LEFT" or (along and spec.grow == "left")
+	local centred = along and spec.grow == "center"
+	local upward = spec.side == "TOP" or (not along and spec.grow == "up")
+	local v = upward and "BOTTOM" or "TOP"
 	-- the countdown's font follows the icon: the game's number font is too wide for a small icon
 	local font = size < 34 and "NumberFontNormalSmall" or "NumberFontNormal"
 	for i = 1, n do
@@ -333,24 +355,19 @@ local function Layout(row, n, grow)
 		end
 		icon:ClearAllPoints()
 		local col, line = (i - 1) % per, math.floor((i - 1) / per)
-		if grow == "down" then
-			icon:SetPoint("TOPLEFT", row, "TOPLEFT", line * step, -col * step)
-		elseif grow == "up" then
-			icon:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", line * step, col * step)
-		elseif grow == "left" then
-			icon:SetPoint("TOPRIGHT", row, "TOPRIGHT", -col * step, -line * step)
-		elseif grow == "center" then
-			-- every line centred, the last one too when it is shorter
-			local inLine = math.min(per, n - line * per)
-			icon:SetPoint("TOP", row, "TOP", (col - (inLine - 1) / 2) * step, -line * step)
+		local y = upward and line * step or -line * step
+		if centred then
+			local inLine = math.min(per, n - line * per)   -- the last line may be shorter: centred too
+			icon:SetPoint(v, row, v, (col - (inLine - 1) / 2) * step, y)
+		elseif fromRight then
+			icon:SetPoint(v .. "RIGHT", row, v .. "RIGHT", -col * step, y)
 		else
-			icon:SetPoint("TOPLEFT", row, "TOPLEFT", col * step, -line * step)
+			icon:SetPoint(v .. "LEFT", row, v .. "LEFT", col * step, y)
 		end
 		icon:Show()
 	end
 	for i = n + 1, #row.icons do row.icons[i]:Hide() end
 	local cols, lines = math.min(math.max(n, 1), per), math.max(1, math.ceil(n / per))
-	if grow == "down" or grow == "up" then cols, lines = lines, cols end
 	row:SetSize(cols * step - gap, lines * step - gap)
 end
 
@@ -415,11 +432,11 @@ end
 -- a row of sample icons: the player's own class, one of each look: the
 -- first with its buff up, the second cooling with the estimate dot, the
 -- third unknown, the rest ready; the trinket in front when it is on
-local function DrawSample(row, grow, at)
+local function DrawSample(row, spec, at)
 	local _, class = UnitClass("player")
 	local defs = ns.SpellsFor(class, ns.Selection())
 	local lead = ns.db.trinket and 1 or 0
-	Layout(row, #defs + lead, grow)
+	Layout(row, #defs + lead, spec)
 	if lead == 1 then DrawTrinket(row.icons[1], nil) end
 	for i, def in ipairs(defs) do
 		local icon = row.icons[i + lead]
@@ -445,8 +462,8 @@ function UI.Refresh(at)
 	for _, unit in ipairs(UNITS) do
 		local row = Row(unit)
 		if not locked or testing then
-			local grow = Place(row)
-			DrawSample(row, grow, at)
+			local spec = Place(row)
+			DrawSample(row, spec, at)
 			row.label:SetText(L["PARTYCD_" .. unit])
 			row.bg:SetShown(not locked and row.anchor == nil)
 			row.warn:Hide()
@@ -455,9 +472,9 @@ function UI.Refresh(at)
 		else
 			local t = ns.Tracker.Get(unit)
 			if t and (unit ~= "player" or ns.db.showSelf) and #t.order > 0 then
-				local grow = Place(row)
+				local spec = Place(row)
 				local lead = ns.db.trinket and 1 or 0
-				Layout(row, #t.order + lead, grow)
+				Layout(row, #t.order + lead, spec)
 				if lead == 1 then DrawTrinket(row.icons[1], unit) end
 				for i, id in ipairs(t.order) do Draw(row.icons[i + lead], t.spells[id], at) end
 				row:SetAlpha(ns.Tracker.failed and 0.35 or 1)

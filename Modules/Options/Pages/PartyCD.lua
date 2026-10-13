@@ -8,8 +8,24 @@ local X = O.FIELD_X + 20
 local AR   -- the module, set whenever the section is used
 local pages
 
+-- how the lines line up, by the side: up, down or centred by the frame's
+-- left or right, left, right or centred above or below it
 local GROWS = { { "up", "Grow: up" }, { "down", "Grow: down" }, { "left", "Grow: left" }, { "right", "Grow: right" },
 	{ "center", "Grow: center" } }
+local GROWS_BY_SIDE = {
+	RIGHT = { "down", "up", "center" }, LEFT = { "down", "up", "center" },
+	TOP = { "right", "left", "center" }, BOTTOM = { "right", "left", "center" },
+}
+local GROW_LABEL = {}
+for _, g in ipairs(GROWS) do GROW_LABEL[g[1]] = g[2] end
+
+local function GrowItems()
+	local items = {}
+	for _, key in ipairs(GROWS_BY_SIDE[AR.db.side] or GROWS_BY_SIDE.RIGHT) do
+		items[#items + 1] = { label = L[GROW_LABEL[key]], value = key }
+	end
+	return items
+end
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
 local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
 	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
@@ -52,12 +68,21 @@ local function BuildMain(p)
 		Changed()
 	end), "Attach to party frames")
 	p.attach:SetPoint("TOPLEFT", X, -47)
+	-- the side and how the lines line up go together: the second follows the first
 	Skin.Field(p, "Side", 0, -70)
-	p.side = Skin.Dropdown(p, 180, Items(SIDES), function(_, item)
+	p.side = Skin.Dropdown(p, 100, Items(SIDES), function(_, item)
 		AR.db.side = item.value
+		AR.db.grow = AR.UI.GrowFor(item.value, AR.db.grow)
 		Changed()
+		O.Refresh()
 	end)
 	p.side:SetPoint("TOPLEFT", X, -70)
+	p.growLabel = Skin.Field(p, "Grow", X + 116, -70)
+	p.grow = Skin.Dropdown(p, 100, GrowItems, function(_, item)
+		AR.db.grow = item.value
+		Changed()
+	end)
+	p.grow:SetPoint("TOPLEFT", p.growLabel, "TOPRIGHT", 10, 4)
 
 	-- the numbers, three to a line
 	local COL, SW = 150, 130
@@ -80,15 +105,8 @@ local function BuildMain(p)
 	p.maxPerRow = Slider("Max icons per row", COL, row2, { min = 1, max = 12,
 		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
 
-	-- which way the icons go from the first one, by the frame or not; dragging a loose row while unlocked
+	-- a row without a frame to hang on: dragging it while unlocked
 	local y = row2 - Skin.SLIDER_H - 6
-	Skin.Field(p, "Grow", 0, y)
-	p.grow = Skin.Dropdown(p, 180, Items(GROWS), function(_, item)
-		AR.db.grow = item.value
-		Changed()
-	end)
-	p.grow:SetPoint("TOPLEFT", X, y)
-	y = y - 24
 	Skin.Field(p, "Position", 0, y)
 	p.unlock = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.SetLocked(not checked)
@@ -121,8 +139,9 @@ local function RefreshMain(p)
 	for _, s in ipairs(SIDES) do
 		if s[1] == db.side then p.side:SetValueText(L[s[2]]) end
 	end
+	local grow = AR.UI.GrowFor(db.side, db.grow)
 	for _, g in ipairs(GROWS) do
-		if g[1] == db.grow then p.grow:SetValueText(L[g[2]]) end
+		if g[1] == grow then p.grow:SetValueText(L[g[2]]) end
 	end
 	p.unlock:SetChecked(not AR.IsLocked())
 	p.test:SetChecked(AR.IsTesting())

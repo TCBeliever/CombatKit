@@ -35,7 +35,8 @@ ns.defaults = {
 	side        = "RIGHT",   -- "RIGHT" | "LEFT" | "TOP" | "BOTTOM": which side of the frame
 	offset      = 4,         -- distance from the frame
 	offsetAlong = 0,         -- shift along the frame's edge
-	grow        = "right",   -- "right" | "down": a loose row's direction
+	grow        = "down",    -- how the lines line up: "down" | "up" | "center" by the frame's side,
+	                         -- "right" | "left" | "center" above or below it (UI.lua)
 	rows = {
 		player = { point = "CENTER", relPoint = "CENTER", x = -260, y = -60 },
 		party1 = { point = "CENTER", relPoint = "CENTER", x = -260, y = -100 },
