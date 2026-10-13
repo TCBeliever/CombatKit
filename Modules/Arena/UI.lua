@@ -284,9 +284,15 @@ local function Layout(row, n, grow)
 	local db = ns.db
 	local size, gap, per = db.iconSize, db.spacing, math.max(1, db.maxPerRow)
 	local step = size + gap
+	-- the countdown's font follows the icon: the game's number font is too wide for a small icon
+	local font = size < 34 and "NumberFontNormalSmall" or "NumberFontNormal"
 	for i = 1, n do
 		local icon = Icon(row, i)
 		icon:SetSize(size, size)
+		if icon.font ~= font then
+			icon.font = font
+			pcall(icon.cd.SetCountdownFont, icon.cd, font)
+		end
 		icon:ClearAllPoints()
 		local col, line = (i - 1) % per, math.floor((i - 1) / per)
 		if grow == "down" then
@@ -322,7 +328,7 @@ local function Draw(icon, e, at)
 		icon.cd:Clear()
 	end
 	icon.dot:SetShown(e.estimate and (state == "cooling" or nextAt ~= nil))
-	if e.def.charges > 1 and state ~= "unknown" then
+	if e.charges > 1 and state ~= "unknown" then
 		icon.count:SetText(left)
 		icon.count:Show()
 	else

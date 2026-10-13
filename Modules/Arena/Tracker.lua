@@ -61,6 +61,7 @@ local function NewEntry(def, known)
 		activeSince = nil,  -- when the buff was last seen appearing (nil when down)
 		activeHolder = nil, -- which unit holds the buff
 		cd = ns.BaseCooldown(def),
+		charges = def.charges,  -- one more once a teammate is seen using it that often
 		estimate = true,    -- until inspect has had its say
 		unknown = not known,
 		ambiguous = false,  -- the last use may belong to someone else as well
@@ -183,6 +184,8 @@ local function AddUse(e, at, trusted)
 		e.uses = {}
 	end
 	e.uses[#e.uses + 1] = at
+	-- more uses outstanding than charges: the talent for another charge is there
+	if e.def.extraCharge and #e.uses > e.charges then e.charges = e.def.charges + 1 end
 	e.unknown = false
 	return true
 end
@@ -192,7 +195,7 @@ function Tracker.State(e, at)
 	at = at or now()
 	Settle(e, at)
 	local times = ReadyTimes(e)
-	local left = e.def.charges - #e.uses
+	local left = e.charges - #e.uses
 	local state, readyAt, nextAt = "ready", nil, nil
 	if left <= 0 then
 		state, readyAt = "cooling", times[1]
@@ -364,7 +367,7 @@ function Tracker.Debug()
 			local e = t.spells[id]
 			local state, readyAt, left = Tracker.State(e, at)
 			out[#out + 1] = string.format("%s %d %s cd=%.0f%s uses=%d%s%s", t.unit, id, state, e.cd, e.estimate and "~" or "", #e.uses,
-				readyAt and string.format(" ready in %.0f", readyAt - at) or "", e.def.charges > 1 and (" x" .. left) or "")
+				readyAt and string.format(" ready in %.0f", readyAt - at) or "", e.charges > 1 and (" x" .. left) or "")
 		end
 	end
 	return out
