@@ -13,6 +13,9 @@ CK.SetModuleEnabled("PartyCD", true)
 local AR = CK.modules.PartyCD
 check(AR and AR.enabled and AR.IsRunning(), "switched on: loaded and running")
 local TR = AR.Tracker
+-- Survival Instincts with two charges from the start, as the charge scenarios below
+-- were written (the data gives one; a passive or a talent adds the second)
+AR.TalentData.base[61336].charges = 2
 
 -- a backend that reports what the test says
 local fake = { watches = {}, started = false }
@@ -514,53 +517,70 @@ check(#r == 1 and r[1].sec == -1.5, "a decimal survives the sentence cut")
 r = parsed("Reduces the cooldown of spell22812 by 1 min.")
 check(#r == 1 and r[1].sec == -60, "minutes")
 
--- into an arena again: a druid with talents to read, the player with their own
+-- into an arena again: a druid with talents, the player with their own; the
+-- talent spells are made up, and the data table below says what they do
 W.inInstance, W.instanceType = true, "arena"
 W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-2-DRUID", spec = 105, pvp = { 9001 } }
 W.units.party2 = nil
 W.traits = {
 	[-1] = { nodes = {
-		{ entries = { { spell = 90001, desc = { "Reduces the cooldown of spell22812 by 10 sec.", "Reduces the cooldown of spell22812 by 20 sec." } } }, taken = 1, rank = 2 },
-		{ entries = { { spell = 102342 }, { spell = 90002, desc = "Something else." } }, taken = 2 },   -- Ironbark offered, the other choice taken
-		{ entries = { { spell = 90003, desc = "spell61336 gains an additional charge." } }, taken = 1 },
-		{ entries = { { spell = 90004, desc = "Reduces the cooldown of spell61336 by 50%." } }, taken = 1, subTree = 7, subTreeActive = false },  -- a hero tree not chosen
-		{ entries = { { spell = 90005, desc = "Reduces the cooldown of spell61336 by 60 sec." } } },   -- not taken
+		{ entries = { { spell = 90001 } }, taken = 1, rank = 2 },   -- two ranks taken
+		{ entries = { { spell = 102342 }, { spell = 90002 } }, taken = 2 },   -- Ironbark offered, the other choice taken
+		{ entries = { { spell = 90003 } }, taken = 1 },
+		{ entries = { { spell = 90004 } }, taken = 1, subTree = 7, subTreeActive = false },  -- a hero tree not chosen
+		{ entries = { { spell = 90005 } } },   -- not taken
 	} },
-	[5] = { nodes = { { entries = { { spell = 90020, desc = "Reduces the cooldown of spell198589 by 15 sec." } }, taken = 1 } } },
+	[5] = { nodes = { { entries = { { spell = 90020 } }, taken = 1 } } },
 }
+local DATA = AR.TalentData
+local dataBuild = DATA.build
+DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())   -- the data is for this build
+DATA.mods[90001] = { [22812] = { sec = -10, ranks = { [9011] = { sec = { -10, -20 } } } } }   -- the stub's definition ID: config -1, node 1, entry 1
+DATA.mods[90003] = { [61336] = { charges = 1 } }
+DATA.mods[90004] = { [61336] = { pct = -50 } }
+DATA.mods[90005] = { [61336] = { sec = -60 } }
+DATA.mods[90010] = { [22812] = { sec = -5 } }     -- a PvP talent
+DATA.mods[90020] = { [198589] = { sec = -15 } }   -- the player's talent
+DATA.mods[90030] = { [22812] = { sec = -15 } }    -- a restoration passive
+DATA.spec[105] = { 90030 }
 W.activeTraitConfig = 5
 W.pvpTalentInfo = { [9001] = { spellID = 90010 } }
-W.descriptions = { [90010] = "" }   -- the PvP talent's text is not loaded yet
 W.pvpTalents = {}
 W.inspectable = nil
 W.now = 5000
 fire("PLAYER_ENTERING_WORLD")
 check(fake.started and TR.Get("party1") and TR.Get("party1").spells[22812].estimate, "entering: the druid's cooldowns are estimates")
+check(not IN.TextFallback(), "the data is for this build: no texts are read")
 IN.Tick(5000)
 local me = TR.Get("player").spells[198589]
-check(me.cd == 45 and not me.estimate, "the player's own talents are read at once: Blur 45 s, no longer an estimate")
+check(me.cd == AR.BaseCooldown(me.def) - 15 and not me.estimate, "the player's own talents at once: Blur 15 s shorter, no longer an estimate")
 check(W.log[#W.log] == "inspect:party1", "the druid is asked for")
-check(TR.Get("party1").spells[22812].cd == 60, "nothing changes before the answer")
+local barkskin = AR.BaseCooldown(AR.SPELL_BY_ID[22812])
+eq(barkskin, 60, "Barkskin's base comes from the data")
+check(TR.Get("party1").spells[22812].cd == barkskin, "nothing changes before the answer")
 fire("INSPECT_READY", "Player-2-DRUID")
 local d = TR.Get("party1")
-check(d.spells[22812].cd == 40 and not d.spells[22812].estimate, "the answer: Barkskin 40 s (rank 2 of the talent)")
-check(d.spells[61336].charges == 3, "Survival Instincts: a third charge")
-check(d.spells[61336].cd == 180, "the hero tree not chosen and the talent not taken count for nothing")
+eq(d.spells[22812].cd, barkskin - 20 - 5 - 15, "the answer: rank 2 of the talent, the PvP talent and the spec's passive off Barkskin")
+check(not d.spells[22812].estimate, "no longer an estimate")
+eq(d.spells[61336].charges, AR.BaseCharges(d.spells[61336].def) + 1, "Survival Instincts: a charge more")
+eq(d.spells[61336].cd, AR.BaseCooldown(d.spells[61336].def), "the hero tree not chosen and the talent not taken count for nothing")
 local function inRow(unit, id)
 	for _, x in ipairs(TR.Get(unit).order) do if x == id then return true end end
 	return false
 end
 check(not inRow("party1", 102342) and d.spells[102342], "Ironbark offered and not taken: out of the row, still known")
-check(IN.Pending("party1"), "the PvP talent's text was missing: asked again later")
-check(W.log[#W.log - 1] == "loadspell:90010" or W.log[#W.log] == "loadspell:90010" or (function()
-	for i = #W.log, 1, -1 do if W.log[i] == "loadspell:90010" then return true end end end)(), "and its text requested")
-IN.Tick(5002)
-check(W.log[#W.log] ~= "inspect:party1", "not before the retry interval")
-W.descriptions[90010] = "Reduces the cooldown of spell22812 by 5 sec."
+check(not IN.Pending("party1"), "answered in one go")
+
+-- the game moved past the data: a talent the data does not know is read from its text
+DATA.build = "0.0.0.0"
+check(IN.TextFallback(), "another build: the texts are read for what the data lacks")
+W.traits[-1].nodes[6] = { entries = { { spell = 90006, desc = "Reduces the cooldown of spell22812 by 3 sec." } }, taken = 1 }
+IN.Want("party1", "Player-2-DRUID", "DRUID")
 IN.Tick(5006)
-check(W.log[#W.log] == "inspect:party1", "asked again after the interval")
 fire("INSPECT_READY", "Player-2-DRUID")
-check(d.spells[22812].cd == 35 and not IN.Pending("party1"), "the PvP talent read: Barkskin 35 s, inspect done")
+eq(d.spells[22812].cd, barkskin - 20 - 5 - 15 - 3, "the data's talents as before, the unknown one from its text")
+W.traits[-1].nodes[6] = nil
+DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
 eq(#d.order, 3, "a restoration druid without Ironbark: Barkskin, Mighty Bash, Incapacitating Roar")
@@ -626,6 +646,7 @@ check(T.said("inspect party1") and T.said("gave up"), "/ckpartycd tells what ins
 W.inInstance, W.instanceType = false, nil
 fire("ZONE_CHANGED_NEW_AREA")
 W.traits, W.inspectable = nil, nil
+DATA.build = dataBuild
 
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("PartyCD", false)

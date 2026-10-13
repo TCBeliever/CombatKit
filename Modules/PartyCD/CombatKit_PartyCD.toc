@@ -12,6 +12,7 @@
 
 Locales.lua
 Spells.lua
+TalentData.lua
 Tracker.lua
 Inspect.lua
 Backend.lua

@@ -2,15 +2,15 @@ local ADDON, ns = ...
 
 -- ===========================================================================
 -- Inspect: a teammate's talents, so that the cooldown of a watched ability is
--- theirs and not the class's base. Nothing is hand-written about talents: the
--- inspected talent tree is walked with C_Traits, and every selected talent's
--- text (the game's own tooltip, at the selected rank) is read for a sentence
--- that names a watched ability and shortens or lengthens its cooldown, or
--- gives it a charge. A watched ability that the tree offers and the teammate
--- did not take is dropped from the row. PvP talents are read the same way.
--- The teammate's specialization comes with the same answer
--- (GetInspectSpecialization); an ability no spell list gives that spec
--- (`specs` in Spells.lua) is dropped as well.
+-- theirs and not the class's base. The inspected talent tree is walked with
+-- C_Traits; what each selected talent, PvP talent and specialization passive
+-- does to a watched ability comes from TalentData.lua, generated from the
+-- game's data files (tools/talentdata.py): seconds or a share off the
+-- cooldown, by rank, or a charge. A watched ability that the tree offers and
+-- the teammate did not take is dropped from the row, and so is one no spell
+-- list gives their specialization (`specs` in Spells.lua). When the game is
+-- a newer build than the data, a selected talent the data does not know is
+-- read from its text (the game's own tooltip) as a stopgap.
 --
 -- A request is never sent while the player has the inspect window open: it
 -- would replace whoever they are looking at.
@@ -212,24 +212,70 @@ local function DefinitionSpell(configID, entryID)
 	if not ok or type(entry) ~= "table" or not entry.definitionID then return nil end
 	local okD, defn = pcall(C_Traits.GetDefinitionInfo, entry.definitionID)
 	if not okD or type(defn) ~= "table" then return nil end
-	return defn.spellID, defn.overrideDescription
+	return defn.spellID, defn.overrideDescription, entry.definitionID
 end
 
--- One configuration (the inspected one, or the player's active one) and the
--- selected PvP talents, read for a class's watched abilities. Returns
--- results = { [spellID] = { cd = seconds, charges = n, missing = bool } }
--- for every watched ability of the class, and whether every text was there.
-function Inspect.Analyse(configID, class, pvpTalentIDs, forPlayer)
+-- the game's build, as the data file writes it
+local function LiveBuild()
+	if not GetBuildInfo then return nil end
+	local ok, version, build = pcall(GetBuildInfo)
+	if ok and type(version) == "string" and build ~= nil then return version .. "." .. tostring(build) end
+end
+
+-- the texts are read for talents the data does not know when the game has
+-- moved past the data's build
+function Inspect.TextFallback()
+	local data = ns.TalentData
+	if not data or not data.mods then return true end
+	local live = LiveBuild()
+	return live ~= nil and live ~= data.build
+end
+
+-- One configuration (the inspected one, or the player's active one), the
+-- selected PvP talents and the specialization, read for a class's watched
+-- abilities. Returns results = { [spellID] = { cd = seconds, charges = n,
+-- missing = bool } } for every watched ability of the class, and whether
+-- everything needed was there (a text not loaded yet says no).
+function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 	local defs = ns.SPELLS[class]
 	if not defs then return nil, true end
+	local data = ns.TalentData or {}
+	local mods = data.mods or {}
+	local useText = Inspect.TextFallback()
 	local byName, acc = {}, {}
 	for _, def in ipairs(defs) do
-		local ok, name = pcall(C_Spell.GetSpellName, def.id)
-		if ok and type(name) == "string" and name ~= "" and plain(name) then byName[name] = def end
+		if useText then
+			local ok, name = pcall(C_Spell.GetSpellName, def.id)
+			if ok and type(name) == "string" and name ~= "" and plain(name) then byName[name] = def end
+		end
 		acc[def.id] = { sec = 0, pct = 1, charges = 0, offered = false, taken = false }
 	end
 	local state = { complete = true }
-	local function Apply(text)
+
+	-- what the data says a selected spell does, at the rank of the definition taken
+	local function AtRank(values, rank)
+		if type(values) ~= "table" then return values end
+		return values[math.min(math.max(rank or 1, 1), #values)]
+	end
+	local function ApplyData(source, definitionID, rank)
+		local m = source and mods[source]
+		if not m then return false end
+		for sid, r in pairs(m) do
+			local a = acc[sid]
+			if a then
+				local ranks = r.ranks and definitionID and r.ranks[definitionID]
+				local sec = ranks and ranks.sec and AtRank(ranks.sec, rank) or r.sec
+				local pct = ranks and ranks.pct and AtRank(ranks.pct, rank) or r.pct
+				local charges = ranks and ranks.charges and AtRank(ranks.charges, rank) or r.charges
+				if sec then a.sec = a.sec + sec end
+				if pct then a.pct = a.pct * (1 + pct / 100) end   -- negative: shorter
+				if charges then a.charges = a.charges + charges end
+			end
+		end
+		return true
+	end
+	-- what a talent's text says (the stopgap on a newer build)
+	local function ApplyText(text)
 		for _, m in ipairs(Inspect.Parse(text, byName)) do
 			local a = acc[m.def.id]
 			a.sec = a.sec + m.sec
@@ -253,10 +299,12 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, forPlayer)
 					if sid and acc[sid] then acc[sid].offered = true end
 				end
 				if rank > 0 and active.entryID then
-					local sid, override = DefinitionSpell(configID, active.entryID)
+					local sid, override, definitionID = DefinitionSpell(configID, active.entryID)
 					if sid and acc[sid] then acc[sid].taken = true end
-					local text = TalentText(active.entryID, rank, sid, override, state)
-					if text then Apply(text) end
+					if not ApplyData(sid, definitionID, rank) and useText then
+						local text = TalentText(active.entryID, rank, sid, override, state)
+						if text then ApplyText(text) end
+					end
 				end
 			end
 		end
@@ -266,22 +314,21 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, forPlayer)
 		local sid = ok and type(info) == "table" and info.spellID
 		if sid then
 			if acc[sid] then acc[sid].taken = true end
-			local text = TalentText(nil, nil, sid, nil, state)
-			if text then Apply(text) end
+			if not ApplyData(sid) and useText then
+				local text = TalentText(nil, nil, sid, nil, state)
+				if text then ApplyText(text) end
+			end
 		end
 	end
+	-- the specialization's passives
+	for _, source in ipairs((spec and data.spec and data.spec[spec]) or {}) do ApplyData(source) end
 
 	local results = {}
 	for _, def in ipairs(defs) do
 		local a = acc[def.id]
-		-- the player's client already folds talents into the base cooldown it
-		-- reports; when it reported one, the text is not applied on top
-		local base = forPlayer and ns.BaseCooldown(def) or def.cd
-		local cd = base
-		if not forPlayer or base == def.cd then
-			cd = math.max(1, math.floor(((base + a.sec) * a.pct) * 2 + 0.5) / 2)
-		end
-		results[def.id] = { cd = cd, charges = (def.charges or 1) + a.charges, missing = a.offered and not a.taken }
+		local base = ns.BaseCooldown(def)
+		local cd = math.max(1, math.floor(((base + a.sec) * a.pct) * 2 + 0.5) / 2)
+		results[def.id] = { cd = cd, charges = ns.BaseCharges(def) + a.charges, missing = a.offered and not a.taken }
 	end
 	return results, state.complete
 end
@@ -337,12 +384,13 @@ local function Describe(results, complete)
 		local def = ns.SPELL_BY_ID[id]
 		if r.missing then
 			parts[#parts + 1] = id .. " missing"
-		elseif def and (r.cd ~= def.cd or r.charges ~= (def.charges or 1)) then
+		elseif def and (r.cd ~= ns.BaseCooldown(def) or r.charges ~= ns.BaseCharges(def)) then
 			parts[#parts + 1] = string.format("%d cd=%g%s", id, r.cd, r.charges > 1 and (" x" .. r.charges) or "")
 		end
 	end
 	table.sort(parts)
 	return (#parts > 0 and table.concat(parts, ", ") or "no changes") .. (complete and "" or " (texts pending)")
+		.. (Inspect.TextFallback() and " [data for another build: texts read as well]" or "")
 end
 
 -- abilities the spec does not have are missing, whatever the tree said
@@ -360,7 +408,7 @@ local function ApplySpec(results, class, spec)
 end
 
 local function Finish(p, configID, pvpIDs, forPlayer, at, spec)
-	local results, complete = Inspect.Analyse(configID, p.class, pvpIDs, forPlayer)
+	local results, complete = Inspect.Analyse(configID, p.class, pvpIDs, spec)
 	results = ApplySpec(results, p.class, spec)
 	if spec then p.spec = spec end
 	if results then

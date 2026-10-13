@@ -64,7 +64,7 @@ local function NewEntry(def, known)
 		activeSince = nil,  -- when the buff was last seen appearing (nil when down)
 		activeHolder = nil, -- which unit holds the buff
 		cd = ns.BaseCooldown(def),
-		charges = def.charges,  -- one more once a teammate is seen using it that often
+		charges = ns.BaseCharges(def),  -- one more once a teammate is seen using it that often
 		estimate = true,    -- until inspect has had its say
 		unknown = not known,
 		ambiguous = false,  -- the last use may belong to someone else as well
@@ -189,7 +189,7 @@ end
 -- effect walked into twice
 local function CanCorrect(e, trusted)
 	local d = e.def
-	return trusted and d.charges == 1 and not d.extraCharge and not d.noLearn and not d.area
+	return trusted and ns.BaseCharges(d) == 1 and not d.extraCharge and not d.noLearn and not d.area
 end
 
 local function AddUse(e, at, trusted)
@@ -202,7 +202,7 @@ local function AddUse(e, at, trusted)
 	end
 	e.uses[#e.uses + 1] = at
 	-- more uses outstanding than charges: the talent for another charge is there
-	if e.def.extraCharge and #e.uses > e.charges then e.charges = e.def.charges + 1 end
+	if e.def.extraCharge and #e.uses > e.charges then e.charges = ns.BaseCharges(e.def) + 1 end
 	e.unknown = false
 	return true
 end
@@ -333,7 +333,7 @@ function Tracker.Expired(unit, spellID, at)
 			local known = durations[spellID]
 			if not known or length < known - 0.25 then
 				durations[spellID] = length
-			elseif length > known + 0.5 and e.def.charges > 1 and not e.def.area then
+			elseif length > known + 0.5 and ns.BaseCharges(e.def) > 1 and not e.def.area then
 				Use(t, e, at - known, unit, e.ambiguous)   -- the refresh, dated by the full length
 			end
 		end

@@ -309,6 +309,7 @@ C_Spell.RequestLoadSpellData = function(id) log("loadspell:" .. id) end
 -- Inspect: the request is logged, the test answers with INSPECT_READY; W.inspectable[unit] = false refuses
 Constants = Constants or {}
 Constants.TraitConsts = { INSPECT_TRAIT_CONFIG_ID = -1 }
+function GetBuildInfo() return "12.1.0", "69933", "Sep 22 2026", 120100 end
 function CanInspect(unit) return not (W.inspectable and W.inspectable[unit] == false) end
 function NotifyInspect(unit) log("inspect:" .. unit) end
 function ClearInspectPlayer() log("inspect-clear") end

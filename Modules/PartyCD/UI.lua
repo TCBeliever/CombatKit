@@ -449,7 +449,8 @@ local function DrawSample(row, spec, at)
 		icon.amb:SetShown(i == 2 and def.kind == "external")
 		icon.dot:SetShown(i == 2)
 		if i == 2 then icon.cd:SetCooldown(at - 12, def.cd) else icon.cd:Clear() end
-		if def.charges > 1 then icon.count:SetText(def.charges) icon.count:Show() else icon.count:Hide() end
+		local charges = ns.BaseCharges(def)
+		if charges > 1 then icon.count:SetText(charges) icon.count:Show() else icon.count:Hide() end
 	end
 end
 

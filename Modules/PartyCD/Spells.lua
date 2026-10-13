@@ -17,10 +17,10 @@ local ADDON, ns = ...
 -- `aura` is the aura the ability leaves when it differs from the spell (Blur
 -- casts 198589, the buff is 212800); `auras` lists them when it can leave one
 -- of several (a talent's version, another look). The slot filter takes them
--- all and the spell itself. `cd` is the base cooldown in seconds, used only
--- when the client cannot say (GetSpellBaseCooldown); the teammate's talents
--- may change it, which inspect takes care of. `charges` when the base ability
--- has more than one.
+-- all and the spell itself. `cd` is the base cooldown in seconds and `charges`
+-- the charges, used only when the game's data (TalentData.lua, generated from
+-- the data files) has no entry; the teammate's talents may change them, which
+-- inspect takes care of.
 -- `glow` colours the halo while the aura is up: "defensive" (green, the
 -- default), "major" (yellow: immunities and the big externals), "burst" (red,
 -- every offensive cooldown), "cc" (violet, every crowd control).
@@ -85,7 +85,7 @@ ns.SPELLS = {
 		Self(48792, 120),                      -- Icebound Fortitude
 		Self(49039, 120),                      -- Lichborne
 		Self(55233, 90, { specs = set(250) }), -- Vampiric Blood
-		External(51052, 120, { aura = 145629, area = true, lasts = 8 }),  -- Anti-Magic Zone
+		External(51052, 240, { aura = 145629, area = true, lasts = 8 }),  -- Anti-Magic Zone
 		CC(221562, 45),                        -- Asphyxiate
 		CC(47476, 45),                         -- Strangulate
 		Burst(49028, 120, { aura = 81256, specs = set(250) }),  -- Dancing Rune Weapon
@@ -93,7 +93,7 @@ ns.SPELLS = {
 		Burst(207289, 90, { specs = set(252) }), -- Unholy Assault
 	},
 	DEMONHUNTER = {
-		Self(198589, 60, { aura = 212800, extraCharge = true }),  -- Blur
+		Self(198589, 60, { aura = 212800, extraCharge = true, specs = set(577, 1480) }),  -- Blur
 		Self(196555, 180, { glow = "major" }), -- Netherwalk
 		Self(187827, 120, { noLearn = true, specs = set(581) }), -- Metamorphosis (Vengeance): a talent gives a short one too
 		External(196718, 300, { aura = 209426, area = true, lasts = 8 }), -- Darkness
@@ -104,7 +104,7 @@ ns.SPELLS = {
 	},
 	DRUID = {
 		Self(22812, 60),                       -- Barkskin
-		Self(61336, 180, { charges = 2, specs = set(103, 104) }),  -- Survival Instincts
+		Self(61336, 180, { extraCharge = true, specs = set(103, 104) }),  -- Survival Instincts: a second charge from the guardian passive or a talent
 		External(102342, 90, { specs = set(105) }),  -- Ironbark
 		CC(5211, 60),                          -- Mighty Bash
 		CC(99, 30),                            -- Incapacitating Roar
@@ -257,15 +257,19 @@ function ns.EnemyDefs(defs)
 	return out
 end
 
--- the base cooldown in seconds: the client's answer when it is a plain,
--- sensible number of milliseconds, the list's otherwise
+-- the base cooldown in seconds and the base charges: the game's data
+-- (TalentData.lua) when it has the ability, the list's values otherwise
+local function Base(def)
+	local data = ns.TalentData
+	return data and data.base and data.base[def.id]
+end
+
 function ns.BaseCooldown(def)
-	if GetSpellBaseCooldown then
-		local ok, ms = pcall(GetSpellBaseCooldown, def.id)
-		if ok and type(ms) == "number" and (type(canaccessvalue) ~= "function" or canaccessvalue(ms)) then
-			local okC, seconds = pcall(function() return ms / 1000 end)
-			if okC and seconds >= 5 and seconds <= 1200 then return seconds end
-		end
-	end
-	return def.cd
+	local b = Base(def)
+	return b and b.cd or def.cd
+end
+
+function ns.BaseCharges(def)
+	local b = Base(def)
+	return b and b.charges or def.charges or 1
 end
