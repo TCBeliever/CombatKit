@@ -47,4 +47,4 @@ First public release.
 
 ## 1.0.2 (2026-10-13)
 
-- PvP: the module is withdrawn. It was built too closely on AsIntendedCDs by Pines, which is not licensed for reuse; it is removed from the kit and from this repository, with apologies to Pines. The other modules are unchanged. A tracker of our own design may come later.
+- PvP: the module is removed. The other modules are unchanged.
