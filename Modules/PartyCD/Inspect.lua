@@ -19,7 +19,7 @@ local Inspect = {}
 ns.Inspect = Inspect
 
 local RETRY = 5          -- seconds between attempts
-local MAX_TRIES = 12     -- then give up until the next round
+local MAX_TRIES = 10     -- then give up until the next round
 local TIMEOUT = 3        -- an answer later than this is not waited for
 local PVP_SLOTS = 3
 
