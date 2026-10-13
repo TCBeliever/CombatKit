@@ -9,6 +9,14 @@ local ADDON, ns = ...
 --   enemy     the debuff lands on an opponent (Kidney Shot, Hex): a crowd
 --             control, watched on arena1-3
 --
+-- The key: every entry is keyed by `id`, the spell the player casts (the
+-- button), never by the aura it leaves. The cooldown, the talents that change
+-- it, the icon and name, the player's own cast event, the slot of the
+-- detection and the switch on the spells page all go by it. What is seen on
+-- a unit is listed under it as `aura` / `auras`: one ability, any number of
+-- auras. When the same ability is also cast as another spell (a PvP talent's
+-- version), `casts` lists those IDs too.
+--
 -- For external and enemy, who cast it is worked out from who could have
 -- (Tracker.lua). `role` is what the ability is for, and how the spells page
 -- groups it: "defensive" (self and external, the default), "offensive" (a
@@ -31,9 +39,8 @@ local ADDON, ns = ...
 -- corrects the cooldown estimate. `delayed` is how long, in seconds, the
 -- effect can wait after the cast before it lands (a trap on the ground, a
 -- totem's or a sigil's fuse): the player's own cast still explains it.
--- `casts` lists the spell IDs the ability is cast as when that is not `id`
--- (Freezing Trap is cast as 187650, the trap that holds the target is 3355):
--- the player's own cast is recognised by them.
+-- `casts` lists other spell IDs the same ability is cast as (Imprison's PvP
+-- talent version is 221527): the player's own cast is recognised by them too.
 -- `extraCharge` says a talent can add a charge, `noLearn` that something
 -- other than the cooldown can bring the ability back (a reset, a talent's
 -- shorter version, a cooldown cut by what the player does), so two close uses
@@ -123,7 +130,7 @@ ns.SPELLS = {
 	HUNTER = {
 		Self(186265, 180, { glow = "major" }), -- Aspect of the Turtle
 		Self(264735, 90, { extraCharge = true }),  -- Survival of the Fittest
-		CC(3355, 30, { casts = { 187650 }, delayed = 60 }),  -- Freezing Trap (cast as 187650): armed on the ground for a minute
+		CC(187650, 30, { aura = 3355, delayed = 60 }),  -- Freezing Trap: the trap holds its target with 3355; armed on the ground for a minute
 		CC(19577, 60, { auras = { 24394, 1258508 } }),  -- Intimidation
 		Burst(19574, 90, { specs = set(253) }),  -- Bestial Wrath
 		Burst(288613, 120, { specs = set(254) }), -- Trueshot

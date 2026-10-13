@@ -41,7 +41,7 @@ ns.TalentData = {
 		[375087] = { cd = 120, charges = 1 },  -- Dragonrage
 		[186265] = { cd = 180, charges = 1 },  -- Aspect of the Turtle
 		[264735] = { cd = 90, charges = 1 },  -- Survival of the Fittest
-		[3355] = { cd = 30, charges = 1 },  -- Freezing Trap
+		[187650] = { cd = 30, charges = 1 },  -- Freezing Trap
 		[19577] = { cd = 60, charges = 1 },  -- Intimidation
 		[19574] = { cd = 90, charges = 1 },  -- Bestial Wrath
 		[288613] = { cd = 120, charges = 1 },  -- Trueshot
@@ -189,6 +189,9 @@ ns.TalentData = {
 		},
 		[288733] = {  -- Intangibility (talent)
 			[47585] = { sec = -30 },  -- Dispersion
+		},
+		[343247] = {  -- Improved Traps (talent)
+			[187650] = { sec = -5, ranks = { [105638] = { sec = { -2.5, -5 } } } },  -- Freezing Trap
 		},
 		[344359] = {  -- Ancient Arts (talent)
 			[115078] = { sec = -15, ranks = { [129821] = { sec = { -8, -15 } } } },  -- Paralysis
