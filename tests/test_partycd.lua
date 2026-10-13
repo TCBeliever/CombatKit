@@ -7,9 +7,9 @@ local check, eq, W, fire, flush = T.check, T.eq, T.W, T.fire, T.flush
 T.captureChat()
 
 local CK = T.boot()
-check(T.loaded.CombatKit_Arena == nil, "off by default: never loaded")
-CK.SetModuleEnabled("Arena", true)
-local AR = CK.modules.Arena
+check(T.loaded.CombatKit_PartyCD == nil, "off by default: never loaded")
+CK.SetModuleEnabled("PartyCD", true)
+local AR = CK.modules.PartyCD
 check(AR and AR.enabled and AR.IsRunning(), "switched on: loaded and running")
 local TR = AR.Tracker
 
@@ -245,7 +245,7 @@ check(not TR.failed, "one miss is not yet a failure")
 W.now = 2200; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-4", 198589)
 W.now = 2201; TR.SelfTestCheck(2201)
 check(TR.failed, "two misses in a row: detection is broken")
-check(T.said(CK.L["Arena: detection failed, the rows are dimmed."]), "and the player is told")
+check(T.said(CK.L["Party CD: detection failed, the rows are dimmed."]), "and the player is told")
 AR.UI.Refresh(2201)
 check(AR.UI.Rows().party1.warn:IsShown(), "the rows carry the warning")
 W.now = 2300; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-5", 198589)
@@ -308,9 +308,9 @@ AR.SetLocked(true)
 SlashCmdList.COMBATKIT("")
 local main = CK.Options.GetFrame()
 check(main and main:IsShown(), "the settings window opens")
-main.tabs.Arena:Click()
-local page = main.bodies.Arena
-check(page and page.showSelf and page.iconSize, "the Arena page is built")
+main.tabs.PartyCD:Click()
+local page = main.bodies.PartyCD
+check(page and page.showSelf and page.iconSize, "the Party CD page is built")
 page.showSelf:Click()
 eq(AR.db.showSelf, false, "the checkbox writes the setting")
 page.showSelf:Click()
@@ -329,7 +329,7 @@ check(not AR.UI.Rows().party1:IsShown(), "no row outside")
 
 -- the test switch: sample rows out here, with one icon of each look
 SlashCmdList.COMBATKIT("")
-main.tabs.Arena:Click()
+main.tabs.PartyCD:Click()
 page.test:Click()
 check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
 check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
@@ -338,12 +338,12 @@ check(sample.icons[1].halo:IsShown() and sample.icons[1].pulse:IsPlaying() and s
 check(not sample.icons[2].halo:IsShown(), "a cooling one has no glow")
 
 -- the status command and the log
-SlashCmdList.CKARENA("")
-check(T.said("not in arena"), "/ckarena says where we are")
-SlashCmdList.CKARENA("log")
-check(T.said("log lines"), "/ckarena log counts the lines")
+SlashCmdList.CKPARTYCD("")
+check(T.said("not in arena"), "/ckpartycd says where we are")
+SlashCmdList.CKPARTYCD("log")
+check(T.said("log lines"), "/ckpartycd log counts the lines")
 check(#AR.db.log > 0, "the match left a log in the saved variables")
-SlashCmdList.CKARENA("clear")
+SlashCmdList.CKPARTYCD("clear")
 eq(#AR.db.log, 0, "cleared")
 main:Hide()
 check(not AR.IsTesting(), "closing the window ends the test")
@@ -351,7 +351,7 @@ AR.UI.Refresh()
 check(not AR.UI.Rows().player:IsShown(), "and the rows are gone again")
 
 -- ---------------------------------------------------------------- off
-CK.SetModuleEnabled("Arena", false)
+CK.SetModuleEnabled("PartyCD", false)
 check(not AR.IsRunning(), "switched off: stopped")
 
-return T.report("arena " .. LOCALE)
+return T.report("partycd " .. LOCALE)

@@ -15,5 +15,5 @@ Window.lua
 Pages\Loadout.lua
 Pages\Stats.lua
 Pages\Range.lua
-Pages\Arena.lua
+Pages\PartyCD.lua
 Pages\Misc.lua

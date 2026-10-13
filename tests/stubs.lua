@@ -396,7 +396,7 @@ T.ADDONS = {
 	CombatKit_Loadout = "Modules/Loadout/",
 	CombatKit_Stats   = "Modules/Stats/",
 	CombatKit_Range   = "Modules/Range/",
-	CombatKit_Arena   = "Modules/Arena/",
+	CombatKit_PartyCD   = "Modules/PartyCD/",
 	CombatKit_Misc    = "Modules/Misc/",
 	CombatKit_Options = "Modules/Options/",
 }

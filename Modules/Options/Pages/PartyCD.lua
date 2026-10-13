@@ -1,7 +1,7 @@
 local CK = CombatKit
 local L, Skin, O = CK.L, CK.Skin, CK.Options
 
--- Settings page of the Arena module.
+-- Settings page of the Party CD module.
 
 local X = O.FIELD_X + 20
 local AR   -- the module, set whenever the section is used
@@ -110,16 +110,16 @@ local function Refresh(p)
 end
 
 O.AddSection({
-	key = "Arena",
-	module = "Arena",
+	key = "PartyCD",
+	module = "PartyCD",
 	order = 35,
-	tab = function() return L["MOD_Arena"] end,
-	GetNodes = function() return { { key = "arena", label = L["MOD_Arena"] } } end,
-	GetHeader = function() return L["MOD_Arena"], L["MODDESC_Arena"] end,
-	Build = function(p) AR = CK.modules.Arena; Build(p) end,
-	Refresh = function(_, p) AR = CK.modules.Arena; Refresh(p) end,
+	tab = function() return L["MOD_PartyCD"] end,
+	GetNodes = function() return { { key = "arena", label = L["MOD_PartyCD"] } } end,
+	GetHeader = function() return L["MOD_PartyCD"], L["MODDESC_PartyCD"] end,
+	Build = function(p) AR = CK.modules.PartyCD; Build(p) end,
+	Refresh = function(_, p) AR = CK.modules.PartyCD; Refresh(p) end,
 	OnWindowHide = function()
-		local module = CK.modules.Arena
+		local module = CK.modules.PartyCD
 		if module and not module.IsLocked() then module.SetLocked(true) end
 		if module and module.IsTesting() then module.SetTest(false) end
 	end,

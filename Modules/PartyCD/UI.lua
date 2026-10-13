@@ -134,7 +134,7 @@ end
 
 local function Row(unit)
 	if rows[unit] then return rows[unit] end
-	local f = CreateFrame("Frame", "CombatKitArena_" .. unit, UIParent)
+	local f = CreateFrame("Frame", "CombatKitPartyCD_" .. unit, UIParent)
 	f.unit = unit
 	f.icons = {}
 	f:SetSize(32, 32)
@@ -369,7 +369,7 @@ function UI.Refresh(at)
 		if not locked or testing then
 			local grow = Place(row)
 			DrawSample(row, grow, at)
-			row.label:SetText(L["ARENA_" .. unit])
+			row.label:SetText(L["PARTYCD_" .. unit])
 			row.bg:SetShown(not locked and row.anchor == nil)
 			row.warn:Hide()
 			row:SetAlpha(1)

@@ -7,7 +7,7 @@ move-folders:
   CombatKit/Modules/Loadout: CombatKit_Loadout
   CombatKit/Modules/Stats: CombatKit_Stats
   CombatKit/Modules/Range: CombatKit_Range
-  CombatKit/Modules/Arena: CombatKit_Arena
+  CombatKit/Modules/PartyCD: CombatKit_PartyCD
   CombatKit/Modules/Misc: CombatKit_Misc
   CombatKit/Modules/Options: CombatKit_Options
 

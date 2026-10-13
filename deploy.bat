@@ -15,6 +15,7 @@ for /d %%M in ("%SRC%Modules\*") do (
 
 rem A module no longer in the project is removed from the game as well.
 if exist "%ADDONS%\CombatKit_PvP" rmdir /s /q "%ADDONS%\CombatKit_PvP"
+if exist "%ADDONS%\CombatKit_Arena" rmdir /s /q "%ADDONS%\CombatKit_Arena"
 
 echo CombatKit deployed to "%ADDONS%"
 exit /b 0

@@ -46,7 +46,7 @@ local SWEEP_SECONDS = 1            -- every probe is fed this often whatever hap
 
 local function Root()
 	if root then return root end
-	root = CreateFrame("Frame", "CombatKitArenaDetect", WorldFrame or UIParent)
+	root = CreateFrame("Frame", "CombatKitPartyCDDetect", WorldFrame or UIParent)
 	root:SetSize(1, 1)
 	root:SetPoint("BOTTOMLEFT")
 	root:SetAlpha(0)

@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local CK = CombatKit
 local L = CK.L
 
-CK.NewModule("Arena", ns)
+CK.NewModule("PartyCD", ns)
 
 -- ===========================================================================
 -- The module: when to look (an arena, from entering to leaving), who to look
@@ -18,7 +18,7 @@ local engaged = false   -- the gates are open: a teammate arriving now is unknow
 local running = false
 
 -- ---------------------------------------------------------------------------
--- Saved data (CombatKitArenaDB, account-wide)
+-- Saved data (CombatKitPartyCDDB, account-wide)
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
@@ -52,8 +52,8 @@ local function FillDefaults(dst, defaults)
 end
 
 local function InitDB()
-	if type(CombatKitArenaDB) ~= "table" then CombatKitArenaDB = {} end
-	ns.db = FillDefaults(CombatKitArenaDB, ns.defaults)
+	if type(CombatKitPartyCDDB) ~= "table" then CombatKitPartyCDDB = {} end
+	ns.db = FillDefaults(CombatKitPartyCDDB, ns.defaults)
 end
 
 -- ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ end
 -- ---------------------------------------------------------------------------
 
 -- a log of what the backend reported and what the tracker made of it, kept
--- in the saved variables for a match's post-mortem (/ckarena log)
+-- in the saved variables for a match's post-mortem (/ckpartycd log)
 local LOG_LINES = 400
 local function Log(fmt, ...)
 	if not ns.db then return end
@@ -211,7 +211,7 @@ local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then
-		CK.Msg(a and L["Arena: detection is back."] or L["Arena: detection failed, the rows are dimmed."])
+		CK.Msg(a and L["Party CD: detection is back."] or L["Party CD: detection failed, the rows are dimmed."])
 		Log("detection %s", a and "back" or "failed")
 	elseif what == "use" then
 		local state, readyAt, left = Tracker.State(b)
@@ -223,19 +223,19 @@ Tracker.AddListener(function(what, a, b)
 	ns.UI.Dirty()
 end)
 
--- /ckarena status | log | clear: what the tracker holds, what was logged
-SLASH_CKARENA1 = "/ckarena"
-SlashCmdList.CKARENA = function(msg)
+-- /ckpartycd status | log | clear: what the tracker holds, what was logged
+SLASH_CKPARTYCD1 = "/ckpartycd"
+SlashCmdList.CKPARTYCD = function(msg)
 	msg = strtrim(msg or ""):lower()
 	if msg == "log" then
 		local log = ns.db and ns.db.log or {}
 		for i = math.max(1, #log - 40), #log do print("  " .. log[i]) end
-		CK.Msg("Arena: %d log lines, the last %d shown", #log, math.min(#log, 41))
+		CK.Msg("Party CD: %d log lines, the last %d shown", #log, math.min(#log, 41))
 	elseif msg == "clear" then
 		if ns.db then ns.db.log = {} end
-		CK.Msg("Arena: log cleared")
+		CK.Msg("Party CD: log cleared")
 	else
-		CK.Msg("Arena: %s, %s", inArena and "in arena" or "not in arena", Tracker.failed and "detection failed" or "detection fine")
+		CK.Msg("Party CD: %s, %s", inArena and "in arena" or "not in arena", Tracker.failed and "detection failed" or "detection fine")
 		for _, line in ipairs(Tracker.Debug()) do print("  " .. line) end
 		local problems = backend and backend.Problems and backend.Problems() or {}
 		for _, line in ipairs(problems) do print("  backend: " .. line) end
