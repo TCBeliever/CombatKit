@@ -41,12 +41,14 @@ local recentCasts = {}   -- spellID -> time of the player's last cast
 local listeners = {}
 local durations = {}     -- spellID -> shortest full buff duration seen (for refresh inference)
 local selfTest = { pending = {}, failures = 0 }
+local controlled = {}    -- unit -> since when it is under a stun, a fear or a disorient
 Tracker.failed = false
 
-local SAME_USE_WINDOW = 1.0      -- area buffs land on several allies within this
+local SAME_USE_WINDOW = 1.0      -- one use seen on several units lands on them within this
 local OWN_CAST_WINDOW = 0.5      -- a buff this soon after the player's cast is the player's
 local SELF_TEST_WINDOW = 0.5     -- the player's own slot must light up within this
 local SELF_TEST_STRIKES = 2      -- consecutive misses before detection is called broken
+local CONTROL_GRACE = 0.3        -- controlled at least this long before a sighting: did not cast it
 
 local function now() return GetTime() end
 
@@ -137,6 +139,7 @@ end
 function Tracker.Clear()
 	teammates = {}
 	recentCasts = {}
+	controlled = {}
 	selfTest.pending, selfTest.failures = {}, 0
 	Tracker.failed = false
 	Notify("clear")
@@ -177,19 +180,19 @@ local function Settle(e, at)
 end
 
 -- a sighting within this long of the last use is that use seen again: an
--- area buff lands on whoever walks into it for as long as it lasts
+-- use seen on several units (Allies, Enemies) lands on them for its `window`
 local function SameUseWindow(def)
-	if def.area then return (def.lasts or 10) + 1 end
+	if def.window then return def.window + 1 end
 	return SAME_USE_WINDOW
 end
 
 -- may two close uses of this ability prove the estimate too long? Only when
 -- the use is surely this teammate's and nothing but the cooldown can bring
--- the ability back: one charge, no talent for another, no reset, not an area
+-- the ability back: one charge, no talent for another, no reset, not one seen
 -- effect walked into twice
 local function CanCorrect(e, trusted)
 	local d = e.def
-	return trusted and ns.BaseCharges(d) == 1 and not d.extraCharge and not d.noLearn and not d.area
+	return trusted and ns.BaseCharges(d) == 1 and not d.extraCharge and not d.noLearn and not d.window
 end
 
 local function AddUse(e, at, trusted)
@@ -242,13 +245,25 @@ end
 
 -- who could have put this external on `holder` (a teammate), or this crowd
 -- control on `holder` (an opponent). The player's own cast settles it first:
--- within OWN_CAST_WINDOW, or within the ability's `delayed` for one that can
+-- within OWN_CAST_WINDOW, or within the ability's `fuse` for one that can
 -- land long after the cast (a trap, a totem); the player's own use is then
 -- nobody else's, credited to the player's row when it is shown.
+-- a teammate under a stun, a fear or a disorient (PartyCD.lua reads it from the
+-- game's loss-of-control data), from when
+function Tracker.SetControlled(unit, on, at)
+	if on then controlled[unit] = controlled[unit] or at or now() else controlled[unit] = nil end
+end
+
+local function Controlled(unit, at)
+	local since = controlled[unit]
+	return since ~= nil and at - since >= CONTROL_GRACE
+end
+Tracker.Controlled = function(unit, at) return Controlled(unit, at or now()) end
+
 local function Candidates(def, holder, at)
-	local out = {}
+	local out, held = {}, {}
 	local recent = recentCasts[def.id]
-	if recent and at - recent <= (def.delayed or 0) + OWN_CAST_WINDOW and PlayerHas(def) then
+	if recent and at - recent <= (def.fuse or 0) + OWN_CAST_WINDOW and PlayerHas(def) then
 		if teammates.player and teammates.player.spells[def.id] then return { teammates.player }, true end
 		return {}, true
 	end
@@ -258,18 +273,23 @@ local function Candidates(def, holder, at)
 			local okDead, dead = pcall(UnitIsDeadOrGhost, unit)
 			if okDead and dead == true then
 				-- a dead teammate cast nothing
-			elseif def.notOnSelf and unit == holder then
+			elseif def.seen == "otherAlly" and unit == holder then
 				-- cannot be cast on oneself: the holder is not the caster
+			elseif Controlled(unit, at) and not ns.CastableUnderControl(def) then
+				held[#held + 1] = t   -- stunned, feared or disoriented since before: not the caster
 			else
 				out[#out + 1] = t
 			end
 		end
 	end
-	if #out == 0 and teammates[holder] and teammates[holder].spells[def.id] and not def.notOnSelf then
+	if #out == 0 and teammates[holder] and teammates[holder].spells[def.id] and def.seen ~= "otherAlly" then
 		local t = teammates[holder]
 		out[1] = t   -- nobody else could have: the holder did it to themselves
 		if t.spells[def.id].missing then t.spells[def.id].missing = false; Reorder(t); Notify("roster") end
 	end
+	-- everyone who could have was under control: the reading was wrong somewhere, so
+	-- they stay the candidates rather than nobody
+	if #out == 0 then out = held end
 	return out, false
 end
 
@@ -283,7 +303,7 @@ function Tracker.Shown(unit, spellID, at, initial)
 	at = at or now()
 	local def = ns.SPELL_BY_ID[spellID]
 	if not def then return end
-	if def.kind == "self" then
+	if def.seen == "caster" then
 		local e, t = Entry(unit, spellID)
 		if not e then return end
 		if e.missing then e.missing = false; Reorder(t); Notify("roster") end
@@ -333,7 +353,7 @@ function Tracker.Expired(unit, spellID, at)
 			local known = durations[spellID]
 			if not known or length < known - 0.25 then
 				durations[spellID] = length
-			elseif length > known + 0.5 and ns.BaseCharges(e.def) > 1 and not e.def.area then
+			elseif length > known + 0.5 and ns.BaseCharges(e.def) > 1 and not e.def.window then
 				Use(t, e, at - known, unit, e.ambiguous)   -- the refresh, dated by the full length
 			end
 		end
@@ -354,7 +374,7 @@ function Tracker.OnPlayerCast(spellID, at)
 	if not def then return end
 	recentCasts[def.id] = at
 	local me = teammates.player
-	if me and me.spells[def.id] and def.kind == "self" then
+	if me and me.spells[def.id] and def.seen == "caster" then
 		selfTest.pending[def.id] = at
 	end
 end

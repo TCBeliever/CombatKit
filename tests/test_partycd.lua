@@ -6,13 +6,53 @@ local T = dofile(HERE .. "/stubs.lua")
 local check, eq, W, fire, flush = T.check, T.eq, T.W, T.fire, T.flush
 T.captureChat()
 
-CombatKitPartyCDDB = { showSelf = true }   -- the player's own row is a debug setting, off by default; this test wants it
+CombatKitPartyCDDB = { showSelf = true,   -- the player's own row is a debug setting, off by default; this test wants it
+	disabled = { [49039] = true },           -- an older build's switch: Lichborne off
+	-- crowd control under a minute is off by default: the scenarios below use these
+	picked = { [8122] = true, [179057] = true, [217832] = true } }  -- Psychic Scream, Chaos Nova, Imprison
 local CK = T.boot()
 check(T.loaded.CombatKit_PartyCD == nil, "off by default: never loaded")
 CK.SetModuleEnabled("PartyCD", true)
 local AR = CK.modules.PartyCD
 check(AR and AR.enabled and AR.IsRunning(), "switched on: loaded and running")
 local TR = AR.Tracker
+check(AR.db.disabled == nil and AR.db.picked[49039] == false, "an older build's switched-off spell is kept as ticked off")
+
+-- on by default: a cooldown of a minute or more; a shorter one waits to be ticked
+local function def(id) return AR.SPELL_BY_ID[id] end
+check(AR.DefaultOn(def(22812)) and AR.Picked(def(22812), {}), "Barkskin, 60 s: on by default (a minute counts)")
+check(not AR.DefaultOn(def(99)) and not AR.Picked(def(99), {}), "Incapacitating Roar, 30 s: off by default")
+check(AR.Picked(def(99), { [99] = true }) and not AR.Picked(def(22812), { [22812] = false }), "a tick either way wins")
+-- how an ability is seen and what it is for are two things (Spells.lua)
+check(def(198589).seen == "caster" and def(102342).seen == "ally" and def(6940).seen == "otherAlly"
+	and def(196718).seen == "allies" and def(408).seen == "enemy" and def(78675).seen == "enemies"
+	and def(187650).seen == "enemyLater", "the seven ways of being seen")
+check(def(196718).window == 8 and def(187650).fuse == 60, "an area's window, a trap's fuse")
+check(def(102342).external and def(6940).external and def(196718).external and not def(198589).external
+	and not def(408).external, "externals: on someone else than the caster")
+check(def(48707).seen == "ally" and not def(48707).external, "Anti-Magic Shell: may sit on an ally (Spellwarden), not hidden with the externals")
+check(AR.SPELL_BY_CAST[199448] == def(6940), "Ultimate Sacrifice's Blessing of Sacrifice is still Blessing of Sacrifice")
+check(def(408).onEnemy and def(78675).onEnemy and def(187650).onEnemy and not def(102342).onEnemy, "looked for on the opponents")
+check(def(1122).tag == "burst" and AR.HasTag(def(1122), "control") and def(1122).noLearn,
+	"Summon Infernal: burst first, control too, and a burst is never learned from")
+check(def(49028).tag == "burst" and AR.HasTag(def(49028), "defense"), "Dancing Rune Weapon: burst and defense")
+check(AR.UI.GlowOf(def(642)) == "big" and AR.UI.GlowOf(def(22812)) == "defense" and AR.UI.GlowOf(def(408)) == "control"
+	and AR.UI.GlowOf(def(13750)) == "burst" and AR.UI.GlowOf(def(29166)) == "other", "the halo's colour follows the main tag, big first")
+for _, list in pairs(AR.SPELLS) do
+	local last = 0
+	local order = { defense = 1, burst = 2, control = 3, other = 4 }
+	for _, d in ipairs(list) do
+		check(order[d.tag] ~= nil, d.id .. ": a known main tag")
+		check(order[d.tag] >= last, d.id .. ": the class's list runs by main tag")
+		last = order[d.tag] or last
+	end
+end
+local druidAll = 0
+for _, d in ipairs(AR.SPELLS.DRUID) do druidAll = druidAll + 1 end
+check(#AR.SpellsFor("DRUID", true) < druidAll, "the short druid cooldowns are not watched until ticked")
+for _, d in ipairs(AR.SpellsFor("DRUID", true)) do
+	check(AR.BaseCooldown(d) >= 60, "watched by default: " .. d.id .. " has a cooldown of a minute or more")
+end
 -- Survival Instincts with two charges from the start, as the charge scenarios below
 -- were written (the data gives one; a passive or a talent adds the second)
 AR.TalentData.base[61336].charges = 2
@@ -155,6 +195,48 @@ eq(state("party2", 33206, 1000), "ready", "not the dead one")
 check(not TR.Get("party1").spells[33206].ambiguous, "and no mark")
 hidden("player", 33206, 1008)
 W.units.party2.dead = nil
+
+-- a candidate under a stun, a fear or a disorient did not cast it: the game's loss of
+-- control, priority 5 (a root is 1 and stops no cast)
+local loc = {}
+C_LossOfControl = {
+	GetActiveLossOfControlDataCountByUnit = function(unit) return loc[unit] and #loc[unit] or 0 end,
+	GetActiveLossOfControlDataByUnit = function(unit, i) return loc[unit] and loc[unit][i] end,
+}
+local function control(unit, priority, at)
+	loc[unit] = priority and { { priority = priority, displayType = 2 } } or nil
+	W.now = at; fire(priority and "LOSS_OF_CONTROL_ADDED" or "LOSS_OF_CONTROL_UPDATE", unit, 1)
+end
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+control("party2", 5, 1020)
+shown("player", 33206, 1021)
+eq(state("party1", 33206, 1021), "active", "the priest who could act")
+eq(state("party2", 33206, 1021), "ready", "not the stunned one")
+check(not TR.Get("party1").spells[33206].ambiguous, "and no mark")
+hidden("player", 33206, 1029)
+control("party2", nil, 1030)
+check(not TR.Controlled("party2", 1030), "the stun is over")
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+control("party2", 1, 1040)
+shown("player", 33206, 1041)
+check(TR.Get("party1").spells[33206].ambiguous and TR.Get("party2").spells[33206].ambiguous, "rooted: still a candidate")
+hidden("player", 33206, 1049)
+control("party2", nil, 1050)
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+control("party2", 5, 1060)
+shown("player", 33206, 1060.1)
+check(TR.Get("party2").spells[33206].ambiguous, "stunned the same moment: may have cast it just before, still a candidate")
+hidden("player", 33206, 1068)
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+control("party1", 5, 1070)
+shown("player", 33206, 1071)
+check(TR.Get("party1").spells[33206].ambiguous and TR.Get("party2").spells[33206].ambiguous,
+	"both under control: the reading is off somewhere, both stay the candidates")
+hidden("player", 33206, 1079)
+control("party1", nil, 1080); control("party2", nil, 1080)
+check(AR.CastableUnderControl(AR.SPELL_BY_ID[22812]) and not AR.CastableUnderControl(AR.SPELL_BY_ID[33206]),
+	"Barkskin can be cast stunned, Pain Suppression cannot (the game's data)")
+C_LossOfControl = nil
 
 -- Blessing of Sacrifice cannot be on its caster: the holder is excluded
 W.units.party1 = { friendly = true, class = "PALADIN", guid = "Player-1-PAL" }
@@ -439,24 +521,40 @@ local function shownRows()
 	return out
 end
 eq(#shownRows(), #AR.SPELLS.DEMONHUNTER, "one row per demon hunter ability")
-check(spells.headers.defensive:IsShown() and spells.headers.offensive:IsShown() and spells.headers.cc:IsShown(),
-	"the three categories, each with its own box")
+check(spells.headers.defense:IsShown() and spells.headers.burst:IsShown() and spells.headers.control:IsShown()
+	and spells.headers.other:IsShown(), "the four categories, each with its own box (Spectral Sight is other)")
 check(spells.trinket == nil, "no trinket box here: it is on the display page")
+-- every class fits the window: the categories share two columns, none runs below the body
+for _, class in ipairs({ "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN",
+	"PRIEST", "ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }) do
+	spells.class = class; CK.Options.Refresh()
+	local lowest = 0
+	for _, c in ipairs(shownRows()) do
+		local point = { c:GetPoint() }   -- ("TOPLEFT", x, y) as the page sets it
+		lowest = math.min(lowest, point[#point])
+	end
+	check(lowest >= -300, class .. ": the lowest ability at " .. lowest .. ", inside the window")
+end
+spells.class = "DEMONHUNTER"; CK.Options.Refresh()
 spells.class = "DRUID"; CK.Options.Refresh()
 eq(#shownRows(), #AR.SPELLS.DRUID, "another class: its rows")
 local barkskin
 for _, c in ipairs(shownRows()) do if c.def.id == 22812 then barkskin = c end end
 check(barkskin and barkskin:GetChecked(), "Barkskin is watched")
 barkskin:Click()
-check(AR.db.disabled[22812] == true, "unticked: switched off")
+check(AR.db.picked[22812] == false, "unticked: switched off")
 check(TR.Get("party1") == nil or TR.Get("party1").spells[22812] == nil, "and no longer carried by the druid teammate")
 barkskin:Click()
-check(AR.db.disabled[22812] == nil, "ticked again")
-spells.headers.cc:Click()
-check(AR.db.disabled[5211] and AR.db.disabled[99] and not AR.db.disabled[22812], "the category box: every druid crowd control off, the rest kept")
-check(not spells.headers.cc:GetChecked(), "and the box shows it")
-spells.headers.cc:Click()
-check(not AR.db.disabled[5211] and not AR.db.disabled[99], "ticked again: back on")
+check(AR.db.picked[22812] == nil, "ticked again: back to the default, nothing kept")
+check(not spells.headers.control:GetChecked(), "the crowd control box: not all on, the short ones wait to be ticked")
+spells.headers.control:Click()
+check(AR.db.picked[99] == true and AR.db.picked[5211] == nil and AR.db.picked[22812] == nil,
+	"the category box: every druid crowd control on, the short ones kept as ticked, the rest left alone")
+check(spells.headers.control:GetChecked(), "and the box shows it")
+spells.headers.control:Click()
+check(AR.db.picked[5211] == false and AR.db.picked[99] == nil, "unticked: every one off, the short ones back to their default")
+spells.headers.control:Click()
+check(spells.headers.other:IsShown(), "the other category for the druid (Innervate)")
 CK.Options.Select("PartyCD", "main")
 page.unlock:Click()
 check(not AR.IsLocked(), "unlocked from the page")
@@ -598,7 +696,9 @@ W.traits[-1].nodes[6] = nil
 DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
-eq(#d.order, 3, "a restoration druid without Ironbark: Barkskin, Mighty Bash, Incapacitating Roar")
+-- the crowd control box was left ticked on above: Incapacitating Roar is watched though under a minute
+eq(table.concat(d.order, ","), "22812,740,473909,5211,99,22570,29166",
+	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate")
 check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
 check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")

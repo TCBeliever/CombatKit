@@ -151,9 +151,22 @@ end
 -- A class picked at the top; under it the class's
 -- abilities by category. A category's own box ticks or unticks everything
 -- under it, for the class shown; every ability has its box, its icon between
--- the box and the name.
+-- the box and the name. The categories sit in two columns, each in the
+-- shorter one, so a class with many abilities still fits the window.
 local ROW_H = 20
-local CATEGORIES = { { "defensive", "Defensive" }, { "offensive", "Offensive cooldowns" }, { "cc", "Crowd control" } }
+local COL_X = 290   -- the second column
+local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Offensive cooldowns" }, { "control", "Crowd control" },
+	{ "other", "Other" } }
+
+-- a tick: kept only when it differs from the default, so a later change of
+-- the default reaches every ability the user left alone
+local function Pick(def, checked)
+	if checked == AR.DefaultOn(def) then
+		AR.db.picked[def.id] = nil
+	else
+		AR.db.picked[def.id] = checked
+	end
+end
 
 local function ClassItems()
 	local items = {}
@@ -194,7 +207,7 @@ local function BuildSpells(p)
 		local role = cat[1]
 		local h = CK.Bind(Skin.Checkbox(p, "", function(checked)
 			for _, def in ipairs(AR.SPELLS[p.class] or {}) do
-				if def.role == role then AR.db.disabled[def.id] = (not checked) and true or nil end
+				if def.tag == role then Pick(def, checked) end
 			end
 			Changed()
 			O.Refresh()
@@ -209,30 +222,32 @@ local function RefreshSpells(p)
 	local db = AR.db
 	p.picker:SetValueText(ClassName(p.class))
 	local list = AR.SPELLS[p.class] or {}
-	local y, used = -34, 0
+	local tops, used = { -34, -34 }, 0
 	for _, cat in ipairs(CATEGORIES) do
 		local role = cat[1]
 		local header = p.headers[role]
 		local any, all = false, true
 		for _, def in ipairs(list) do
-			if def.role == role then
+			if def.tag == role then
 				any = true
-				if db.disabled[def.id] then all = false end
+				if not AR.Picked(def, db.picked) then all = false end
 			end
 		end
 		header:SetShown(any)
 		if any then
+			local col = tops[2] > tops[1] and 2 or 1
+			local x, y = (col - 1) * COL_X, tops[col]
 			header:ClearAllPoints()
-			header:SetPoint("TOPLEFT", 0, y)
+			header:SetPoint("TOPLEFT", x, y)
 			header:SetChecked(all)
 			y = y - ROW_H
 			for _, def in ipairs(list) do
-				if def.role == role then
+				if def.tag == role then
 					used = used + 1
 					local c = p.abilities[used]
 					if not c then
 						c = AbilityRow(p, function(checked)
-							db.disabled[c.def.id] = (not checked) and true or nil
+							Pick(c.def, checked)
 							Changed()
 							O.Refresh()
 						end)
@@ -242,13 +257,14 @@ local function RefreshSpells(p)
 					c.icon:SetTexture(C_Spell.GetSpellTexture(def.id) or 134400)
 					c:SetLabel(SpellName(def))
 					c:SetWidth(c:GetWidth() + 22)   -- the icon between the box and the name
-					c:SetChecked(not db.disabled[def.id])
+					c:SetChecked(AR.Picked(def, db.picked))
 					c:ClearAllPoints()
-					c:SetPoint("TOPLEFT", 24, y)
+					c:SetPoint("TOPLEFT", x + 24, y)
 					c:Show()
 					y = y - ROW_H
 				end
 			end
+			tops[col] = y - 6   -- a gap under the category
 		end
 	end
 	for i = used + 1, #p.abilities do p.abilities[i]:Hide() end

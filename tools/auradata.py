@@ -51,12 +51,13 @@ def watched():
     """(spellID, kind, aura IDs, comment) per entry of Spells.lua"""
     text = open(SPELLS, encoding="utf-8").read()
     out = []
-    for m in re.finditer(r"\b(Self|External|Burst|CC)\((\d+),\s*(\d+)(.*?)\),?\s*--\s*(.*)", text):
+    for m in re.finditer(r"\b(Caster|Ally|OtherAlly|Allies|Enemy|Enemies|EnemyLater)\((\d+),\s*(\d+)(.*?)\),?\s*--\s*(.*)", text):
         sid, extra = int(m.group(2)), m.group(4)
         many = re.search(r"auras\s*=\s*\{([\d,\s]+)\}", extra)
         one = re.search(r"\baura\s*=\s*(\d+)", extra)
         auras = [int(x) for x in many.group(1).split(",")] if many else [int(one.group(1))] if one else [sid]
-        kind = {"Self": "self", "Burst": "self", "External": "ally", "CC": "enemy"}[m.group(1)]
+        kind = {"Caster": "self", "Ally": "ally", "OtherAlly": "ally", "Allies": "ally",
+                "Enemy": "enemy", "Enemies": "enemy", "EnemyLater": "enemy"}[m.group(1)]
         out.append((sid, kind, auras, m.group(5).strip()))
     return out
 

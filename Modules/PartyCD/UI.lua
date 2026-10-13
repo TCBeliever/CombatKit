@@ -173,19 +173,27 @@ local function Row(unit)
 	return f
 end
 
--- the halo's colour by what the ability is: green for a defensive, yellow
--- for an immunity or a big external, red for a burst, violet for a crowd control
+-- the halo's colour by the ability's main tag (Spells.lua): green for defense,
+-- red for burst, violet for control, blue for the rest; yellow instead for a
+-- big one (an immunity, a large external)
 local GLOW = {
-	defensive = { 0.25, 0.95, 0.35 },
-	major     = { 1.00, 0.85, 0.20 },
-	burst     = { 1.00, 0.25, 0.25 },
-	cc        = { 0.70, 0.45, 1.00 },
+	defense = { 0.25, 0.95, 0.35 },
+	big     = { 1.00, 0.85, 0.20 },
+	burst   = { 1.00, 0.25, 0.25 },
+	control = { 0.70, 0.45, 1.00 },
+	other   = { 0.30, 0.65, 1.00 },
 }
 
+function UI.GlowOf(def)
+	if def.big then return "big" end
+	return GLOW[def.tag] and def.tag or "defense"
+end
+
 local function Colour(icon, def)
-	local c = GLOW[def.glow] or GLOW.defensive
-	if icon.glowKind == def.glow then return end
-	icon.glowKind = def.glow
+	local kind = UI.GlowOf(def)
+	local c = GLOW[kind]
+	if icon.glowKind == kind then return end
+	icon.glowKind = kind
 	for _, t in ipairs(icon.border) do t:SetColorTexture(c[1], c[2], c[3], 0.9) end
 end
 
@@ -560,7 +568,7 @@ local function DrawSample(row, spec, at)
 		Colour(icon, def)
 		SetActive(icon, i == 1)
 		icon.mark:SetShown(i == 3)
-		icon.amb:SetShown(i == 2 and def.kind == "external")
+		icon.amb:SetShown(i == 2 and def.external)
 		icon.dot:SetShown(i == 2)
 		if i == 2 then icon.cd:SetCooldown(at - 12, def.cd) else icon.cd:Clear() end
 		local charges = ns.BaseCharges(def)

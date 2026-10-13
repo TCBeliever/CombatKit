@@ -27,7 +27,8 @@ ns.defaults = {
 	showSelf    = false,     -- the player's own row (debug: it is the self-test's reference)
 	externals   = true,
 	trinket     = true,      -- the PvP trinket first in every row, from the game's own cooldown data
-	disabled    = {},        -- [spellID] = true: not watched
+	picked      = {},        -- [spellID] = true | false: ticked on or off on the spells page;
+	                         -- no entry: the default (on for a cooldown of a minute or more, Spells.lua)
 	iconSize    = 28,
 	spacing     = 2,
 	maxPerRow   = 8,
@@ -59,6 +60,13 @@ end
 local function InitDB()
 	if type(CombatKitPartyCDDB) ~= "table" then CombatKitPartyCDDB = {} end
 	ns.db = FillDefaults(CombatKitPartyCDDB, ns.defaults)
+	-- earlier builds kept only the spells switched off, as `disabled`
+	if type(ns.db.disabled) == "table" then
+		for id in pairs(ns.db.disabled) do
+			if ns.db.picked[id] == nil then ns.db.picked[id] = false end
+		end
+		ns.db.disabled = nil
+	end
 end
 
 -- ---------------------------------------------------------------------------
@@ -125,13 +133,13 @@ local function Roster()
 	return list
 end
 
--- which spells are watched: the externals switch and the spells switched off,
--- with a signature that changes with them
+-- which spells are watched: the externals switch and the spells ticked on or
+-- off, with a signature that changes with them
 function ns.Selection()
 	local ids = {}
-	for id in pairs(ns.db.disabled) do ids[#ids + 1] = id end
+	for id, on in pairs(ns.db.picked) do ids[#ids + 1] = id .. (on and "+" or "-") end
 	table.sort(ids)
-	return { externals = ns.db.externals, disabled = ns.db.disabled,
+	return { externals = ns.db.externals, picked = ns.db.picked,
 		sig = tostring(ns.db.externals) .. "|" .. table.concat(ids, ",") }
 end
 
@@ -228,6 +236,38 @@ local function MatchState()
 end
 
 -- ---------------------------------------------------------------------------
+-- A teammate who cannot act
+-- ---------------------------------------------------------------------------
+
+-- Under a stun, a fear or a disorient a teammate casts nothing, so an external
+-- or a crowd control seen then is someone else's (Tracker.lua). The game's
+-- loss-of-control entries say it: on a teammate every field is secret but the
+-- priority and the display type, and the priority tells the kind (measured in
+-- AuraLab on 12.1: stun, fear and disorient 5, silence and disarm 3, an
+-- interrupt 2, a root 1). Only 5 counts: a rooted or silenced teammate may
+-- still have cast it.
+local FULL_CONTROL = 5
+
+local function UnderControl(unit)
+	local api = C_LossOfControl
+	if not (api and api.GetActiveLossOfControlDataCountByUnit and api.GetActiveLossOfControlDataByUnit) then return false end
+	local ok, count = pcall(api.GetActiveLossOfControlDataCountByUnit, unit)
+	if not ok or type(count) ~= "number" or not plain(count) then return false end
+	for i = 1, count do
+		local okD, data = pcall(api.GetActiveLossOfControlDataByUnit, unit, i)
+		if okD and type(data) == "table" then
+			local okP, priority = pcall(function() return data.priority end)
+			if okP and type(priority) == "number" and plain(priority) and priority >= FULL_CONTROL then return true end
+		end
+	end
+	return false
+end
+
+local function CheckControl(at)
+	for _, unit in ipairs(UNITS) do Tracker.SetControlled(unit, UnderControl(unit), at) end
+end
+
+-- ---------------------------------------------------------------------------
 -- Events and the update loop
 -- ---------------------------------------------------------------------------
 
@@ -245,6 +285,8 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 		ns.UI.Dirty()   -- a trinket cooldown or the trinket itself changed: the rows draw it again
 	elseif event == "INSPECT_READY" then
 		if inArena then Inspect.Ready(a) end
+	elseif event == "LOSS_OF_CONTROL_ADDED" or event == "LOSS_OF_CONTROL_UPDATE" then
+		if inArena then CheckControl(GetTime()) end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		if a == "player" and type(c) == "number" then Tracker.OnPlayerCast(c) end
 	end
@@ -262,6 +304,7 @@ local function OnUpdate(_, elapsed)
 	if inArena then
 		Tracker.SelfTestCheck(at)
 		Inspect.Tick(at)
+		CheckControl(at)   -- the end of a control comes without an event of its own
 	end
 	if sinceFull >= 1 or not ns.UI.IsLocked() or ns.UI.IsTesting() then
 		sinceFull = 0
@@ -272,7 +315,8 @@ local function OnUpdate(_, elapsed)
 end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
-	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "ARENA_CROWD_CONTROL_SPELL_UPDATE", "INSPECT_READY" }
+	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "ARENA_CROWD_CONTROL_SPELL_UPDATE", "INSPECT_READY",
+	"LOSS_OF_CONTROL_ADDED", "LOSS_OF_CONTROL_UPDATE" }
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then

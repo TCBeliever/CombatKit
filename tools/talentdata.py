@@ -25,7 +25,8 @@ on the ability's charge category.
 
 It also prints, for a human to look over: the base values that differ from
 Spells.lua, the specializations the data gives an ability against the `specs`
-written in Spells.lua, and every modifier it found. Downloads are cached per build in F:/project/littles/wago-cache (../wago-cache
+written in Spells.lua, and every modifier it found. Each table is downloaded whole, once per build (a few requests, never one per
+spell), and kept in F:/project/littles/wago-cache (../wago-cache
 next to the repository; the WAGO_CACHE environment variable overrides it).
 """
 import csv, io, json, os, re, sys, tempfile, urllib.parse, urllib.request
@@ -37,7 +38,13 @@ SPELLS = os.path.join(ROOT, "Modules", "PartyCD", "Spells.lua")
 OUT = os.path.join(ROOT, "Modules", "PartyCD", "TalentData.lua")
 
 COOLDOWN_OP = 11          # SpellModOp: cooldown (charged abilities included)
-FLAT, PCT, FLAT_LABEL, PCT_LABEL, MAX_CHARGES = 107, 108, 379, 380, 411
+# the spell modifiers: by class mask (107, 108) or by spell label (219, 218); 379 and 380
+# carry no cooldown change in 12.1
+FLAT, PCT, FLAT_LABEL, PCT_LABEL, MAX_CHARGES = 107, 108, 219, 218, 411
+CHARGE_RECOVERY = 453   # milliseconds added to a charge category's recharge (EffectMiscValue_0: the category)
+CHARGE_RECOVERY_PCT = 454   # percent added to a charge category's recharge
+CATEGORY_COOLDOWN = 341     # milliseconds added to a cooldown category's cooldown (EffectMiscValue_0)
+UNDER_CONTROL = 0x8 | 0x20000 | 0x40000   # SpellMisc.Attributes_5: usable while stunned, feared, disoriented
 
 # ---------------------------------------------------------------------------
 # wago.tools
@@ -60,35 +67,54 @@ class DB2:
         self.build = build
         self.cache = os.path.join(os.environ.get("WAGO_CACHE") or os.path.join(os.path.dirname(ROOT), "wago-cache"), build)
         os.makedirs(self.cache, exist_ok=True)
+        self.tables = {}   # table -> its rows
+        self.index = {}    # (table, column) -> value -> rows
+
+    def table(self, table):
+        """every row of a table: downloaded whole once per build (one request), read once per run"""
+        if table not in self.tables:
+            path = os.path.join(self.cache, table + ".csv")
+            if not os.path.exists(path) or os.path.getsize(path) == 0:
+                url = "https://wago.tools/db2/%s/csv?%s" % (table, urllib.parse.urlencode({"build": self.build}))
+                sys.stderr.write("  fetching %s (the whole table)\n" % table)
+                data = fetch(url)   # fetched first: a failed request leaves no file behind
+                with open(path + ".part", "wb") as f:
+                    f.write(data)
+                os.replace(path + ".part", path)
+            with open(path, encoding="utf-8", newline="") as f:
+                self.tables[table] = list(csv.DictReader(f))
+        return self.tables[table]
 
     def rows(self, table, **filters):
-        q = {"build": self.build}
-        for k, v in filters.items():
-            q["filter[%s]" % k] = v
-        key = table + ("_" + "_".join("%s=%s" % kv for kv in sorted(filters.items())) if filters else "") + ".csv"
-        path = os.path.join(self.cache, key)
-        if not os.path.exists(path):
-            url = "https://wago.tools/db2/%s/csv?%s" % (table, urllib.parse.urlencode(q))
-            sys.stderr.write("  fetching %s\n" % key)
-            data = fetch(url)   # fetched first: a failed request leaves no empty file behind
-            with open(path, "wb") as f:
-                f.write(data)
-        with open(path, encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
-        # wago's filter matches 498 and 4980 alike: keep the exact matches only
-        for k, v in filters.items():
-            rows = [r for r in rows if r.get(k) == str(v)]
-        return rows
+        """the rows whose columns equal the filters, looked up in the whole table:
+        no request per spell, an index per column built on first use"""
+        rows = self.table(table)
+        if not filters:
+            return rows
+        (col, value), *rest = sorted(filters.items())
+        index = self.index.get((table, col))
+        if index is None:
+            index = defaultdict(list)
+            for r in rows:
+                index[r.get(col)].append(r)
+            self.index[(table, col)] = index
+        out = index.get(str(value), [])
+        for col, value in rest:
+            out = [r for r in out if r.get(col) == str(value)]
+        return out
 
 # ---------------------------------------------------------------------------
 # What is watched
 # ---------------------------------------------------------------------------
 
+# the constructors of Spells.lua; every one takes the spell ID and the cooldown first
+CONSTRUCTORS = "Caster|Ally|OtherAlly|Allies|Enemy|Enemies|EnemyLater"
+
 def watched_defs():
     """(spellID, hand cooldown, hand charges, hand specs or None, comment) per entry of Spells.lua"""
     text = open(SPELLS, encoding="utf-8").read()
     out = []
-    for m in re.finditer(r"(?:Self|External|Burst|CC)\((\d+),\s*(\d+)(.*?)\),?\s*--\s*(.*)", text):
+    for m in re.finditer(r"\b(?:%s)\((\d+),\s*(\d+)(.*?)\),?\s*--\s*(.*)" % CONSTRUCTORS, text):
         extra = m.group(3)
         charges = re.search(r"charges\s*=\s*(\d+)", extra)
         specs = re.search(r"specs\s*=\s*set\(([\d,\s]+)\)", extra)
@@ -129,14 +155,23 @@ def main():
     base = {}
     categories = {int(r["ID"]): r for r in db.rows("SpellCategory")}
     print("\nbase values that differ from Spells.lua:")
+    # SpellMisc.Attributes_5: usable while stunned (0x8), while feared (0x20000), while
+    # disoriented (0x40000): a teammate under such a control may still have cast it
+    under_control = {}
+    for r in db.rows("SpellMisc"):
+        if r["DifficultyID"] == "0":
+            under_control[int(r["SpellID"])] = int(r["Attributes_5"] or 0)
     for sid, hand_cd, hand_charges, _, comment in watched:
-        cd, charges, charge_cat = None, 1, None
+        cd, charges, charge_cat, own, cooldown_cat = None, 1, None, 0, None
         for r in db.rows("SpellCooldowns", SpellID=sid):
             if r["DifficultyID"] == "0":
                 cd = max(num(r["RecoveryTime"]), num(r["CategoryRecoveryTime"])) / 1000
+                own = cd
         for r in db.rows("SpellCategories", SpellID=sid):
             if r["DifficultyID"] == "0" and r["ChargeCategory"] != "0":
                 charge_cat = int(r["ChargeCategory"])
+            if r["DifficultyID"] == "0" and r["Category"] not in ("", "0"):
+                cooldown_cat = int(r["Category"])
         if charge_cat and charge_cat in categories:
             c = categories[charge_cat]
             charges = max(1, int(c["MaxCharges"]))   # a category without charges says 0
@@ -144,7 +179,9 @@ def main():
         if cd is None or cd == 0:
             print("  !! %d %s: no cooldown in the data, keeping %d" % (sid, comment, hand_cd))
             cd = hand_cd
-        base[sid] = {"cd": cd, "charges": charges, "chargeCategory": charge_cat, "name": name(sid)}
+        # own: the spell's own cooldown; with a charge category the recharge is what counts
+        base[sid] = {"cd": cd, "charges": charges, "chargeCategory": charge_cat, "cooldownCategory": cooldown_cat, "own": own,
+                     "underControl": bool(under_control.get(sid, 0) & UNDER_CONTROL), "name": name(sid)}
         if cd != hand_cd or charges != hand_charges:
             print("  %d %s: data cd=%g charges=%d, Spells.lua cd=%d charges=%d" % (sid, comment, cd, charges, hand_cd, hand_charges))
 
@@ -229,7 +266,20 @@ def main():
             value = num(r["EffectBasePointsF"])
             ranks = ranks_for(source, int(r["EffectIndex"]), value)
             if aura in (FLAT, FLAT_LABEL):
-                put(source, sid, "sec", value / 1000, {d: [v / 1000 for v in vs] for d, vs in ranks.items()})
+                b = base[sid]
+                def seconds(v):
+                    # a flat change moves the spell's own cooldown, not a charge category's
+                    # recharge: what is waited is the longer of the two (Storm of Steel takes
+                    # Bladestorm's own 90 s away so its second charge can be used; the recharge
+                    # stays 90 s). A percentage moves the recharge as well (Honed Reflexes).
+                    if not b["chargeCategory"]:
+                        return v / 1000
+                    return max(b["own"] + v / 1000, b["cd"]) - max(b["own"], b["cd"])
+                flat = seconds(value)
+                if flat != value / 1000:
+                    print("  .. %d %s -> %s: %g s on its own cooldown, %g s on the recharge" % (
+                        source, name(source), b["name"], value / 1000, flat))
+                put(source, sid, "sec", flat, {d: [seconds(v) for v in vs] for d, vs in ranks.items()})
             else:
                 put(source, sid, "pct", value, ranks)
     for r in db.rows("SpellEffect", EffectAura=MAX_CHARGES):
@@ -241,6 +291,41 @@ def main():
             if b["chargeCategory"] == cat:
                 value = num(r["EffectBasePointsF"])
                 put(source, sid, "charges", value, ranks_for(source, int(r["EffectIndex"]), value))
+    # a talent that gives a charge often shortens the recharge too (Defender's Aegis: a
+    # second Shield Wall and 60 s off it), by the same category; a percentage the same way
+    # (Cycle of Binding), and a cooldown category by milliseconds (Angel's Mercy)
+    for r in db.rows("SpellEffect", EffectAura=CHARGE_RECOVERY_PCT):
+        source = int(r["SpellID"])
+        if not kind(source):
+            continue
+        cat = int(r["EffectMiscValue_0"])
+        for sid, b in base.items():
+            if b["chargeCategory"] == cat and "pct" not in mods[source][sid]:   # a 108 of the same talent says it already
+                value = num(r["EffectBasePointsF"])
+                put(source, sid, "pct", value, ranks_for(source, int(r["EffectIndex"]), value))
+    for r in db.rows("SpellEffect", EffectAura=CATEGORY_COOLDOWN):
+        source = int(r["SpellID"])
+        if not kind(source):
+            continue
+        cat = int(r["EffectMiscValue_0"])
+        for sid, b in base.items():
+            if b["cooldownCategory"] == cat:
+                value = num(r["EffectBasePointsF"])
+                put(source, sid, "sec", value / 1000,
+                    {d: [v / 1000 for v in vs] for d, vs in ranks_for(source, int(r["EffectIndex"]), value).items()})
+    for r in db.rows("SpellEffect", EffectAura=CHARGE_RECOVERY):
+        source = int(r["SpellID"])
+        if not kind(source):
+            continue
+        cat = int(r["EffectMiscValue_0"])
+        for sid, b in base.items():
+            if b["chargeCategory"] == cat:
+                value = num(r["EffectBasePointsF"])
+                if "sec" in mods[source][sid]:
+                    print("  !! %d %s: a cooldown and a recharge change on %s, adding them" % (source, name(source), b["name"]))
+                    value += mods[source][sid]["sec"] * 1000
+                put(source, sid, "sec", value / 1000,
+                    {d: [v / 1000 for v in vs] for d, vs in ranks_for(source, int(r["EffectIndex"]), value).items()})
 
     spec = defaultdict(list)
     for source in mods:
@@ -253,6 +338,19 @@ def main():
         data_specs = spec_spells.get(sid)
         if data_specs and data_specs != (hand_specs or set()):
             print("  %d %s: data %s, Spells.lua %s" % (sid, comment, sorted(data_specs), sorted(hand_specs) if hand_specs else "every spec"))
+    print("\nspecializations whose talent tree shows the ability (TraitCond by spec set) against `specs` in Spells.lua:")
+    for sid, (hand, tree), comment in tree_spec_audit(db, watched):
+        print("  %d %s: tree %s, Spells.lua %s" % (sid, comment, sorted(tree), sorted(hand) if hand else "every spec"))
+    # an external that cannot land on its caster: SpellMisc.Attributes_1 0x80000 (Blessing of
+    # Sacrifice, Intervene); Spells.lua says it with OtherAlly
+    text = open(SPELLS, encoding="utf-8").read()
+    excludes = {int(r["SpellID"]) for r in db.rows("SpellMisc")
+                if r["DifficultyID"] == "0" and int(r["Attributes_1"] or 0) & 0x80000}
+    print("\nexternals whose data and Spells.lua disagree on landing on the caster (Attributes_1 0x80000 vs OtherAlly):")
+    for m in re.finditer(r"\b(Ally|OtherAlly|Allies)\((\d+),", text):
+        sid = int(m.group(2))
+        if (m.group(1) == "OtherAlly") != (sid in excludes) and m.group(1) != "Allies":
+            print("  %d %s: Spells.lua %s, data %s" % (sid, name(sid), m.group(1), "excludes the caster" if sid in excludes else "may be the caster"))
     print("\nmodifier ops seen on the watched abilities from talents / passives / PvP talents (11 = cooldown, the rest ignored):")
     for op in sorted(ops_seen):
         srcs = sorted(ops_seen[op])
@@ -267,6 +365,63 @@ def main():
 
     write(build, watched, base, mods, spec, name, kind)
     print("\nwrote %s" % os.path.relpath(OUT, ROOT))
+
+def tree_spec_audit(db, watched):
+    """(spellID, (Spells.lua specs or None, tree specs), comment) for each watched talent whose
+    nodes a spec-set condition limits to other specializations than Spells.lua says. A node
+    with no such condition is in the class tree: every spec. Old trees (all loadout rows
+    numbered under 500) are left out."""
+    rows = defaultdict(list)
+    for r in db.rows("TraitTreeLoadout"):
+        rows[int(r["TraitTreeID"])].append(int(r["ID"]))
+    spec_sets = defaultdict(set)
+    for r in db.rows("SpecSetMember"):
+        spec_sets[int(r["SpecSet"])].add(int(r["ChrSpecializationID"]))
+    shown_by = {}   # condition -> spec set, for the "available" (0) and "visible" (1) conditions
+    for r in db.rows("TraitCond"):
+        if r["CondType"] in ("0", "1") and r["SpecSetID"] not in ("", "0"):
+            shown_by[int(r["ID"])] = int(r["SpecSetID"])
+    node_conds = defaultdict(set)
+    for r in db.rows("TraitNodeXTraitCond"):
+        node_conds[int(r["TraitNodeID"])].add(int(r["TraitCondID"]))
+    group_conds = defaultdict(set)
+    for r in db.rows("TraitNodeGroupXTraitCond"):
+        group_conds[int(r["TraitNodeGroupID"])].add(int(r["TraitCondID"]))
+    for r in db.rows("TraitNodeGroupXTraitNode"):
+        node_conds[int(r["TraitNodeID"])] |= group_conds.get(int(r["TraitNodeGroupID"]), set())
+    tree_of = {int(r["ID"]): int(r["TraitTreeID"]) for r in db.rows("TraitNode")}
+    old = {t for t, ids in rows.items() if max(ids) < 500}
+    entry_def = {int(r["ID"]): int(r["TraitDefinitionID"]) for r in db.rows("TraitNodeEntry")}
+    def_nodes = defaultdict(set)
+    for r in db.rows("TraitNodeXTraitNodeEntry"):
+        e = int(r["TraitNodeEntryID"])
+        if e in entry_def and tree_of.get(int(r["TraitNodeID"])) not in old:
+            def_nodes[entry_def[e]].add(int(r["TraitNodeID"]))
+    spell_nodes = defaultdict(set)
+    for r in db.rows("TraitDefinition"):
+        for v in (r["SpellID"], r["VisibleSpellID"]):
+            if v not in ("", "0"):
+                spell_nodes[int(v)] |= def_nodes.get(int(r["ID"]), set())
+    out = []
+    for sid, _, _, hand, comment in watched:
+        nodes = spell_nodes.get(sid)
+        if not nodes:
+            continue   # not a talent: a class skill, a spec spell, a PvP talent or a pet's
+        specs = set()
+        for n in nodes:
+            sets = [shown_by[c] for c in node_conds.get(n, ()) if c in shown_by]
+            if not sets:
+                specs = None   # a node of the class tree
+                break
+            for ss in sets:
+                specs |= spec_sets[ss]
+        if specs is None:
+            if hand:
+                out.append((sid, (hand, {"every spec"}), comment))
+        elif specs != (hand or set()):
+            out.append((sid, (hand, specs), comment))
+    return out
+
 
 # ---------------------------------------------------------------------------
 # The Lua
@@ -291,7 +446,8 @@ def write(build, watched, base, mods, spec, name, kind):
     w("local ADDON, ns = ...\n\n")
     w("-- Generated by tools/talentdata.py from the game's data files (DB2, via wago.tools),\n")
     w("-- build %s, on %s. Do not edit: run the script again after a patch.\n" % (build, date.today().isoformat()))
-    w("-- base: a watched ability's cooldown and charges. mods: every talent, specialization\n")
+    w("-- base: a watched ability's cooldown and charges, and underControl when it can be cast\n")
+    w("-- under a stun, a fear or a disorient. mods: every talent, specialization\n")
     w("-- passive and PvP talent that changes one of them, with sec (seconds added, negative\n")
     w("-- for a shorter cooldown), pct (negative for a shorter cooldown) or charges; `ranks`\n")
     w("-- gives the value per rank by the talent's TraitDefinition when it has ranks. Only\n")
@@ -301,7 +457,8 @@ def write(build, watched, base, mods, spec, name, kind):
     w("\tbase = {\n")
     for sid, _, _, _, _ in watched:
         b = base[sid]
-        w("\t\t[%d] = { cd = %s, charges = %d },  -- %s\n" % (sid, lua_value(b["cd"]), b["charges"], b["name"]))
+        w("\t\t[%d] = { cd = %s, charges = %d%s },  -- %s\n" % (sid, lua_value(b["cd"]), b["charges"],
+          ", underControl = true" if b["underControl"] else "", b["name"]))
     w("\t},\n\tmods = {\n")
     for source in sorted(mods):
         w("\t\t[%d] = {  -- %s (%s)\n" % (source, name(source), kind(source)))
