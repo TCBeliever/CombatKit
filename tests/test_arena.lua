@@ -45,7 +45,7 @@ fire("PLAYER_ENTERING_WORLD")
 check(fake.started, "entering an arena starts the backend")
 check(fake.watches.party1 and #fake.watches.party1 == #AR.SpellsFor("DRUID", true), "every druid ability is watched on party1")
 check(fake.watches.player and #fake.watches.player == #AR.SpellsFor("DEMONHUNTER", true), "the player's own row is watched too")
-eq(state("party1", 22812), "unknown", "before the gates open nothing is known")
+eq(state("party1", 22812), "ready", "entering: everything is ready, the gates reset it anyway")
 
 W.matchState = 3
 fire("PVP_MATCH_STATE_CHANGED")
@@ -322,7 +322,17 @@ page.test:Click()
 check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
 check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
 local sample = AR.UI.Rows().player
-check(sample.icons[1].border[1]:IsShown() and sample.icons[3].mark:IsShown(), "one active, one unknown among the samples")
+check(sample.icons[1].halo:IsShown() and sample.icons[1].pulse:IsPlaying() and sample.icons[3].mark:IsShown(), "one active and breathing, one unknown among the samples")
+check(not sample.icons[2].halo:IsShown(), "a cooling one has no glow")
+
+-- the status command and the log
+SlashCmdList.CKARENA("")
+check(T.said("not in arena"), "/ckarena says where we are")
+SlashCmdList.CKARENA("log")
+check(T.said("log lines"), "/ckarena log counts the lines")
+check(#AR.db.log > 0, "the match left a log in the saved variables")
+SlashCmdList.CKARENA("clear")
+eq(#AR.db.log, 0, "cleared")
 main:Hide()
 check(not AR.IsTesting(), "closing the window ends the test")
 AR.UI.Refresh()

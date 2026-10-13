@@ -138,11 +138,15 @@ function ns.SpellsFor(class, withExternals)
 	return out
 end
 
--- the base cooldown in seconds: the client's answer, or the list's
+-- the base cooldown in seconds: the client's answer when it is a plain,
+-- sensible number of milliseconds, the list's otherwise
 function ns.BaseCooldown(def)
 	if GetSpellBaseCooldown then
 		local ok, ms = pcall(GetSpellBaseCooldown, def.id)
-		if ok and type(ms) == "number" and ms > 0 then return ms / 1000 end
+		if ok and type(ms) == "number" and (type(canaccessvalue) ~= "function" or canaccessvalue(ms)) then
+			local okC, seconds = pcall(function() return ms / 1000 end)
+			if okC and seconds >= 5 and seconds <= 1200 then return seconds end
+		end
 	end
 	return def.cd
 end

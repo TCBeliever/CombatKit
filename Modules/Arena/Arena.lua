@@ -59,10 +59,31 @@ end
 -- The scene
 -- ---------------------------------------------------------------------------
 
+-- a log of what the backend reported and what the tracker made of it, kept
+-- in the saved variables for a match's post-mortem (/ckarena log)
+local LOG_LINES = 400
+local function Log(fmt, ...)
+	if not ns.db then return end
+	ns.db.log = ns.db.log or {}
+	local log = ns.db.log
+	log[#log + 1] = string.format("%.2f %s", GetTime(), string.format(fmt, ...))
+	if #log > LOG_LINES then table.remove(log, 1) end
+end
+ns.Log = Log
+
 local callbacks = {
-	Shown = function(...) Tracker.Shown(...) end,
-	Hidden = function(...) Tracker.Hidden(...) end,
-	Expired = function(...) Tracker.Expired(...) end,
+	Shown = function(unit, id, at, initial)
+		Log("shown %s %d%s", unit, id, initial and " (already up)" or "")
+		Tracker.Shown(unit, id, at, initial)
+	end,
+	Hidden = function(unit, id, at)
+		Log("hidden %s %d", unit, id)
+		Tracker.Hidden(unit, id, at)
+	end,
+	Expired = function(unit, id, at)
+		Log("expired %s %d", unit, id)
+		Tracker.Expired(unit, id, at)
+	end,
 }
 
 local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
@@ -86,13 +107,18 @@ local function ApplyRoster()
 	local list = Roster()
 	Tracker.SetRoster(list, ns.db.externals)
 	local watched = {}
+	local names = {}
 	for _, r in ipairs(list) do
 		watched[r.unit] = true
 		backend.SetWatch(r.unit, ns.SpellsFor(r.class, ns.db.externals), true)
+		names[#names + 1] = r.unit .. "=" .. r.class
 	end
 	for _, unit in ipairs(UNITS) do
 		if not watched[unit] then backend.SetWatch(unit, {}) end
 	end
+	Log("roster %s", table.concat(names, " "))
+	local problems = backend.Problems and backend.Problems()
+	if problems and #problems > 0 then Log("backend: %s", table.concat(problems, "; ")) end
 	ns.UI.Dirty()
 end
 ns.ApplyRoster = ApplyRoster
@@ -102,15 +128,20 @@ local function InArena()
 	return inInstance and kind == "arena"
 end
 
+-- Entering an arena, everything is ready: the gates reset every cooldown,
+-- and nothing can be used before them. The round start says so again.
 local function Scene()
 	local arena = InArena()
 	if arena and not inArena then
 		inArena = true
 		Tracker.Clear()
+		Log("enter arena")
 		backend.Start(callbacks)
 		ApplyRoster()
+		Tracker.RoundStart()
 	elseif not arena and inArena then
 		inArena = false
+		Log("leave arena")
 		backend.Stop()
 		Tracker.Clear()
 	elseif arena then
@@ -125,6 +156,7 @@ local ENGAGED = (Enum and Enum.PvPMatchState and Enum.PvPMatchState.Engaged) or 
 local function MatchState()
 	if not inArena then return end
 	local ok, state = pcall(C_PvP.GetActiveMatchState)
+	Log("match state %s", tostring(state))
 	if ok and state == ENGAGED then
 		Tracker.RoundStart()
 		ns.UI.Dirty()
@@ -171,12 +203,38 @@ end
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
 	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE" }
 
-Tracker.AddListener(function(what, ok)
+Tracker.AddListener(function(what, a, b)
 	if what == "detection" then
-		CK.Msg(ok and L["Arena: detection is back."] or L["Arena: detection failed, the rows are dimmed."])
+		CK.Msg(a and L["Arena: detection is back."] or L["Arena: detection failed, the rows are dimmed."])
+		Log("detection %s", a and "back" or "failed")
+	elseif what == "use" then
+		local state, readyAt, left = Tracker.State(b)
+		Log("use %s %d cd=%.1f uses=%d %s%s%s", a.unit, b.def.id, b.cd, #b.uses, state,
+			readyAt and string.format(" ready at %.1f", readyAt) or "", b.ambiguous and " ?" or "")
+	elseif what == "round" then
+		Log("round start")
 	end
 	ns.UI.Dirty()
 end)
+
+-- /ckarena status | log | clear: what the tracker holds, what was logged
+SLASH_CKARENA1 = "/ckarena"
+SlashCmdList.CKARENA = function(msg)
+	msg = strtrim(msg or ""):lower()
+	if msg == "log" then
+		local log = ns.db and ns.db.log or {}
+		for i = math.max(1, #log - 40), #log do print("  " .. log[i]) end
+		CK.Msg("Arena: %d log lines, the last %d shown", #log, math.min(#log, 41))
+	elseif msg == "clear" then
+		if ns.db then ns.db.log = {} end
+		CK.Msg("Arena: log cleared")
+	else
+		CK.Msg("Arena: %s, %s", inArena and "in arena" or "not in arena", Tracker.failed and "detection failed" or "detection fine")
+		for _, line in ipairs(Tracker.Debug()) do print("  " .. line) end
+		local problems = backend and backend.Problems and backend.Problems() or {}
+		for _, line in ipairs(problems) do print("  backend: " .. line) end
+	end
+end
 
 -- ---------------------------------------------------------------------------
 -- Module on / off

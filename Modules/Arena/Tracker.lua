@@ -357,12 +357,13 @@ end
 -- for the tests and the status line
 function Tracker.Debug()
 	local out = {}
+	local at = now()
 	for _, t in ipairs(Tracker.Teammates()) do
 		for _, id in ipairs(t.order) do
 			local e = t.spells[id]
-			local state, readyAt, left = Tracker.State(e)
-			out[#out + 1] = string.format("%s %d %s%s%s", t.unit, id, state,
-				readyAt and string.format(" until %.1f", readyAt) or "", e.def.charges > 1 and (" x" .. left) or "")
+			local state, readyAt, left = Tracker.State(e, at)
+			out[#out + 1] = string.format("%s %d %s cd=%.0f%s uses=%d%s%s", t.unit, id, state, e.cd, e.estimate and "~" or "", #e.uses,
+				readyAt and string.format(" ready in %.0f", readyAt - at) or "", e.def.charges > 1 and (" x" .. left) or "")
 		end
 	end
 	return out

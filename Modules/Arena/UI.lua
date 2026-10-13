@@ -183,26 +183,37 @@ local function Icon(row, i)
 	icon.cd:SetAllPoints()
 	icon.cd:SetDrawEdge(false)
 	icon.cd:SetHideCountdownNumbers(false)
-	-- the active border: four strips just outside the icon
+	-- the active glow: a frame around the icon with four strips in the accent
+	-- colour, breathing while the buff is up
+	icon.halo = CreateFrame("Frame", nil, icon)
+	icon.halo:SetPoint("TOPLEFT", -3, 3)
+	icon.halo:SetPoint("BOTTOMRIGHT", 3, -3)
+	icon.halo:Hide()
 	icon.border = {}
 	for k = 1, 4 do
-		local t = icon:CreateTexture(nil, "OVERLAY")
+		local t = icon.halo:CreateTexture(nil, "OVERLAY")
 		Accent(t)
-		t:Hide()
 		icon.border[k] = t
 	end
-	icon.border[1]:SetPoint("BOTTOMLEFT", icon, "TOPLEFT", -2, 0)
-	icon.border[1]:SetPoint("BOTTOMRIGHT", icon, "TOPRIGHT", 2, 0)
-	icon.border[1]:SetHeight(2)
-	icon.border[2]:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", -2, 0)
-	icon.border[2]:SetPoint("TOPRIGHT", icon, "BOTTOMRIGHT", 2, 0)
-	icon.border[2]:SetHeight(2)
-	icon.border[3]:SetPoint("TOPRIGHT", icon, "TOPLEFT", 0, 0)
-	icon.border[3]:SetPoint("BOTTOMRIGHT", icon, "BOTTOMLEFT", 0, 0)
-	icon.border[3]:SetWidth(2)
-	icon.border[4]:SetPoint("TOPLEFT", icon, "TOPRIGHT", 0, 0)
-	icon.border[4]:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 0, 0)
-	icon.border[4]:SetWidth(2)
+	icon.border[1]:SetPoint("TOPLEFT")
+	icon.border[1]:SetPoint("TOPRIGHT")
+	icon.border[1]:SetHeight(3)
+	icon.border[2]:SetPoint("BOTTOMLEFT")
+	icon.border[2]:SetPoint("BOTTOMRIGHT")
+	icon.border[2]:SetHeight(3)
+	icon.border[3]:SetPoint("TOPLEFT")
+	icon.border[3]:SetPoint("BOTTOMLEFT")
+	icon.border[3]:SetWidth(3)
+	icon.border[4]:SetPoint("TOPRIGHT")
+	icon.border[4]:SetPoint("BOTTOMRIGHT")
+	icon.border[4]:SetWidth(3)
+	icon.pulse = icon.halo:CreateAnimationGroup()
+	icon.pulse:SetLooping("BOUNCE")
+	local fade = icon.pulse:CreateAnimation("Alpha")
+	fade:SetFromAlpha(1)
+	fade:SetToAlpha(0.25)
+	fade:SetDuration(0.5)
+	fade:SetSmoothing("IN_OUT")
 	icon.count = icon:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
 	icon.count:SetPoint("BOTTOMRIGHT", -1, 1)
 	icon.mark = icon:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -223,7 +234,15 @@ local function Icon(row, i)
 end
 
 local function SetActive(icon, on)
-	for _, t in ipairs(icon.border) do t:SetShown(on) end
+	if on then
+		if not icon.halo:IsShown() then
+			icon.halo:Show()
+			icon.pulse:Play()
+		end
+	elseif icon.halo:IsShown() then
+		icon.pulse:Stop()
+		icon.halo:Hide()
+	end
 end
 
 -- where a row hangs by the frame, per side: the row's point, the frame's
