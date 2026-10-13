@@ -124,6 +124,7 @@ function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
 function UnitCanAssist(_, unit) return W.units[unit] ~= nil and W.units[unit].friendly == true end
 function UnitIsPlayer(unit) local u = W.units[unit]; return u ~= nil and not u.npc end
+function UnitIsDeadOrGhost(unit) local u = W.units[unit]; return u ~= nil and u.dead == true end
 function GetCursorPosition() return 500, 400 end
 -- Trinkets. W.gear[slot] = { pvp = bool, named = bool }: a PvP item's tooltip
 -- names the Gladiator set; a Gladiator item is named for it as well.
@@ -369,6 +370,7 @@ function CreateFrame(kind, name, parent, template)
 	return f
 end
 UIParent = Mock("Frame", "UIParent")
+WorldFrame = Mock("Frame", "WorldFrame")
 GameTooltip = Mock("GameTooltip", "GameTooltip")
 
 -- Every frame listening to `event` hears it, then the short timers run.
@@ -393,6 +395,7 @@ T.ADDONS = {
 	CombatKit_Loadout = "Modules/Loadout/",
 	CombatKit_Stats   = "Modules/Stats/",
 	CombatKit_Range   = "Modules/Range/",
+	CombatKit_Arena   = "Modules/Arena/",
 	CombatKit_Misc    = "Modules/Misc/",
 	CombatKit_Options = "Modules/Options/",
 }

@@ -36,7 +36,7 @@ eq(CK.Skin.theme, "tide", "and so is the palette")
 local landing = CK.Landing.GetFrame()
 check(landing and landing:IsShown(), "a fresh install: the landing is up")
 check(not loaded("CombatKit_Options"), "without loading the settings window")
-eq(#landing.defs, 3, "the three modules that are switched as a whole")
+eq(#landing.defs, 4, "the four modules that are switched as a whole")
 check(landing.rows[1].check:GetChecked() and not landing.rows[2].check:GetChecked(), "ticked as they would be on: Loadout yes, Stats no")
 landing.rows[3].check:Click()   -- Range wanted
 CK.Landing.Apply()
@@ -54,7 +54,7 @@ check(landing.intro:GetText() == CK.L["LANDING_NEW"], "as new, not as a welcome"
 CK.Landing.Later()
 check(not landing:IsShown() and CK.db.settings.asked.Range == nil, "Later: closed, and asked again next time")
 SlashCmdList.COMBATKIT("landing")
-check(landing:IsShown() and #landing.defs == 3, "/ck landing shows it for every module")
+check(landing:IsShown() and #landing.defs == 4, "/ck landing shows it for every module")
 CK.Landing.Later()
 
 -- ---------------------------------------------------------------- switching a module off and on

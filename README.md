@@ -5,6 +5,7 @@ A modular combat addon for World of Warcraft (Retail) with a small resource foot
 - **Loadout** (on by default): spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
+- **Arena** (beta): your arena teammates' defensive cooldowns as icons by their frames.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No libraries, no texture or font files.
@@ -62,6 +63,12 @@ Since patch 12.0.5 the game hides your own stat values from addons in combat ("s
 ## Range
 
 A colour-coded number near your target and focus, and one that follows the cursor for your mouseover. Hostile units and friendly ones out of combat are measured with a ladder of items of known range; friendly units in combat with your own short-range spells. Font, update rate, which units, "hide at 5 yards or closer", and drag-to-place are on its page.
+
+## Arena
+
+In an arena, a row of icons per teammate (and one for yourself): their defensive cooldowns and the externals they put on each other. An icon is bright when the ability is ready, glows while its buff is up, darkens with a cooldown swipe once used, and shows "?" when the module cannot know (a teammate who arrived mid round, a reload). Externals are credited to the teammate who could have cast them; when two could have, both show the estimate with a small "?". A new round resets everything.
+
+How it knows: other players' auras are secret to addons in an arena. The game is asked to draw each watched buff into an aura container slot of the module's own, and a Cooldown frame of the module's own, fed that slot's duration, shows and hides with the buff; that is the one bit the module reads, one frame behind the game, and nothing else. The design is new and was measured in game before it was written; the idea of detecting a secret aura through what the game draws of it came from AsIntendedCDs.
 
 ## Extras
 

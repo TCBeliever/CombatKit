@@ -1,0 +1,18 @@
+## Interface: 120100
+## Title: |cff66ccffCombat|rKit: Arena
+## Notes: CombatKit module. Your arena teammates' defensive cooldowns as icons by their frames. Loaded by CombatKit when the module is on.
+## Notes-zhTW: CombatKit 模組。競技場隊友的減傷冷卻，以圖示顯示在他們的框架旁。模組啟用時由 CombatKit 載入。
+## Author: Venser
+## Version: 1.1.0
+## LoadOnDemand: 1
+## RequiredDeps: CombatKit
+## SavedVariables: CombatKitArenaDB
+## Category: venMOD
+## X-License: All Rights Reserved: you are free to fork and modify on GitHub, please ask about anything else.
+
+Locales.lua
+Spells.lua
+Tracker.lua
+Backend.lua
+UI.lua
+Arena.lua

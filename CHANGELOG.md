@@ -48,3 +48,7 @@ First public release.
 ## 1.0.2 (2026-10-13)
 
 - PvP: the module is removed. The other modules are unchanged.
+
+## 1.1.0 (2026-10-13)
+
+- **Arena** (beta, off by default): your arena teammates' defensive cooldowns, and the externals they put on each other, as a row of icons per teammate, with a row for yourself. A cooldown starts the frame the buff the ability leaves is drawn by the game, and counts down the ability's base cooldown until the teammate's talents are known. An external is credited to the teammate who could have cast it: your own casts, who is dead and what cannot be cast on oneself settle it; two who could have both show the estimate with a small "?". A teammate who arrives mid round, or a reload, shows "?" until a first use is seen. Abilities with charges show the count; a second use during the first buff is counted when the buff's length gives it away. Every new round resets everything. Your own row doubles as a self-test: when your own buff does not show after your own cast, the rows dim and say so instead of showing everyone as ready. Rows are placed by hand for now (unlock in Settings > Arena). The detection is a new design, written from the game's own aura container API and measured in game; the idea of detecting a secret aura through what the game draws of it came from AsIntendedCDs.
