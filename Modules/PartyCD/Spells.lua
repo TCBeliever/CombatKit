@@ -146,10 +146,7 @@ ns.SPELLS = {
 	},
 	MONK = {
 		Self(115203, 360, { auras = { 115203, 120954 } }),  -- Fortifying Brew
-		Self(122783, 90),                      -- Diffuse Magic
-		Self(122278, 120),                     -- Dampen Harm
 		Self(122470, 90, { aura = 125174, specs = set(269) }),  -- Touch of Karma
-		Self(115176, 300, { specs = set(268) }), -- Zen Meditation
 		External(116849, 120, { glow = "major", specs = set(270) }),  -- Life Cocoon
 		CC(119381, 60),                        -- Leg Sweep
 		CC(115078, 45),                        -- Paralysis

@@ -53,10 +53,7 @@ ns.TalentData = {
 		[365350] = { cd = 90, charges = 1 },  -- Arcane Surge
 		[190319] = { cd = 120, charges = 1 },  -- Combustion
 		[115203] = { cd = 360, charges = 1 },  -- Fortifying Brew
-		[122783] = { cd = 90, charges = 1 },  -- Diffuse Magic
-		[122278] = { cd = 120, charges = 1 },  -- Dampen Harm
 		[122470] = { cd = 90, charges = 1 },  -- Touch of Karma
-		[115176] = { cd = 300, charges = 1 },  -- Zen Meditation
 		[116849] = { cd = 120, charges = 1 },  -- Life Cocoon
 		[119381] = { cd = 60, charges = 1 },  -- Leg Sweep
 		[115078] = { cd = 45, charges = 1 },  -- Paralysis
@@ -239,9 +236,6 @@ ns.TalentData = {
 		},
 		[386659] = {  -- Dark Accord (talent)
 			[104773] = { sec = -45 },  -- Unending Resolve
-		},
-		[387035] = {  -- Fundamental Observation (talent)
-			[115176] = { pct = -25 },  -- Zen Meditation
 		},
 		[387807] = {  -- Time Manipulation (talent)
 			[31661] = { sec = -5 },  -- Dragon's Breath
