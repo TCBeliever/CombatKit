@@ -19,7 +19,6 @@ ns.TalentData = {
 		[47476] = { cd = 45, charges = 1 },  -- Strangulate
 		[49028] = { cd = 120, charges = 1 },  -- Dancing Rune Weapon
 		[51271] = { cd = 45, charges = 1 },  -- Pillar of Frost
-		[207289] = { cd = 90, charges = 1 },  -- Unholy Assault
 		[198589] = { cd = 60, charges = 1 },  -- Blur
 		[187827] = { cd = 120, charges = 1 },  -- Metamorphosis
 		[196718] = { cd = 300, charges = 1 },  -- Darkness
@@ -45,7 +44,6 @@ ns.TalentData = {
 		[19577] = { cd = 60, charges = 1 },  -- Intimidation
 		[19574] = { cd = 90, charges = 1 },  -- Bestial Wrath
 		[288613] = { cd = 120, charges = 1 },  -- Trueshot
-		[360952] = { cd = 120, charges = 1 },  -- Coordinated Assault
 		[45438] = { cd = 240, charges = 1 },  -- Ice Block
 		[342245] = { cd = 60, charges = 1 },  -- Alter Time
 		[110959] = { cd = 120, charges = 1 },  -- Greater Invisibility
@@ -78,7 +76,6 @@ ns.TalentData = {
 		[47788] = { cd = 180, charges = 1 },  -- Guardian Spirit
 		[62618] = { cd = 180, charges = 1 },  -- Power Word: Barrier
 		[8122] = { cd = 40, charges = 1 },  -- Psychic Scream
-		[64044] = { cd = 45, charges = 1 },  -- Psychic Horror
 		[15487] = { cd = 30, charges = 1 },  -- Silence
 		[228260] = { cd = 120, charges = 1 },  -- Voidform
 		[200183] = { cd = 120, charges = 1 },  -- Apotheosis
@@ -305,9 +302,6 @@ ns.TalentData = {
 		},
 		[459507] = {  -- Territorial Instincts (talent)
 			[19577] = { sec = -20 },  -- Intimidation
-		},
-		[459875] = {  -- Symbiotic Adrenaline (talent)
-			[360952] = { sec = -60 },  -- Coordinated Assault
 		},
 		[462440] = {  -- First Ascendant (talent)
 			[114050] = { sec = -60 },  -- Ascendance

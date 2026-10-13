@@ -100,7 +100,6 @@ ns.SPELLS = {
 		CC(47476, 45),                         -- Strangulate
 		Burst(49028, 120, { aura = 81256, specs = set(250) }),  -- Dancing Rune Weapon
 		Burst(51271, 45, { specs = set(251) }),  -- Pillar of Frost
-		Burst(207289, 90, { specs = set(252) }), -- Unholy Assault
 	},
 	DEMONHUNTER = {
 		Self(198589, 60, { aura = 212800, extraCharge = true, specs = set(577, 1480) }),  -- Blur
@@ -134,7 +133,6 @@ ns.SPELLS = {
 		CC(19577, 60, { auras = { 24394, 1258508 } }),  -- Intimidation
 		Burst(19574, 90, { specs = set(253) }),  -- Bestial Wrath
 		Burst(288613, 120, { specs = set(254) }), -- Trueshot
-		Burst(360952, 120, { specs = set(255) }), -- Coordinated Assault
 	},
 	MAGE = {
 		Self(45438, 240, { auras = { 45438, 414658 }, noLearn = true, extraCharge = true, glow = "major" }),  -- Ice Block, or Ice Cold; Cold Snap resets it
@@ -175,7 +173,6 @@ ns.SPELLS = {
 		External(47788, 180, { glow = "major", specs = set(257) }),  -- Guardian Spirit
 		External(62618, 180, { aura = 81782, area = true, lasts = 10, specs = set(256) }),  -- Power Word: Barrier
 		CC(8122, 40),                          -- Psychic Scream
-		CC(64044, 45, { specs = set(258) }),   -- Psychic Horror
 		CC(15487, 30, { specs = set(258) }),   -- Silence
 		Burst(228260, 120, { auras = { 194249, 391109 }, specs = set(258) }),  -- Voidform, or Dark Ascension
 		Burst(200183, 120, { specs = set(257) }),  -- Apotheosis
