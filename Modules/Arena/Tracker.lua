@@ -78,22 +78,23 @@ local function Fit(t, withExternals)
 	t.spells, t.order, t.externals = spells, order, withExternals
 end
 
-local function NewTeammate(unit, guid, class, withExternals)
-	local t = { unit = unit, guid = guid, class = class, spells = {}, order = {}, known = false }
+local function NewTeammate(unit, guid, class, withExternals, known)
+	local t = { unit = unit, guid = guid, class = class, spells = {}, order = {}, known = known and true or false }
 	Fit(t, withExternals)
 	return t
 end
 
 -- The roster: { { unit = "party1", guid = "...", class = "DRUID" }, ... }. A
--- unit whose GUID changed is a new teammate and starts unknown; one that
--- stayed keeps its estimates.
-function Tracker.SetRoster(list, withExternals)
+-- unit whose GUID changed is a new teammate; it starts known and ready when
+-- the round has not begun (nothing can have been used before the gates),
+-- unknown when it arrives mid round. One that stayed keeps its estimates.
+function Tracker.SetRoster(list, withExternals, known)
 	local seen = {}
 	for _, r in ipairs(list) do
 		seen[r.unit] = true
 		local t = teammates[r.unit]
 		if not t or t.guid ~= r.guid or t.class ~= r.class then
-			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, withExternals)
+			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, withExternals, known)
 		elseif t.externals ~= withExternals then
 			Fit(t, withExternals)
 		end

@@ -14,6 +14,7 @@ local Tracker = ns.Tracker
 local UNITS = { "player", "party1", "party2" }
 local backend
 local inArena = false
+local engaged = false   -- the gates are open: a teammate arriving now is unknown, before that ready
 local running = false
 
 -- ---------------------------------------------------------------------------
@@ -105,7 +106,7 @@ end
 
 local function ApplyRoster()
 	local list = Roster()
-	Tracker.SetRoster(list, ns.db.externals)
+	Tracker.SetRoster(list, ns.db.externals, not engaged)
 	local watched = {}
 	local names = {}
 	for _, r in ipairs(list) do
@@ -134,6 +135,7 @@ local function Scene()
 	local arena = InArena()
 	if arena and not inArena then
 		inArena = true
+		engaged = false
 		Tracker.Clear()
 		Log("enter arena")
 		backend.Start(callbacks)
@@ -141,6 +143,7 @@ local function Scene()
 		Tracker.RoundStart()
 	elseif not arena and inArena then
 		inArena = false
+		engaged = false
 		Log("leave arena")
 		backend.Stop()
 		Tracker.Clear()
@@ -158,8 +161,11 @@ local function MatchState()
 	local ok, state = pcall(C_PvP.GetActiveMatchState)
 	Log("match state %s", tostring(state))
 	if ok and state == ENGAGED then
+		engaged = true
 		Tracker.RoundStart()
 		ns.UI.Dirty()
+	elseif ok then
+		engaged = false   -- waiting, starting up, between rounds, complete
 	end
 end
 

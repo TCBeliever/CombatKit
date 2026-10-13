@@ -46,6 +46,13 @@ check(fake.started, "entering an arena starts the backend")
 check(fake.watches.party1 and #fake.watches.party1 == #AR.SpellsFor("DRUID", true), "every druid ability is watched on party1")
 check(fake.watches.player and #fake.watches.player == #AR.SpellsFor("DEMONHUNTER", true), "the player's own row is watched too")
 eq(state("party1", 22812), "ready", "entering: everything is ready, the gates reset it anyway")
+-- a teammate who turns up in the roster a few seconds later, still before the gates: ready too
+W.units.party2 = nil
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("party2") == nil, "party2 not there yet")
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-1-PRIEST" }
+fire("GROUP_ROSTER_UPDATE")
+eq(state("party2", 33206), "ready", "arriving before the gates: ready, not unknown")
 
 W.matchState = 3
 fire("PVP_MATCH_STATE_CHANGED")
