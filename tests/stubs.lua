@@ -390,6 +390,7 @@ local function Mock(kind, name)
 		CreateAnimation = function() return Mock("Animation") end,
 		GetStringWidth = function(self) if self.__secret then return T.SECRET end return 60 end,
 		GetWidth = function() return 120 end,
+		GetHeight = function() return 40 end,
 		GetFrameLevel = function() return 1 end,
 		GetEffectiveScale = function(self) return self.__scale or 1 end,
 		-- what SetPoint last set; after a drag the game picks a point of its own

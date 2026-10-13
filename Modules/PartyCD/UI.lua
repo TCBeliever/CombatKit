@@ -297,13 +297,122 @@ local function Points(side, grow)
 	return v .. "LEFT", v .. "RIGHT", 1, 0
 end
 
--- hang the row on its unit's frame, or put it at its own position; returns
--- the layout { side, grow } for the icons. A row being dragged keeps where it is.
+-- ---------------------------------------------------------------------------
+-- Stand-in frames. While the sample rows are shown and a teammate has no
+-- frame (alone, or a group short of them), a box stands where their frame
+-- would be, so the rows can be adjusted as in an arena. Its size and place
+-- come from DandersFrames' own settings when it draws the party (frame size,
+-- spacing, direction), next to the player's real frame; from the player's
+-- frame alone otherwise (the same size, stacked below it). Without a frame
+-- of the player's own there is nothing to stand next to: the loose rows stay.
+-- A stand-in is clearly a sample: a dim box with a coloured edge and a label.
+-- ---------------------------------------------------------------------------
+local standIns = {}
+local SLOT = { party1 = 1, party2 = 2 }   -- how many frames over from the player's
+
+local function DFConfig()
+	if not DandersFrames_GetPartyConfig then return nil end
+	local ok, cfg = pcall(DandersFrames_GetPartyConfig)
+	if ok and type(cfg) == "table" and type(cfg.frameWidth) == "number" and type(cfg.frameHeight) == "number" then return cfg end
+end
+
+local function DFPlayerFrame()
+	if not DandersFrames_GetAllFrames then return nil end
+	local ok, frames = pcall(DandersFrames_GetAllFrames)
+	if ok then return FirstShowing(frames, "player") end
+end
+
+-- the frame to measure from, a stand-in's width and height, and the step per slot
+local function StandInGeometry()
+	local cfg = DFConfig()
+	local mine = cfg and DFPlayerFrame()
+	if cfg and mine then
+		local scale = tonumber(cfg.frameScale) or 1
+		local w, h = cfg.frameWidth * scale, cfg.frameHeight * scale
+		local gap = (tonumber(cfg.frameSpacing) or 0) * scale
+		if cfg.growDirection == "VERTICAL" then return mine, w, h, 0, -(h + gap) end
+		return mine, w, h, w + gap, 0
+	end
+	mine = FindFrame("player")
+	if not mine then return nil end
+	local okW, w = pcall(mine.GetWidth, mine)
+	local okH, h = pcall(mine.GetHeight, mine)
+	if not (okW and okH and type(w) == "number" and type(h) == "number" and w > 0 and h > 0) then return nil end
+	return mine, w, h, 0, -(h + 2)
+end
+
+local function StandIn(unit)
+	local f = standIns[unit]
+	if f then return f end
+	f = CreateFrame("Frame", "CombatKitPartyCD_StandIn_" .. unit, UIParent)
+	f:SetFrameStrata("LOW")
+	f.bg = f:CreateTexture(nil, "BACKGROUND")
+	f.bg:SetAllPoints()
+	f.bg:SetColorTexture(0.05, 0.05, 0.05, 0.6)
+	f.edge = {}
+	for k = 1, 4 do f.edge[k] = f:CreateTexture(nil, "BORDER") end
+	f.edge[1]:SetPoint("TOPLEFT")
+	f.edge[1]:SetPoint("TOPRIGHT")
+	f.edge[1]:SetHeight(2)
+	f.edge[2]:SetPoint("BOTTOMLEFT")
+	f.edge[2]:SetPoint("BOTTOMRIGHT")
+	f.edge[2]:SetHeight(2)
+	f.edge[3]:SetPoint("TOPLEFT")
+	f.edge[3]:SetPoint("BOTTOMLEFT")
+	f.edge[3]:SetWidth(2)
+	f.edge[4]:SetPoint("TOPRIGHT")
+	f.edge[4]:SetPoint("BOTTOMRIGHT")
+	f.edge[4]:SetWidth(2)
+	for k = 1, 4 do f.edge[k]:SetColorTexture(1, 0.8, 0.2, 0.8) end
+	f.label = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	f.label:SetPoint("CENTER")
+	f:Hide()
+	standIns[unit] = f
+	return f
+end
+
+-- the stand-in placed for a unit, or nil when there is nothing to stand next to
+local function PlaceStandIn(unit)
+	local slot = SLOT[unit]
+	if not slot then return nil end
+	local mine, w, h, dx, dy = StandInGeometry()
+	if not mine then return nil end
+	local f = StandIn(unit)
+	f:SetSize(w, h)
+	f:ClearAllPoints()
+	f:SetPoint("TOPLEFT", mine, "TOPLEFT", dx * slot, dy * slot)
+	f.label:SetText(L["PARTYCD_" .. unit] .. " \194\183 " .. L["Test"])
+	f:Show()
+	return f
+end
+
+local function HideStandIns()
+	for _, f in pairs(standIns) do f:Hide() end
+end
+
+function UI.StandIns() return standIns end
+
+-- a round in progress: the samples must not cover the live icons
+local ENGAGED = (Enum and Enum.PvPMatchState and Enum.PvPMatchState.Engaged) or 3
+local function InRound()
+	local inInstance, kind = IsInInstance()
+	if not (inInstance and kind == "arena") then return false end
+	local ok, state = pcall(C_PvP.GetActiveMatchState)
+	return ok and state == ENGAGED
+end
+
+-- hang the row on its unit's frame (or, among the samples, on a stand-in
+-- for a missing one), or put it at its own position; returns the layout
+-- { side, grow } for the icons. A row being dragged keeps where it is.
 local function Place(row)
 	local db = ns.db
 	local side = Side()
 	local spec = { side = side, grow = UI.GrowFor(side, db.grow) }
 	local frame = db.attach and FindFrame(row.unit) or nil
+	if not frame and testing and db.attach then
+		frame = PlaceStandIn(row.unit)
+	end
+	if not (frame and frame == standIns[row.unit]) and standIns[row.unit] then standIns[row.unit]:Hide() end
 	row.anchor = frame
 	if row.moving then return spec end
 	row:ClearAllPoints()
@@ -465,6 +574,10 @@ function UI.Dirty() dirty = true end
 function UI.Refresh(at)
 	at = at or GetTime()
 	dirty = false
+	if testing and InRound() then
+		testing = false
+		HideStandIns()
+	end
 	for _, unit in ipairs(UNITS) do
 		local row = Row(unit)
 		if not locked or testing then
@@ -503,6 +616,7 @@ function UI.IsTesting() return testing end
 -- sample rows on screen, in the world as in an arena, until switched off
 function UI.SetTest(on)
 	testing = on and true or false
+	if not testing then HideStandIns() end
 	UI.Refresh()
 end
 
@@ -528,6 +642,7 @@ end
 
 function UI.Hide()
 	for _, row in pairs(rows) do row:Hide() end
+	HideStandIns()
 end
 
 -- once: whatever moves, re-binds or sorts the party frames marks the rows
