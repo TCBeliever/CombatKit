@@ -133,11 +133,15 @@ for class, list in pairs(ns.SPELLS) do
 	end
 end
 
--- the definitions a teammate of this class gets, in list order
-function ns.SpellsFor(class, withExternals)
+-- the definitions a teammate of this class gets, in list order, under a
+-- selection { externals = bool, disabled = { [spellID] = true } } (a bare
+-- boolean stands for the externals flag alone)
+function ns.SpellsFor(class, sel)
+	if type(sel) ~= "table" then sel = { externals = sel } end
+	local disabled = sel.disabled or {}
 	local out = {}
 	for _, def in ipairs(ns.SPELLS[class] or {}) do
-		if withExternals or def.kind == "self" then out[#out + 1] = def end
+		if (sel.externals or def.kind == "self") and not disabled[def.id] then out[#out + 1] = def end
 	end
 	return out
 end

@@ -22,8 +22,9 @@ local running = false
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
-	showSelf    = true,
+	showSelf    = false,     -- the player's own row (debug: it is the self-test's reference)
 	externals   = true,
+	disabled    = {},        -- [spellID] = true: not watched
 	iconSize    = 28,
 	spacing     = 2,
 	maxPerRow   = 8,
@@ -104,14 +105,25 @@ local function Roster()
 	return list
 end
 
+-- which spells are watched: the externals switch and the spells switched off,
+-- with a signature that changes with them
+function ns.Selection()
+	local ids = {}
+	for id in pairs(ns.db.disabled) do ids[#ids + 1] = id end
+	table.sort(ids)
+	return { externals = ns.db.externals, disabled = ns.db.disabled,
+		sig = tostring(ns.db.externals) .. "|" .. table.concat(ids, ",") }
+end
+
 local function ApplyRoster()
 	local list = Roster()
-	Tracker.SetRoster(list, ns.db.externals, not engaged)
+	local sel = ns.Selection()
+	Tracker.SetRoster(list, sel, not engaged)
 	local watched = {}
 	local names = {}
 	for _, r in ipairs(list) do
 		watched[r.unit] = true
-		backend.SetWatch(r.unit, ns.SpellsFor(r.class, ns.db.externals), true)
+		backend.SetWatch(r.unit, ns.SpellsFor(r.class, sel), true)
 		names[#names + 1] = r.unit .. "=" .. r.class
 	end
 	for _, unit in ipairs(UNITS) do

@@ -341,7 +341,7 @@ end
 -- third unknown, the rest ready
 local function DrawSample(row, grow, at)
 	local _, class = UnitClass("player")
-	local defs = ns.SpellsFor(class, ns.db.externals)
+	local defs = ns.SpellsFor(class, ns.Selection())
 	Layout(row, #defs, grow)
 	for i, def in ipairs(defs) do
 		local icon = row.icons[i]

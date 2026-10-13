@@ -1,13 +1,20 @@
 local CK = CombatKit
 local L, Skin, O = CK.L, CK.Skin, CK.Options
 
--- Settings page of the Party CD module.
+-- Settings of the Party CD module, three pages: the display, which spells
+-- are watched (per class, in groups), and debug.
 
 local X = O.FIELD_X + 20
 local AR   -- the module, set whenever the section is used
+local pages
 
 local GROWS = { { "right", "Grow: right" }, { "down", "Grow: down" } }
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
+local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
+	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
+-- the groups a class's spells fall into, in page order; a kind without a key is not shown
+local GROUPS = { { "self", "Defensives" }, { "external", "Externals (buffs put on an ally)" } }
+
 local function Items(list)
 	return function()
 		local items = {}
@@ -16,82 +23,81 @@ local function Items(list)
 	end
 end
 
+local function ClassName(class)
+	return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]) or class
+end
+
 local function Changed()
 	AR.Apply()
 	O.Changed()
 end
 
-local function Build(p)
+-- ---------------------------------------------------------------- the display
+local function BuildMain(p)
 	Skin.Field(p, "Show", 0, 0)
-	p.showSelf = CK.Bind(Skin.Checkbox(p, "", function(checked)
-		AR.db.showSelf = checked
-		Changed()
-	end), "Show your own row")
-	p.showSelf:SetPoint("TOPLEFT", X, -1)
 	p.externals = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.db.externals = checked
 		Changed()
 	end), "Externals (buffs put on an ally)")
-	p.externals:SetPoint("TOPLEFT", X, -27)
+	p.externals:SetPoint("TOPLEFT", X, -1)
 
 	-- by the party frames: which side, how far, shifted along the edge
-	Skin.Field(p, "Attach", 0, -58)
+	Skin.Field(p, "Attach", 0, -32)
 	p.attach = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.db.attach = checked
 		Changed()
 	end), "Attach to party frames")
-	p.attach:SetPoint("TOPLEFT", X, -59)
-	Skin.Field(p, "Side", 0, -90)
+	p.attach:SetPoint("TOPLEFT", X, -33)
+	Skin.Field(p, "Side", 0, -64)
 	p.side = Skin.Dropdown(p, 180, Items(SIDES), function(_, item)
 		AR.db.side = item.value
 		Changed()
 	end)
-	p.side:SetPoint("TOPLEFT", X, -90)
+	p.side:SetPoint("TOPLEFT", X, -64)
 
 	local function Slider(key, x, y, opts)
 		local s = Skin.Slider(p, key, opts)
 		s:SetPoint("TOPLEFT", x, y)
 		return s
 	end
-	p.offset = Slider("Offset", 0, -124, { min = -40, max = 80, step = 1,
+	p.offset = Slider("Offset", 0, -98, { min = -40, max = 80, step = 1,
 		onChange = function(v) AR.db.offset = v; Changed() end })
-	p.offsetAlong = Slider("Offset along the frame", 200, -124, { min = -80, max = 80, step = 1,
+	p.offsetAlong = Slider("Offset along the frame", 200, -98, { min = -80, max = 80, step = 1,
 		onChange = function(v) AR.db.offsetAlong = v; Changed() end })
-	p.iconSize = Slider("Icon size", 0, -190, { min = 16, max = 48,
+	p.iconSize = Slider("Icon size", 0, -164, { min = 16, max = 48,
 		onChange = function(v) AR.db.iconSize = v; Changed() end })
-	p.spacing = Slider("Spacing", 200, -190, { min = 0, max = 12,
+	p.spacing = Slider("Spacing", 200, -164, { min = 0, max = 12,
 		onChange = function(v) AR.db.spacing = v; Changed() end })
-	p.maxPerRow = Slider("Max icons per row", 0, -256, { min = 1, max = 12,
+	p.maxPerRow = Slider("Max icons per row", 0, -230, { min = 1, max = 12,
 		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
 
 	-- a row without a frame to hang on: its direction, and dragging it while unlocked
-	Skin.Field(p, "Grow", 0, -324)
+	Skin.Field(p, "Grow", 0, -298)
 	p.grow = Skin.Dropdown(p, 180, Items(GROWS), function(_, item)
 		AR.db.grow = item.value
 		Changed()
 	end)
-	p.grow:SetPoint("TOPLEFT", X, -324)
-	Skin.Field(p, "Position", 0, -356)
+	p.grow:SetPoint("TOPLEFT", X, -298)
+	Skin.Field(p, "Position", 0, -330)
 	p.unlock = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.SetLocked(not checked)
 		O.Refresh()
 	end), "Unlock")
-	p.unlock:SetPoint("TOPLEFT", X, -357)
+	p.unlock:SetPoint("TOPLEFT", X, -331)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() AR.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
 
 	-- sample rows on screen right here, to see the look by the party frames or at the loose positions
-	Skin.Field(p, "Test", 0, -388)
+	Skin.Field(p, "Test", 0, -362)
 	p.test = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.SetTest(checked)
 		O.Refresh()
 	end), "Show sample rows")
-	p.test:SetPoint("TOPLEFT", X, -389)
+	p.test:SetPoint("TOPLEFT", X, -363)
 end
 
-local function Refresh(p)
+local function RefreshMain(p)
 	local db = AR.db
-	p.showSelf:SetChecked(db.showSelf)
 	p.externals:SetChecked(db.externals)
 	p.attach:SetChecked(db.attach)
 	p.offset:SetValue(db.offset)
@@ -109,15 +115,130 @@ local function Refresh(p)
 	p.test:SetChecked(AR.IsTesting())
 end
 
+-- ---------------------------------------------------------------- the spells, per class
+local function ClassItems()
+	local items = {}
+	for _, class in ipairs(CLASSES) do items[#items + 1] = { label = ClassName(class), value = class } end
+	return items
+end
+
+-- one class's list: group headers, then a checkbox with the spell's icon and name per spell
+local function ClassList(p, class)
+	if p.lists[class] then return p.lists[class] end
+	local list = CreateFrame("Frame", nil, p)
+	list:SetPoint("TOPLEFT", 0, -34)
+	list:SetPoint("BOTTOMRIGHT")
+	list.checks = {}
+	local y = 0
+	for _, group in ipairs(GROUPS) do
+		local kind, labelKey = group[1], group[2]
+		local defs = {}
+		for _, def in ipairs(AR.SPELLS[class] or {}) do
+			if def.kind == kind then defs[#defs + 1] = def end
+		end
+		if #defs > 0 then
+			Skin.Field(list, labelKey, 0, y)
+			y = y - 24
+			for _, def in ipairs(defs) do
+				local c = Skin.Checkbox(list, C_Spell.GetSpellName(def.id) or tostring(def.id), function(checked)
+					AR.db.disabled[def.id] = (not checked) and true or nil
+					Changed()
+				end)
+				c:SetPoint("TOPLEFT", X + 22, y)
+				c.icon = list:CreateTexture(nil, "ARTWORK")
+				c.icon:SetSize(16, 16)
+				c.icon:SetPoint("RIGHT", c, "LEFT", -4, 0)
+				c.icon:SetTexture(C_Spell.GetSpellTexture(def.id))
+				c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+				c.def = def
+				list.checks[#list.checks + 1] = c
+				y = y - 22
+			end
+			y = y - 8
+		end
+	end
+	list:Hide()
+	p.lists[class] = list
+	return list
+end
+
+local function BuildSpells(p)
+	p.lists = {}
+	local _, class = UnitClass("player")
+	p.class = AR.SPELLS[class] and class or CLASSES[1]
+	Skin.Field(p, "Class", 0, 0)
+	p.picker = Skin.Dropdown(p, 180, ClassItems, function(_, item)
+		p.class = item.value
+		O.Refresh()
+	end)
+	p.picker:SetPoint("TOPLEFT", X, 0)
+end
+
+local function RefreshSpells(p)
+	p.picker:SetValueText(ClassName(p.class))
+	for class, list in pairs(p.lists) do list:SetShown(class == p.class) end
+	local list = ClassList(p, p.class)
+	list:Show()
+	for _, c in ipairs(list.checks) do c:SetChecked(not AR.db.disabled[c.def.id]) end
+end
+
+-- ---------------------------------------------------------------- debug
+local function BuildDebug(p)
+	p.showSelf = CK.Bind(Skin.Checkbox(p, "", function(checked)
+		AR.db.showSelf = checked
+		Changed()
+	end), "Show your own row")
+	p.showSelf:SetPoint("TOPLEFT", X, -1)
+	local status = CK.Bind(Skin.Button(p, "", 90, 20, function() SlashCmdList.CKPARTYCD("") end), "Status")
+	status:SetPoint("TOPLEFT", X, -32)
+	local log = CK.Bind(Skin.Button(p, "", 90, 20, function() SlashCmdList.CKPARTYCD("log") end), "Log")
+	log:SetPoint("LEFT", status, "RIGHT", 8, 0)
+	local clear = CK.Bind(Skin.Button(p, "", 90, 20, function() SlashCmdList.CKPARTYCD("clear") end), "Clear log")
+	clear:SetPoint("LEFT", log, "RIGHT", 8, 0)
+end
+
+local function RefreshDebug(p)
+	p.showSelf:SetChecked(AR.db.showSelf)
+end
+
 O.AddSection({
 	key = "PartyCD",
 	module = "PartyCD",
 	order = 35,
 	tab = function() return L["MOD_PartyCD"] end,
-	GetNodes = function() return { { key = "arena", label = L["MOD_PartyCD"] } } end,
-	GetHeader = function() return L["MOD_PartyCD"], L["MODDESC_PartyCD"] end,
-	Build = function(p) AR = CK.modules.PartyCD; Build(p) end,
-	Refresh = function(_, p) AR = CK.modules.PartyCD; Refresh(p) end,
+	GetNodes = function()
+		return {
+			{ key = "main", label = L["MOD_PartyCD"] },
+			{ key = "spells", label = L["Spells"] },
+			{ key = "debug", label = L["PAGE_debug"] },
+		}
+	end,
+	GetHeader = function(node)
+		if node == "spells" then return L["Spells"], L["PARTYCD_SPELLS_DESC"] end
+		if node == "debug" then return L["PAGE_debug"], L["PARTYCD_DEBUG_DESC"] end
+		return L["MOD_PartyCD"], L["MODDESC_PartyCD"]
+	end,
+	Build = function(body)
+		AR = CK.modules.PartyCD
+		pages = {}
+		for _, key in ipairs({ "main", "spells", "debug" }) do
+			local page = CreateFrame("Frame", nil, body)
+			page:SetAllPoints()
+			pages[key] = page
+		end
+		body.pages = pages
+		BuildMain(pages.main)
+		BuildSpells(pages.spells)
+		BuildDebug(pages.debug)
+	end,
+	Refresh = function(node, body)
+		AR = CK.modules.PartyCD
+		local which = body.pages[node] and node or "main"
+		for key, page in pairs(body.pages) do page:SetShown(key == which) end
+		if which == "spells" then RefreshSpells(body.pages.spells)
+		elseif which == "debug" then RefreshDebug(body.pages.debug)
+		else RefreshMain(body.pages.main) end
+	end,
 	OnWindowHide = function()
 		local module = CK.modules.PartyCD
 		if module and not module.IsLocked() then module.SetLocked(true) end

@@ -153,6 +153,7 @@ C_Item = {
 C_Spell = {
 	GetOverrideSpell = function() return nil end,
 	GetSpellTexture = function(id) return "icon" .. id end,
+	GetSpellName = function(id) return "spell" .. id end,
 	GetSpellInfo = function(id)
 		for _, s in ipairs(W.spells) do if s[1] == id then return { spellID = id, maxRange = s[2] } end end
 	end,

@@ -6,6 +6,7 @@ local T = dofile(HERE .. "/stubs.lua")
 local check, eq, W, fire, flush = T.check, T.eq, T.W, T.fire, T.flush
 T.captureChat()
 
+CombatKitPartyCDDB = { showSelf = true }   -- the player's own row is a debug setting, off by default; this test wants it
 local CK = T.boot()
 check(T.loaded.CombatKit_PartyCD == nil, "off by default: never loaded")
 CK.SetModuleEnabled("PartyCD", true)
@@ -309,11 +310,34 @@ SlashCmdList.COMBATKIT("")
 local main = CK.Options.GetFrame()
 check(main and main:IsShown(), "the settings window opens")
 main.tabs.PartyCD:Click()
-local page = main.bodies.PartyCD
-check(page and page.showSelf and page.iconSize, "the Party CD page is built")
-page.showSelf:Click()
+local body = main.bodies.PartyCD
+local page = body.pages.main
+check(page and page.iconSize and page.externals, "the Party CD page is built")
+check(page:IsShown() and not body.pages.spells:IsShown(), "it opens on the display page")
+-- the debug page: the player's own row
+CK.Options.Select("PartyCD", "debug")
+check(body.pages.debug:IsShown() and body.pages.debug.showSelf:GetChecked(), "the debug page shows the own-row switch, on for this test")
+body.pages.debug.showSelf:Click()
 eq(AR.db.showSelf, false, "the checkbox writes the setting")
-page.showSelf:Click()
+body.pages.debug.showSelf:Click()
+-- the spells page: a class, its groups, a spell switched off
+CK.Options.Select("PartyCD", "spells")
+local spells = body.pages.spells
+check(spells:IsShown() and spells.class == "DEMONHUNTER", "the spells page opens on the player's class")
+local list = spells.lists.DEMONHUNTER
+check(list and #list.checks == #AR.SPELLS.DEMONHUNTER, "one checkbox per demon hunter ability")
+spells.class = "DRUID"; CK.Options.Refresh()
+local druid = spells.lists.DRUID
+check(druid and druid:IsShown() and not list:IsShown(), "another class: its list, the other hidden")
+local barkskin
+for _, c in ipairs(druid.checks) do if c.def.id == 22812 then barkskin = c end end
+check(barkskin and barkskin:GetChecked(), "Barkskin is watched")
+barkskin:Click()
+check(AR.db.disabled[22812] == true, "unticked: switched off")
+check(TR.Get("party1") == nil or TR.Get("party1").spells[22812] == nil, "and no longer carried by the druid teammate")
+barkskin:Click()
+check(AR.db.disabled[22812] == nil, "ticked again")
+CK.Options.Select("PartyCD", "main")
 page.unlock:Click()
 check(not AR.IsLocked(), "unlocked from the page")
 main:Hide()

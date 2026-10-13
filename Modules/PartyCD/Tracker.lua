@@ -68,20 +68,21 @@ local function NewEntry(def, known)
 	}
 end
 
--- the entries a teammate carries: the class's list, with or without externals;
--- entries that already exist are kept with their estimates
-local function Fit(t, withExternals)
+-- the entries a teammate carries: the class's list under the selection
+-- (externals or not, spells switched off); entries that already exist are
+-- kept with their estimates
+local function Fit(t, sel)
 	local spells, order = {}, {}
-	for _, def in ipairs(ns.SpellsFor(t.class, withExternals)) do
+	for _, def in ipairs(ns.SpellsFor(t.class, sel)) do
 		spells[def.id] = t.spells[def.id] or NewEntry(def, t.known)
 		order[#order + 1] = def.id
 	end
-	t.spells, t.order, t.externals = spells, order, withExternals
+	t.spells, t.order, t.sig = spells, order, sel.sig
 end
 
-local function NewTeammate(unit, guid, class, withExternals, known)
+local function NewTeammate(unit, guid, class, sel, known)
 	local t = { unit = unit, guid = guid, class = class, spells = {}, order = {}, known = known and true or false }
-	Fit(t, withExternals)
+	Fit(t, sel)
 	return t
 end
 
@@ -89,15 +90,17 @@ end
 -- unit whose GUID changed is a new teammate; it starts known and ready when
 -- the round has not begun (nothing can have been used before the gates),
 -- unknown when it arrives mid round. One that stayed keeps its estimates.
-function Tracker.SetRoster(list, withExternals, known)
+-- `sel` is the selection (see Spells.lua) with a `sig` that changes with it.
+function Tracker.SetRoster(list, sel, known)
+	if type(sel) ~= "table" then sel = { externals = sel, sig = tostring(sel) } end
 	local seen = {}
 	for _, r in ipairs(list) do
 		seen[r.unit] = true
 		local t = teammates[r.unit]
 		if not t or t.guid ~= r.guid or t.class ~= r.class then
-			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, withExternals, known)
-		elseif t.externals ~= withExternals then
-			Fit(t, withExternals)
+			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, sel, known)
+		elseif t.sig ~= sel.sig then
+			Fit(t, sel)
 		end
 	end
 	for unit in pairs(teammates) do
