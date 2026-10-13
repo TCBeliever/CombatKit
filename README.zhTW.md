@@ -83,7 +83,7 @@
 
 ## 開發
 
-`tests/run_tests.py`（Python + `lupa`）會編譯每個檔案、確認核心的 `.toc` 不會載入任何模組、檢查語言字串有無缺漏與發佈用的中繼資料，並在兩種語言下用 WoW API 替身跑行為測試。`deploy.bat` 把核心和 `Modules/` 底下每個資料夾複製到 AddOns；打包時由 `.pkgmeta` 做同樣的事。推送 `v*` 標籤就會發佈，見 `.github/workflows/release.yml`。`tools/talentdata.py` 透過 wago.tools 從遊戲資料檔重新產生 `Modules/PartyCD/TalentData.lua`（基礎冷卻、充能，以及會改變它們的天賦）；改版後跑一次，並看一下它印出的審核清單。
+`tests/run_tests.py`（Python + `lupa`）會編譯每個檔案、確認核心的 `.toc` 不會載入任何模組、檢查語言字串有無缺漏與發佈用的中繼資料，並在兩種語言下用 WoW API 替身跑行為測試。`deploy.bat` 把核心和 `Modules/` 底下每個資料夾複製到 AddOns；打包時由 `.pkgmeta` 做同樣的事。推送 `v*` 標籤就會發佈，見 `.github/workflows/release.yml`。`tools/talentdata.py` 透過 wago.tools 從遊戲資料檔重新產生 `Modules/PartyCD/TalentData.lua`（基礎冷卻、充能，以及會改變它們的天賦）；改版後跑一次，並看一下它印出的審核清單；下載的原始資料按 build 存在 `../wago-cache`。
 
 ## 授權
 

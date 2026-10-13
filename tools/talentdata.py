@@ -25,8 +25,8 @@ on the ability's charge category.
 
 It also prints, for a human to look over: the base values that differ from
 Spells.lua, the specializations the data gives an ability against the `specs`
-written in Spells.lua, and every modifier it found. Downloads are cached per
-build under the system temp folder.
+written in Spells.lua, and every modifier it found. Downloads are cached per build in F:/project/littles/wago-cache (../wago-cache
+next to the repository; the WAGO_CACHE environment variable overrides it).
 """
 import csv, io, json, os, re, sys, tempfile, urllib.parse, urllib.request
 from collections import defaultdict
@@ -58,7 +58,7 @@ def latest_build():
 class DB2:
     def __init__(self, build):
         self.build = build
-        self.cache = os.path.join(tempfile.gettempdir(), "combatkit-wago", build)
+        self.cache = os.path.join(os.environ.get("WAGO_CACHE") or os.path.join(os.path.dirname(ROOT), "wago-cache"), build)
         os.makedirs(self.cache, exist_ok=True)
 
     def rows(self, table, **filters):

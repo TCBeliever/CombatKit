@@ -83,7 +83,7 @@ Flat panels drawn by the addon itself, no Blizzard frame skin. Two themes, *Tide
 
 ## Development
 
-`tests/run_tests.py` (Python with `lupa`) compiles every file, checks that no module can be loaded by the core's `.toc`, checks locale coverage and the release metadata, and runs the behaviour tests against WoW API stubs in both languages. `deploy.bat` copies the core and every folder under `Modules/` into the AddOns folder; the packager does the same through `.pkgmeta`. A `v*` tag releases: see `.github/workflows/release.yml`. `tools/talentdata.py` regenerates `Modules/PartyCD/TalentData.lua` (base cooldowns, charges and the talents that change them) from the game's data files through wago.tools; run it after a patch and look over what it prints.
+`tests/run_tests.py` (Python with `lupa`) compiles every file, checks that no module can be loaded by the core's `.toc`, checks locale coverage and the release metadata, and runs the behaviour tests against WoW API stubs in both languages. `deploy.bat` copies the core and every folder under `Modules/` into the AddOns folder; the packager does the same through `.pkgmeta`. A `v*` tag releases: see `.github/workflows/release.yml`. `tools/talentdata.py` regenerates `Modules/PartyCD/TalentData.lua` (base cooldowns, charges and the talents that change them) from the game's data files through wago.tools; run it after a patch and look over what it prints; the downloads are kept per build in `../wago-cache`.
 
 ## License
 
