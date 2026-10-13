@@ -21,7 +21,6 @@ ns.TalentData = {
 		[51271] = { cd = 45, charges = 1 },  -- Pillar of Frost
 		[207289] = { cd = 90, charges = 1 },  -- Unholy Assault
 		[198589] = { cd = 60, charges = 1 },  -- Blur
-		[196555] = { cd = 180, charges = 1 },  -- Netherwalk
 		[187827] = { cd = 120, charges = 1 },  -- Metamorphosis
 		[196718] = { cd = 300, charges = 1 },  -- Darkness
 		[179057] = { cd = 45, charges = 1 },  -- Chaos Nova
@@ -37,7 +36,6 @@ ns.TalentData = {
 		[194223] = { cd = 180, charges = 1 },  -- Celestial Alignment
 		[106951] = { cd = 180, charges = 1 },  -- Berserk
 		[363916] = { cd = 90, charges = 1 },  -- Obsidian Scales
-		[374348] = { cd = 90, charges = 1 },  -- Renewing Blaze
 		[357170] = { cd = 60, charges = 1 },  -- Time Dilation
 		[374227] = { cd = 120, charges = 1 },  -- Zephyr
 		[375087] = { cd = 120, charges = 1 },  -- Dragonrage
@@ -69,7 +67,6 @@ ns.TalentData = {
 		[498] = { cd = 60, charges = 1 },  -- Divine Protection
 		[31850] = { cd = 90, charges = 1 },  -- Ardent Defender
 		[86659] = { cd = 180, charges = 1 },  -- Guardian of Ancient Kings
-		[184662] = { cd = 90, charges = 1 },  -- Shield of Vengeance
 		[1022] = { cd = 300, charges = 1 },  -- Blessing of Protection
 		[6940] = { cd = 120, charges = 1 },  -- Blessing of Sacrifice
 		[853] = { cd = 45, charges = 1 },  -- Hammer of Justice
@@ -77,7 +74,6 @@ ns.TalentData = {
 		[31884] = { cd = 120, charges = 1 },  -- Avenging Wrath
 		[47585] = { cd = 120, charges = 1 },  -- Dispersion
 		[19236] = { cd = 90, charges = 1 },  -- Desperate Prayer
-		[47536] = { cd = 90, charges = 1 },  -- Rapture
 		[33206] = { cd = 180, charges = 1 },  -- Pain Suppression
 		[47788] = { cd = 180, charges = 1 },  -- Guardian Spirit
 		[62618] = { cd = 180, charges = 1 },  -- Power Word: Barrier
@@ -93,7 +89,6 @@ ns.TalentData = {
 		[13750] = { cd = 180, charges = 1 },  -- Adrenaline Rush
 		[121471] = { cd = 90, charges = 1 },  -- Shadow Blades
 		[108271] = { cd = 120, charges = 1 },  -- Astral Shift
-		[108270] = { cd = 180, charges = 1 },  -- Stone Bulwark Totem
 		[98008] = { cd = 180, charges = 1 },  -- Spirit Link Totem
 		[192058] = { cd = 60, charges = 1 },  -- Capacitor Totem
 		[51514] = { cd = 30, charges = 1 },  -- Hex
@@ -104,8 +99,6 @@ ns.TalentData = {
 		[6789] = { cd = 45, charges = 1 },  -- Mortal Coil
 		[30283] = { cd = 60, charges = 1 },  -- Shadowfury
 		[5484] = { cd = 40, charges = 1 },  -- Howl of Terror
-		[113860] = { cd = 120, charges = 1 },  -- Dark Soul: Misery
-		[113858] = { cd = 120, charges = 1 },  -- Dark Soul: Instability
 		[118038] = { cd = 120, charges = 1 },  -- Die by the Sword
 		[184364] = { cd = 120, charges = 1 },  -- Enraged Regeneration
 		[871] = { cd = 180, charges = 1 },  -- Shield Wall
@@ -122,7 +115,6 @@ ns.TalentData = {
 			[498] = { pct = -30 },  -- Divine Protection
 			[642] = { pct = -30 },  -- Divine Shield
 			[31850] = { pct = -30 },  -- Ardent Defender
-			[184662] = { pct = -30 },  -- Shield of Vengeance
 		},
 		[137010] = {  -- Guardian Druid (spec passive)
 			[22812] = { sec = -15 },  -- Barkskin
@@ -216,9 +208,6 @@ ns.TalentData = {
 		},
 		[375406] = {  -- Obsidian Bulwark (talent)
 			[363916] = { charges = 1 },  -- Obsidian Scales
-		},
-		[375577] = {  -- Fire Within (talent)
-			[374348] = { sec = -30 },  -- Renewing Blaze
 		},
 		[376204] = {  -- Just in Time (talent)
 			[357170] = { charges = 1 },  -- Time Dilation

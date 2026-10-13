@@ -97,7 +97,6 @@ ns.SPELLS = {
 	},
 	DEMONHUNTER = {
 		Self(198589, 60, { aura = 212800, extraCharge = true, specs = set(577, 1480) }),  -- Blur
-		Self(196555, 180, { glow = "major" }), -- Netherwalk
 		Self(187827, 120, { noLearn = true, specs = set(581) }), -- Metamorphosis (Vengeance): a talent gives a short one too
 		External(196718, 300, { aura = 209426, area = true, lasts = 8 }), -- Darkness
 		CC(179057, 45, { specs = set(577, 1480) }),  -- Chaos Nova
@@ -117,7 +116,6 @@ ns.SPELLS = {
 	},
 	EVOKER = {
 		Self(363916, 90, { extraCharge = true }),  -- Obsidian Scales
-		Self(374348, 90),                      -- Renewing Blaze
 		External(357170, 60, { extraCharge = true, specs = set(1468) }),  -- Time Dilation
 		External(374227, 120, { area = true, lasts = 8 }),  -- Zephyr
 		Burst(375087, 120, { specs = set(1467) }),  -- Dragonrage
@@ -157,7 +155,6 @@ ns.SPELLS = {
 		Self(498, 60, { auras = { 498, 403876 }, specs = set(65, 70) }),  -- Divine Protection
 		Self(31850, 90, { specs = set(66) }),  -- Ardent Defender
 		Self(86659, 180, { extraCharge = true, specs = set(66) }),  -- Guardian of Ancient Kings
-		Self(184662, 90, { specs = set(70) }), -- Shield of Vengeance (the client gives no base cooldown)
 		External(1022, 300, { auras = { 1022, 204018 }, glow = "major" }),  -- Blessing of Protection, or of Spellwarding
 		External(6940, 120, { notOnSelf = true }), -- Blessing of Sacrifice
 		CC(853, 45),                           -- Hammer of Justice
@@ -167,7 +164,6 @@ ns.SPELLS = {
 	PRIEST = {
 		Self(47585, 120, { glow = "major", specs = set(258) }),  -- Dispersion
 		Self(19236, 90),                       -- Desperate Prayer
-		Self(47536, 90, { specs = set(256) }), -- Rapture
 		External(33206, 180, { extraCharge = true, glow = "major", specs = set(256) }),  -- Pain Suppression
 		External(47788, 180, { glow = "major", specs = set(257) }),  -- Guardian Spirit
 		External(62618, 180, { aura = 81782, area = true, lasts = 10, specs = set(256) }),  -- Power Word: Barrier
@@ -187,7 +183,6 @@ ns.SPELLS = {
 	},
 	SHAMAN = {
 		Self(108271, 120),                     -- Astral Shift
-		Self(108270, 180, { aura = 114893 }),  -- Stone Bulwark Totem
 		External(98008, 180, { aura = 325174, area = true, lasts = 6, specs = set(264) }),  -- Spirit Link Totem
 		CC(192058, 60, { aura = 118905, delayed = 3 }),  -- Capacitor Totem
 		CC(51514, 30, { auras = { 51514, 210873, 211004, 211010, 211015, 269352, 277778, 277784, 309328 } }),  -- Hex, in every look
@@ -200,8 +195,6 @@ ns.SPELLS = {
 		CC(6789, 45),                          -- Mortal Coil
 		CC(30283, 60),                         -- Shadowfury
 		CC(5484, 40),                          -- Howl of Terror
-		Burst(113860, 120, { specs = set(265) }),  -- Dark Soul: Misery
-		Burst(113858, 120, { specs = set(267) }),  -- Dark Soul: Instability
 	},
 	WARRIOR = {
 		Self(118038, 120, { specs = set(71) }),  -- Die by the Sword
