@@ -20,6 +20,9 @@ local ADDON, ns = ...
 -- detecting a secret aura through what the game draws of it was first used by
 -- AsIntendedCDs; this is an independent design of it.
 --
+-- The team (player, party1, party2) is watched for buffs; the opponents
+-- (arena1-3) for the debuffs of the team's crowd control.
+--
 -- One slot per (unit, spell), kept for the session, filters changed only when
 -- the roster changes. The probes of a unit are fed on the frame after that
 -- unit's UNIT_AURA (the container redraws in its own OnUpdate, after the
@@ -93,7 +96,14 @@ local function Container(unit)
 end
 
 local function Filter(def)
-	return { includeSpellIDs = { [def.aura] = true, [def.id] = true }, maxDuration = 600 }
+	local ids = { [def.id] = true }
+	for _, id in ipairs(def.auras or { def.aura }) do ids[id] = true end
+	return { includeSpellIDs = ids, maxDuration = 600 }
+end
+
+-- what a unit's container draws: buffs on the team, debuffs on an opponent
+local function AuraFilter(unit)
+	return unit:match("^arena%d$") and "HARMFUL" or "HELPFUL"
 end
 
 local function Touch(c, slot)
@@ -147,7 +157,7 @@ local function Slot(c, def)
 	slot = { def = def }
 	c.slots[def.id] = slot
 	if not c.frame then slot.failed = c.failed return slot end
-	local ok, err = pcall(c.frame.AddAuraSlot, c.frame, tostring(def.id), "HELPFUL", {
+	local ok, err = pcall(c.frame.AddAuraSlot, c.frame, tostring(def.id), AuraFilter(c.unit), {
 		candidateFilters = Filter(def),
 		initializeFrame = function(button) Backend.InitSlot(c, slot, button) end,
 	})

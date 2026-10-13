@@ -7,6 +7,9 @@ local ADDON, ns = ...
 -- reports three things through the callbacks below, and the tracker keeps
 -- the estimates the display reads.
 --
+-- `unit` is where the aura is: a teammate for a buff, an opponent (arena1-3)
+-- for a crowd control's debuff.
+--
 --   Shown(unit, spellID, now, initial)   the buff is drawn for unit; `initial`
 --                                        when it was already there as we began
 --                                        to look (so its start is unknown)
@@ -231,11 +234,23 @@ local function Entry(unit, spellID)
 end
 
 -- who could have put this external on `holder`
+-- the player's class has this ability (whether or not the player's own row is shown)
+local function PlayerHas(def)
+	local ok, _, class = pcall(UnitClass, "player")
+	return ok and type(class) == "string" and ns.CLASSES_WITH[def.id] and ns.CLASSES_WITH[def.id][class] == true
+end
+
+-- who could have put this external on `holder` (a teammate), or this crowd
+-- control on `holder` (an opponent). The player's own cast settles it first:
+-- within OWN_CAST_WINDOW, or within the ability's `delayed` for one that can
+-- land long after the cast (a trap, a totem); the player's own use is then
+-- nobody else's, credited to the player's row when it is shown.
 local function Candidates(def, holder, at)
 	local out = {}
 	local recent = recentCasts[def.id]
-	if recent and at - recent <= OWN_CAST_WINDOW and teammates.player and teammates.player.spells[def.id] then
-		return { teammates.player }, true
+	if recent and at - recent <= (def.delayed or 0) + OWN_CAST_WINDOW and PlayerHas(def) then
+		if teammates.player and teammates.player.spells[def.id] then return { teammates.player }, true end
+		return {}, true
 	end
 	for _, unit in ipairs(order) do
 		local t = teammates[unit]
@@ -283,7 +298,7 @@ function Tracker.Shown(unit, spellID, at, initial)
 		Notify("active", t, e)
 		return
 	end
-	-- an external: credit everyone who could have cast it
+	-- an external or a crowd control: credit everyone who could have cast it
 	local list, own = Candidates(def, unit, at)
 	for _, t in ipairs(list) do
 		local e = t.spells[spellID]

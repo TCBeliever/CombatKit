@@ -44,8 +44,9 @@ W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-1-PRIEST" }
 W.now = 0
 fire("PLAYER_ENTERING_WORLD")
 check(fake.started, "entering an arena starts the backend")
-check(fake.watches.party1 and #fake.watches.party1 == #AR.SpellsFor("DRUID", true), "every druid ability is watched on party1")
-check(fake.watches.player and #fake.watches.player == #AR.SpellsFor("DEMONHUNTER", true), "the player's own row is watched too")
+check(fake.watches.party1 and #fake.watches.party1 == #AR.FriendlyDefs(AR.SpellsFor("DRUID", true)), "every druid buff is watched on party1")
+check(fake.watches.player and #fake.watches.player == #AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true)), "the player's own row is watched too")
+check(fake.watches.arena1 and #fake.watches.arena1 > 0, "the opponents are watched for the team's crowd control")
 eq(state("party1", 22812), "ready", "entering: everything is ready, the gates reset it anyway")
 -- a teammate who turns up in the roster a few seconds later, still before the gates: ready too
 W.units.party2 = nil
@@ -253,6 +254,38 @@ W.now = 2300; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-5", 198589)
 shown("player", 198589, 2300.02)
 check(not TR.failed, "a buff that shows again clears it")
 
+-- ---------------------------------------------------------------- crowd control: debuffs on the opponents
+local function uses(unit, id) return #TR.Get(unit).spells[id].uses end
+shown("arena1", 5211, 2310)
+eq(state("party1", 5211), "active", "Mighty Bash on arena1: the druid's, glowing while it holds")
+eq(uses("party1", 5211), 1, "one use, the only one who has it")
+check(not TR.Get("party1").spells[5211].ambiguous, "and nobody else could have")
+hidden("arena1", 5211, 2314)
+shown("arena1", 8122, 2320)
+shown("arena2", 8122, 2320.02)
+eq(uses("party2", 8122), 1, "Psychic Scream on two opponents at once: one use")
+-- the player's own crowd control is the player's, even one that lands later
+W.now = 2340; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-6", 207684)
+shown("arena1", 207684, 2342.5)
+eq(uses("player", 207684), 1, "Sigil of Misery bursting 2.5 s after the cast: still the player's own")
+-- a demon hunter teammate: the player's own Imprison is not theirs
+W.units.party2 = { friendly = true, class = "DEMONHUNTER", guid = "Player-4-DH" }
+fire("GROUP_ROSTER_UPDATE")
+W.now = 2350; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-7", 217832)
+shown("arena2", 217832, 2350.1)
+eq(uses("party2", 217832), 0, "the player cast Imprison: no use for the teammate")
+eq(uses("player", 217832), 1, "the player's own instead")
+shown("arena3", 217832, 2380)
+eq(uses("party2", 217832), 1, "an Imprison the player did not cast: the other demon hunter's")
+AR.db.showSelf = false; AR.Apply()
+W.now = 2400; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-8", 179057)
+shown("arena1", 179057, 2400.1)
+eq(uses("party2", 179057), 0, "the player's own row hidden: their Chaos Nova is still not the teammate's")
+AR.db.showSelf = true; AR.Apply()
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-3-PRIEST" }
+fire("GROUP_ROSTER_UPDATE")
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+
 -- ---------------------------------------------------------------- the rows
 AR.UI.Refresh(2300.02)
 local row = AR.UI.Rows().party1
@@ -346,19 +379,30 @@ body.pages.debug.showSelf:Click()
 CK.Options.Select("PartyCD", "spells")
 local spells = body.pages.spells
 check(spells:IsShown() and spells.class == "DEMONHUNTER", "the spells page opens on the player's class")
-local list = spells.lists.DEMONHUNTER
-check(list and #list.checks == #AR.SPELLS.DEMONHUNTER, "one checkbox per demon hunter ability")
+local function shownRows()
+	local out = {}
+	for _, c in ipairs(spells.abilities) do if c:IsShown() then out[#out + 1] = c end end
+	return out
+end
+eq(#shownRows(), #AR.SPELLS.DEMONHUNTER, "one row per demon hunter ability")
+check(spells.headers.defensive:IsShown() and spells.headers.offensive:IsShown() and spells.headers.cc:IsShown(),
+	"the three categories, each with its own box")
+check(spells.trinket:GetChecked() == (AR.db.trinket and true or false), "the trinket box beside the class")
 spells.class = "DRUID"; CK.Options.Refresh()
-local druid = spells.lists.DRUID
-check(druid and druid:IsShown() and not list:IsShown(), "another class: its list, the other hidden")
+eq(#shownRows(), #AR.SPELLS.DRUID, "another class: its rows")
 local barkskin
-for _, c in ipairs(druid.checks) do if c.def.id == 22812 then barkskin = c end end
+for _, c in ipairs(shownRows()) do if c.def.id == 22812 then barkskin = c end end
 check(barkskin and barkskin:GetChecked(), "Barkskin is watched")
 barkskin:Click()
 check(AR.db.disabled[22812] == true, "unticked: switched off")
 check(TR.Get("party1") == nil or TR.Get("party1").spells[22812] == nil, "and no longer carried by the druid teammate")
 barkskin:Click()
 check(AR.db.disabled[22812] == nil, "ticked again")
+spells.headers.cc:Click()
+check(AR.db.disabled[5211] and AR.db.disabled[99] and not AR.db.disabled[22812], "the category box: every druid crowd control off, the rest kept")
+check(not spells.headers.cc:GetChecked(), "and the box shows it")
+spells.headers.cc:Click()
+check(not AR.db.disabled[5211] and not AR.db.disabled[99], "ticked again: back on")
 CK.Options.Select("PartyCD", "main")
 page.unlock:Click()
 check(not AR.IsLocked(), "unlocked from the page")
@@ -474,7 +518,7 @@ fire("INSPECT_READY", "Player-2-DRUID")
 check(d.spells[22812].cd == 35 and not IN.Pending("party1"), "the PvP talent read: Barkskin 35 s, inspect done")
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
-eq(#d.order, #AR.SpellsFor("DRUID", true) - 2, "two icons fewer: Ironbark not taken, Survival Instincts not a restoration ability")
+eq(#d.order, 3, "a restoration druid without Ironbark: Barkskin, Mighty Bash, Incapacitating Roar")
 check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
 check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")

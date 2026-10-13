@@ -9,9 +9,9 @@ local L = CK.L
 -- and draws it:
 --
 --   ready     bright
---   active    bright, a breathing halo (the buff is up): green for a
+--   active    bright, a breathing halo (the aura is up): green for a
 --             defensive, yellow for an immunity or a big external, red for
---             a burst
+--             a burst, violet for a crowd control on an opponent
 --   cooling   dark, a cooldown swipe with the time left
 --   unknown   dark, a "?" in the middle
 --
@@ -167,11 +167,12 @@ local function Row(unit)
 end
 
 -- the halo's colour by what the ability is: green for a defensive, yellow
--- for an immunity or a big external, red for a burst
+-- for an immunity or a big external, red for a burst, violet for a crowd control
 local GLOW = {
 	defensive = { 0.25, 0.95, 0.35 },
 	major     = { 1.00, 0.85, 0.20 },
 	burst     = { 1.00, 0.25, 0.25 },
+	cc        = { 0.70, 0.45, 1.00 },
 }
 
 local function Colour(icon, def)

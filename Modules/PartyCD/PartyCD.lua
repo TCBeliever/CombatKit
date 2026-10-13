@@ -13,6 +13,7 @@ CK.NewModule("PartyCD", ns)
 local Tracker = ns.Tracker
 local Inspect = ns.Inspect
 local UNITS = { "player", "party1", "party2" }
+local ENEMIES = { "arena1", "arena2", "arena3" }
 local backend
 local inArena = false
 local engaged = false   -- the gates are open: a teammate arriving now is unknown, before that ready
@@ -146,7 +147,7 @@ local function ApplyRoster()
 			t.inspectAsked = true
 			Inspect.Want(r.unit, r.guid, r.class)
 		end
-		backend.SetWatch(r.unit, ns.SpellsFor(r.class, sel), true)
+		backend.SetWatch(r.unit, ns.FriendlyDefs(ns.SpellsFor(r.class, sel)), true)
 		names[#names + 1] = r.unit .. "=" .. r.class
 		-- the trinket: ask the server for the unit's crowd control cooldown data
 		if ns.db.trinket and C_PvP and C_PvP.RequestCrowdControlSpell then pcall(C_PvP.RequestCrowdControlSpell, r.unit) end
@@ -157,6 +158,19 @@ local function ApplyRoster()
 			Inspect.Forget(unit)
 		end
 	end
+	-- the opponents: the debuffs of every crowd control the team has (the
+	-- player's own as well, so that a use of theirs is never a teammate's)
+	local cc, seen = {}, {}
+	local classes = {}
+	for _, r in ipairs(list) do classes[r.class] = true end
+	local _, own = UnitClass("player")
+	if type(own) == "string" and plain(own) then classes[own] = true end
+	for class in pairs(classes) do
+		for _, def in ipairs(ns.EnemyDefs(ns.SpellsFor(class, sel))) do
+			if not seen[def.id] then seen[def.id] = true; cc[#cc + 1] = def end
+		end
+	end
+	for _, unit in ipairs(ENEMIES) do backend.SetWatch(unit, cc, true) end
 	Log("roster %s", table.concat(names, " "))
 	local problems = backend.Problems and backend.Problems()
 	if problems and #problems > 0 then Log("backend: %s", table.concat(problems, "; ")) end

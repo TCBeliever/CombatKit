@@ -12,8 +12,6 @@ local GROWS = { { "right", "Grow: right" }, { "down", "Grow: down" } }
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
 local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
 	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
--- the groups a class's spells fall into, in page order; a kind without a key is not shown
-local GROUPS = { { "self", "Defensives" }, { "external", "Externals (buffs put on an ally)" } }
 
 local function Items(list)
 	return function()
@@ -122,54 +120,38 @@ local function RefreshMain(p)
 end
 
 -- ---------------------------------------------------------------- the spells, per class
+-- A class picked at the top, the PvP trinket beside it; under it the class's
+-- abilities by category. A category's own box ticks or unticks everything
+-- under it, for the class shown; every ability has its box, its icon between
+-- the box and the name.
+local ROW_H = 20
+local CATEGORIES = { { "defensive", "Defensive" }, { "offensive", "Offensive cooldowns" }, { "cc", "Crowd control" } }
+
 local function ClassItems()
 	local items = {}
 	for _, class in ipairs(CLASSES) do items[#items + 1] = { label = ClassName(class), value = class } end
 	return items
 end
 
--- one class's list: group headers, then a checkbox with the spell's icon and name per spell
-local function ClassList(p, class)
-	if p.lists[class] then return p.lists[class] end
-	local list = CreateFrame("Frame", nil, p)
-	list:SetPoint("TOPLEFT", 0, -34)
-	list:SetPoint("BOTTOMRIGHT")
-	list.checks = {}
-	local y = 0
-	for _, group in ipairs(GROUPS) do
-		local kind, labelKey = group[1], group[2]
-		local defs = {}
-		for _, def in ipairs(AR.SPELLS[class] or {}) do
-			if def.kind == kind then defs[#defs + 1] = def end
-		end
-		if #defs > 0 then
-			Skin.Field(list, labelKey, 0, y)
-			y = y - 24
-			for _, def in ipairs(defs) do
-				local c = Skin.Checkbox(list, C_Spell.GetSpellName(def.id) or tostring(def.id), function(checked)
-					AR.db.disabled[def.id] = (not checked) and true or nil
-					Changed()
-				end)
-				c:SetPoint("TOPLEFT", X + 22, y)
-				c.icon = list:CreateTexture(nil, "ARTWORK")
-				c.icon:SetSize(16, 16)
-				c.icon:SetPoint("RIGHT", c, "LEFT", -4, 0)
-				c.icon:SetTexture(C_Spell.GetSpellTexture(def.id))
-				c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-				c.def = def
-				list.checks[#list.checks + 1] = c
-				y = y - 22
-			end
-			y = y - 8
-		end
-	end
-	list:Hide()
-	p.lists[class] = list
-	return list
+local function SpellName(def)
+	local ok, name = pcall(C_Spell.GetSpellName, def.id)
+	if ok and type(name) == "string" and name ~= "" then return name end
+	return tostring(def.id)
+end
+
+-- a check box with the spell's icon between the box and the name
+local function AbilityRow(parent, onChange)
+	local c = Skin.Checkbox(parent, "", onChange)
+	c.icon = c:CreateTexture(nil, "ARTWORK")
+	c.icon:SetSize(16, 16)
+	c.icon:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
+	c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	c.label:ClearAllPoints()
+	c.label:SetPoint("LEFT", c.icon, "RIGHT", 6, 0)
+	return c
 end
 
 local function BuildSpells(p)
-	p.lists = {}
 	local _, class = UnitClass("player")
 	p.class = AR.SPELLS[class] and class or CLASSES[1]
 	Skin.Field(p, "Class", 0, 0)
@@ -178,14 +160,76 @@ local function BuildSpells(p)
 		O.Refresh()
 	end)
 	p.picker:SetPoint("TOPLEFT", X, 0)
+	p.trinket = CK.Bind(Skin.Checkbox(p, "", function(checked)
+		AR.db.trinket = checked
+		Changed()
+	end), "The PvP trinket")
+	p.trinket:SetPoint("LEFT", p.picker, "RIGHT", 16, 0)
+
+	p.headers = {}
+	for _, cat in ipairs(CATEGORIES) do
+		local role = cat[1]
+		local h = CK.Bind(Skin.Checkbox(p, "", function(checked)
+			for _, def in ipairs(AR.SPELLS[p.class] or {}) do
+				if def.role == role then AR.db.disabled[def.id] = (not checked) and true or nil end
+			end
+			Changed()
+			O.Refresh()
+		end), cat[2])
+		h.role = role
+		p.headers[role] = h
+	end
+	p.abilities = {}
 end
 
 local function RefreshSpells(p)
+	local db = AR.db
 	p.picker:SetValueText(ClassName(p.class))
-	for class, list in pairs(p.lists) do list:SetShown(class == p.class) end
-	local list = ClassList(p, p.class)
-	list:Show()
-	for _, c in ipairs(list.checks) do c:SetChecked(not AR.db.disabled[c.def.id]) end
+	p.trinket:SetChecked(db.trinket)
+	local list = AR.SPELLS[p.class] or {}
+	local y, used = -34, 0
+	for _, cat in ipairs(CATEGORIES) do
+		local role = cat[1]
+		local header = p.headers[role]
+		local any, all = false, true
+		for _, def in ipairs(list) do
+			if def.role == role then
+				any = true
+				if db.disabled[def.id] then all = false end
+			end
+		end
+		header:SetShown(any)
+		if any then
+			header:ClearAllPoints()
+			header:SetPoint("TOPLEFT", 0, y)
+			header:SetChecked(all)
+			y = y - ROW_H
+			for _, def in ipairs(list) do
+				if def.role == role then
+					used = used + 1
+					local c = p.abilities[used]
+					if not c then
+						c = AbilityRow(p, function(checked)
+							db.disabled[c.def.id] = (not checked) and true or nil
+							Changed()
+							O.Refresh()
+						end)
+						p.abilities[used] = c
+					end
+					c.def = def
+					c.icon:SetTexture(C_Spell.GetSpellTexture(def.id) or 134400)
+					c:SetLabel(SpellName(def))
+					c:SetWidth(c:GetWidth() + 22)   -- the icon between the box and the name
+					c:SetChecked(not db.disabled[def.id])
+					c:ClearAllPoints()
+					c:SetPoint("TOPLEFT", 24, y)
+					c:Show()
+					y = y - ROW_H
+				end
+			end
+		end
+	end
+	for i = used + 1, #p.abilities do p.abilities[i]:Hide() end
 end
 
 -- ---------------------------------------------------------------- debug
