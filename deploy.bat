@@ -13,6 +13,12 @@ for /d %%M in ("%SRC%Modules\*") do (
   if errorlevel 8 goto failed
 )
 
+rem The lab (tools\Lab) is a development addon: deployed for testing, never packaged.
+robocopy "%SRC%tools\Lab" "%ADDONS%\CombatKit_Lab" *.toc *.lua /MIR /NFL /NDL /NJH /NJS /NP
+if %ERRORLEVEL% GEQ 8 goto failed
+rem A module no longer in the project is removed from the game as well.
+if exist "%ADDONS%\CombatKit_PvP" rmdir /s /q "%ADDONS%\CombatKit_PvP"
+
 echo CombatKit deployed to "%ADDONS%"
 exit /b 0
 

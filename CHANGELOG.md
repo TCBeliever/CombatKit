@@ -44,3 +44,7 @@ First public release.
 
 - PvP: the sample rows (*Test icons*) show a teammate who is really there with his own class, spec and talents, and name him; a missing teammate's sample sits by your own party frame when you are in a group, instead of at its loose position, and the label says so (or says *not attached*).
 - License: all rights reserved from this version on (fork and modify on GitHub as you like; ask about anything else). Earlier versions stay under the MIT license they were released with.
+
+## 1.0.2 (2026-10-13)
+
+- PvP: the module is withdrawn. It was built too closely on AsIntendedCDs by Pines, which is not licensed for reuse; it is removed from the kit and from this repository, with apologies to Pines. The other modules are unchanged. A tracker of our own design may come later.

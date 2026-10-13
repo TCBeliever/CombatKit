@@ -52,20 +52,6 @@ function UnitGUID(unit)
 	if unit == "player" then return "Player-0-ME" end
 	return u and (u.guid or ("Player-0-" .. unit)) or nil
 end
--- inspecting: the spec a unit has (W.units[unit].spec) is handed out when asked
-function CanInspect(unit) return W.units[unit] ~= nil end
-function NotifyInspect(unit) W.inspected = unit; log("inspect:" .. unit) end
--- W.playerLoc = { { locType=, priority= } }: the player's own crowd control; W.loc[unit] = { { priority= } }
-W.playerLoc, W.loc = {}, {}
-C_LossOfControl = {
-	GetActiveLossOfControlDataCount = function() return #W.playerLoc end,
-	GetActiveLossOfControlData = function(i) return W.playerLoc[i] end,
-	GetActiveLossOfControlDataCountByUnit = function(unit) return #(W.loc[unit] or {}) end,
-	GetActiveLossOfControlDataByUnit = function(unit, i) return (W.loc[unit] or {})[i] end,
-}
-Constants = { TraitConsts = { INSPECT_TRAIT_CONFIG_ID = -1 } }
-function ClearInspectPlayer() end
-function GetInspectSpecialization(unit) local u = W.units[unit]; return u and u.spec or 0 end
 function GetMaxBattlefieldID() return 3 end
 function GetBattlefieldStatus(i)
 	local b = W.battlefield[i]
@@ -229,23 +215,15 @@ Enum = {
 	PvPMatchState = { Inactive = 0, Engaged = 3 },
 	LoadConfigResult = { Error = 0, NoChangesNecessary = 1, LoadInProgress = 2, Ready = 3 },
 }
--- W.trinket[unit] = a duration object the game would hand out; W.trinketSpell[unit] = its spell
-W.trinket, W.trinketSpell = {}, {}
 C_PvP = {
 	IsWarModeDesired = function() return W.warMode end,
 	GetActiveMatchState = function() return W.matchState end,
-	GetArenaCrowdControlDuration = function(unit) return W.trinket[unit] end,
-	GetArenaCrowdControlInfo = function(unit) return W.trinketSpell[unit] end,
-	RequestCrowdControlSpell = function(unit) log("ccspell:" .. unit) end,
 }
 C_ChallengeMode = {
 	IsChallengeModeActive = function() return W.challengeActive end,
 	HasSlottedKeystone = function() return W.keystone end,
 }
 C_SpecializationInfo = {
-	-- W.units[u].pvp = { talentID, ... }: the slots of an inspected unit; a talent's spell has its own id
-	GetInspectSelectedPvpTalent = function(unit, i) local u = W.units[unit]; return u and u.pvp and u.pvp[i] or 0 end,
-	GetPvpTalentInfo = function(id) return { spellID = id } end,
 	GetSpecialization = function() return W.specIndex end,
 	GetSpecializationInfo = function(i)
 		local s = W.specs[i]
@@ -267,24 +245,8 @@ C_ClassTalents = {
 	UpdateLastSelectedSavedConfigID = function(specID, id) W.activeConfig[specID] = id end,
 	GetActiveConfigID = function() return W.activeTraitConfig end,
 }
--- the inspect config (-1) holds the talents of the unit last inspected: W.units[u].talents = { spellID = rank }
-local function inspectTalents()
-	local u = W.inspected and W.units[W.inspected]
-	local list = {}
-	for spellID, rank in pairs(u and u.talents or {}) do list[#list + 1] = { spellID, rank } end
-	table.sort(list, function(a, b) return a[1] < b[1] end)
-	return list
-end
 C_Traits = {
-	GetConfigInfo = function(id)
-		if id == -1 then return { treeIDs = { 1 } } end
-		return W.configNames[id] and { name = W.configNames[id] } or nil
-	end,
-	HasValidInspectData = function() return W.inspectValid ~= false end,
-	GetTreeNodes = function() local ids = {} for i = 1, #inspectTalents() do ids[i] = i end return ids end,
-	GetNodeInfo = function(_, nodeID) local t = inspectTalents()[nodeID]; return t and { activeEntry = { rank = t[2], entryID = nodeID } } end,
-	GetEntryInfo = function(_, entryID) return { definitionID = entryID } end,
-	GetDefinitionInfo = function(defID) local t = inspectTalents()[defID]; return t and { spellID = t[1] } end,
+	GetConfigInfo = function(id) return W.configNames[id] and { name = W.configNames[id] } or nil end,
 }
 C_EquipmentSet = {
 	GetEquipmentSetIDs = function() local t = {} for id in pairs(W.sets) do t[#t + 1] = id end table.sort(t) return t end,
@@ -431,7 +393,6 @@ T.ADDONS = {
 	CombatKit_Loadout = "Modules/Loadout/",
 	CombatKit_Stats   = "Modules/Stats/",
 	CombatKit_Range   = "Modules/Range/",
-	CombatKit_PvP     = "Modules/PvP/",
 	CombatKit_Misc    = "Modules/Misc/",
 	CombatKit_Options = "Modules/Options/",
 }

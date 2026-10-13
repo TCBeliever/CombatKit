@@ -7,7 +7,6 @@ move-folders:
   CombatKit/Modules/Loadout: CombatKit_Loadout
   CombatKit/Modules/Stats: CombatKit_Stats
   CombatKit/Modules/Range: CombatKit_Range
-  CombatKit/Modules/PvP: CombatKit_PvP
   CombatKit/Modules/Misc: CombatKit_Misc
   CombatKit/Modules/Options: CombatKit_Options
 
@@ -19,6 +18,7 @@ ignore:
   - TODO.md
   - deploy.bat
   - tests
+  - tools
   - docs
   - .gitignore
   - .pkgmeta

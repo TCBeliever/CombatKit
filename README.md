@@ -5,7 +5,6 @@ A modular combat addon for World of Warcraft (Retail) with a small resource foot
 - **Loadout** (on by default): spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
-- **PvP** (beta): your arena teammates' defensive and burst cooldowns next to their party frames.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No libraries, no texture or font files.
@@ -18,7 +17,7 @@ From CurseForge, or take the zip of the latest [release](../../releases) and unp
 
 ## Getting around
 
-`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. The modules (Loadout, Stats, Range, PvP, Extras) are listed down the left, **Settings** at the bottom; a module with several pages has them as tabs across the top of its page. The entry of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, theme, window scale) and HUD.
+`/ck` opens the settings; so do the addon compartment at the minimap, the game's Options > AddOns list, and a right click on the HUD. The modules (Loadout, Stats, Range, Extras) are listed down the left, **Settings** at the bottom; a module with several pages has them as tabs across the top of its page. The entry of a module that is off is dimmed and offers to switch it on. **Settings** has three pages: Modules, General (language, theme, window scale) and HUD.
 
 Switching on works at once. Switching off stops the module at once; the memory of what was already loaded comes back with the next reload, because the game cannot unload code. The small features under Extras share one addon, which is only loaded while at least one of them is on. The settings window itself is loaded the first time you open it.
 
@@ -63,12 +62,6 @@ Since patch 12.0.5 the game hides your own stat values from addons in combat ("s
 ## Range
 
 A colour-coded number near your target and focus, and one that follows the cursor for your mouseover. Hostile units and friendly ones out of combat are measured with a ladder of items of known range; friendly units in combat with your own short-range spells. Font, update rate, which units, "hide at 5 yards or closer", and drag-to-place are on its page.
-
-## PvP (beta)
-
-Arena only. One row of icons per teammate, next to his party frame (DandersFrames, the frames FrameSort sorted, else the game's compact party frames; without any, a row you drag into place while *Unlock* is ticked): his personal defensives, for a healer or support the externals he can give, then his crowd control, then his burst cooldown (*Crowd control* and *Burst cooldowns* in the settings hide them). When FrameSort moves the frames, the rows follow. An icon goes dark and counts down when the ability is used, and glows while its buff is up. A "?" marks a use that two teammates of the same class could have made.
-
-How it knows: since 12.1 an addon may not read other players' buffs in arena, but it may ask the game to draw them. The module keeps hidden aura frames, one filter per ability, and only learns whether the game drew something: yes or no, nothing else. A yes starts the estimate. A crowd control leaves nothing on the caster, so its debuff is looked for on the enemy arena units instead and credited the same way. The cooldown is the ability's, changed by the talents the teammate was inspected with (spec, talents and PvP talents; the talents the module knows about are listed in `Modules/PvP/Spells.lua`, the rest leave the base cooldown; `/ckpvp cd <spellID> <seconds>` sets one by hand). An external is credited to the teammate who could have cast it: your own casts, who was crowd controlled at the time and "it cannot be on the caster" settle it; when two still could have, both icons share the estimate and show "?". A teammate who arrives mid-round (or a reload) shows "?" until his first use. One missing read is not a new use, and an external seen again within its duration is the same use. The glow while a buff is up is drawn by the game itself, so it does not wait for a scan. Every read is checked against known answers and an always-empty control; a scan that straddled a roster change is discarded; when the client refuses the frames for a unit that unit reads unknown, when it refuses them for you or the checks keep failing, the module says so in chat and on its page and shows nothing rather than guess. A new round (Solo Shuffle) resets every cooldown. Settings: icon size, spacing, font size, max per row, side, offset, remaining time, highlight, *Show sample rows* to place them outside arena (a teammate who is there is shown with his real class and talents; a missing one sits by your own frame while you are in a group). `/ckpvp status`, `log` and `entries` show what it is doing. `/ckpvp solo` (or *Solo mode* on the page) makes you stand in for a teammate and your target for an enemy, here and now: use a defensive, an external on yourself or a crowd control and watch the icons, no arena or group needed. Beta: the cooldowns and talent IDs in `Modules/PvP/Spells.lua` want confirming.
 
 ## Extras
 
