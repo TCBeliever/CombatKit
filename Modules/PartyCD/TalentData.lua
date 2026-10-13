@@ -52,7 +52,6 @@ ns.TalentData = {
 		[113724] = { cd = 45, charges = 1 },  -- Ring of Frost
 		[365350] = { cd = 90, charges = 1 },  -- Arcane Surge
 		[190319] = { cd = 120, charges = 1 },  -- Combustion
-		[12472] = { cd = 120, charges = 1 },  -- Icy Veins
 		[115203] = { cd = 360, charges = 1 },  -- Fortifying Brew
 		[122783] = { cd = 90, charges = 1 },  -- Diffuse Magic
 		[122278] = { cd = 120, charges = 1 },  -- Dampen Harm

@@ -143,7 +143,6 @@ ns.SPELLS = {
 		CC(113724, 45, { aura = 82691, area = true, lasts = 10 }),  -- Ring of Frost
 		Burst(365350, 90, { auras = { 365350, 365362 }, specs = set(62) }),  -- Arcane Surge
 		Burst(190319, 120, { specs = set(63) }), -- Combustion
-		Burst(12472, 120, { specs = set(64) }),  -- Icy Veins
 	},
 	MONK = {
 		Self(115203, 360, { auras = { 115203, 120954 } }),  -- Fortifying Brew
