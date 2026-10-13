@@ -475,6 +475,15 @@ local sample = AR.UI.Rows().player
 check(not sample.icons[1].halo:IsShown() and not sample.icons[1].mark:IsShown(), "the trinket leads the samples, plain")
 check(sample.icons[2].halo:IsShown() and sample.icons[2].pulse:IsPlaying() and sample.icons[4].mark:IsShown(), "one active and breathing, one unknown among the samples")
 check(not sample.icons[3].halo:IsShown(), "a cooling one has no glow")
+-- the samples are the player's own specialization (havoc): vengeance's Metamorphosis is not among them
+local want = AR.db.trinket and 1 or 0
+for _, def in ipairs(AR.SpellsFor("DEMONHUNTER", AR.Selection())) do
+	if not def.specs or def.specs[577] then want = want + 1 end
+end
+local shownIcons = 0
+for _, icon in ipairs(sample.icons) do if icon:IsShown() then shownIcons = shownIcons + 1 end end
+eq(shownIcons, want, "sample icons: the trinket and the havoc abilities only")
+check(want < #AR.SpellsFor("DEMONHUNTER", AR.Selection()) + 1, "which is fewer than the whole class list")
 
 -- the status command and the log
 SlashCmdList.CKPARTYCD("")

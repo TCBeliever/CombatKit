@@ -434,7 +434,12 @@ end
 -- third unknown, the rest ready; the trinket in front when it is on
 local function DrawSample(row, spec, at)
 	local _, class = UnitClass("player")
-	local defs = ns.SpellsFor(class, ns.Selection())
+	-- the player's own specialization, as a real row would have it
+	local mySpec = ns.Inspect and ns.Inspect.PlayerSpec and ns.Inspect.PlayerSpec()
+	local defs = {}
+	for _, def in ipairs(ns.SpellsFor(class, ns.Selection())) do
+		if not (mySpec and def.specs and not def.specs[mySpec]) then defs[#defs + 1] = def end
+	end
 	local lead = ns.db.trinket and 1 or 0
 	Layout(row, #defs + lead, spec)
 	if lead == 1 then DrawTrinket(row.icons[1], nil) end

@@ -66,6 +66,7 @@ local function PlayerSpec()
 	local ok, id = pcall(api.GetSpecializationInfo, index)
 	return ok and Spec(id) or nil
 end
+Inspect.PlayerSpec = PlayerSpec
 
 -- ---------------------------------------------------------------------------
 -- Reading a talent's text
