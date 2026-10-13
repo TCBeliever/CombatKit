@@ -1,6 +1,6 @@
 local ADDON, ns = ...
 local CK = CombatKit
-local L, Skin = CK.L, CK.Skin
+local L = CK.L
 
 -- ===========================================================================
 -- The rows: one per teammate (and one for the player), icons in the order of
@@ -9,7 +9,9 @@ local L, Skin = CK.L, CK.Skin
 -- and draws it:
 --
 --   ready     bright
---   active    bright, a border in the theme's accent (the buff is up)
+--   active    bright, a breathing halo (the buff is up): green for a
+--             defensive, yellow for an immunity or a big external, red for
+--             a burst
 --   cooling   dark, a cooldown swipe with the time left
 --   unknown   dark, a "?" in the middle
 --
@@ -164,12 +166,19 @@ local function Row(unit)
 	return f
 end
 
-local function Accent(tex)
-	if Skin.Paint then
-		Skin.Paint(tex, function(t) t:SetColorTexture(Skin.Color("accent")) end)
-	else
-		tex:SetColorTexture(Skin.Color("accent"))
-	end
+-- the halo's colour by what the ability is: green for a defensive, yellow
+-- for an immunity or a big external, red for a burst
+local GLOW = {
+	defensive = { 0.25, 0.95, 0.35 },
+	major     = { 1.00, 0.85, 0.20 },
+	burst     = { 1.00, 0.25, 0.25 },
+}
+
+local function Colour(icon, def)
+	local c = GLOW[def.glow] or GLOW.defensive
+	if icon.glowKind == def.glow then return end
+	icon.glowKind = def.glow
+	for _, t in ipairs(icon.border) do t:SetColorTexture(c[1], c[2], c[3], 0.9) end
 end
 
 local function Icon(row, i)
@@ -191,9 +200,7 @@ local function Icon(row, i)
 	icon.halo:Hide()
 	icon.border = {}
 	for k = 1, 4 do
-		local t = icon.halo:CreateTexture(nil, "OVERLAY")
-		Accent(t)
-		icon.border[k] = t
+		icon.border[k] = icon.halo:CreateTexture(nil, "OVERLAY")
 	end
 	icon.border[1]:SetPoint("TOPLEFT")
 	icon.border[1]:SetPoint("TOPRIGHT")
@@ -303,6 +310,7 @@ local function Draw(icon, e, at)
 	icon.tex:SetTexture(C_Spell.GetSpellTexture(e.def.id))
 	icon.tex:SetDesaturated(state == "cooling" or state == "unknown")
 	icon.tex:SetAlpha(state == "unknown" and 0.6 or 1)
+	Colour(icon, e.def)
 	SetActive(icon, state == "active")
 	icon.mark:SetShown(state == "unknown")
 	icon.amb:SetShown(e.ambiguous and state ~= "ready" and state ~= "unknown")
@@ -334,6 +342,7 @@ local function DrawSample(row, grow, at)
 		icon.tex:SetTexture(C_Spell.GetSpellTexture(def.id))
 		icon.tex:SetDesaturated(i == 2 or i == 3)
 		icon.tex:SetAlpha(i == 3 and 0.6 or 1)
+		Colour(icon, def)
 		SetActive(icon, i == 1)
 		icon.mark:SetShown(i == 3)
 		icon.amb:SetShown(i == 2 and def.kind == "external")

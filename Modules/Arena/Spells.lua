@@ -13,6 +13,9 @@ local ADDON, ns = ...
 -- base cooldown in seconds, used only when the client cannot say
 -- (GetSpellBaseCooldown); the teammate's talents may shorten it, which inspect
 -- will take care of. `charges` when the base ability has more than one.
+-- `glow` colours the halo while the buff is up: "defensive" (green, the
+-- default), "major" (yellow: immunities and the big externals), "burst"
+-- (red, for offensive cooldowns when they come).
 -- `notOnSelf` marks an external that cannot be cast on oneself, so its holder
 -- is never its caster. `area` with `lasts` marks a buff that a ground effect
 -- or an aura puts on whoever stands in it for that many seconds: allies walk
@@ -47,7 +50,7 @@ ns.SPELLS = {
 	},
 	DEMONHUNTER = {
 		Self(198589, 60, { aura = 212800, extraCharge = true }),  -- Blur
-		Self(196555, 180),                     -- Netherwalk
+		Self(196555, 180, { glow = "major" }), -- Netherwalk
 		Self(187827, 120, { noLearn = true }), -- Metamorphosis (Vengeance): a talent gives a short one too
 		External(196718, 300, { aura = 209426, area = true, lasts = 8 }), -- Darkness
 	},
@@ -63,11 +66,11 @@ ns.SPELLS = {
 		External(374227, 120, { area = true, lasts = 8 }),  -- Zephyr
 	},
 	HUNTER = {
-		Self(186265, 180),                     -- Aspect of the Turtle
+		Self(186265, 180, { glow = "major" }), -- Aspect of the Turtle
 		Self(264735, 90, { extraCharge = true }),  -- Survival of the Fittest
 	},
 	MAGE = {
-		Self(45438, 240, { noLearn = true, extraCharge = true }),  -- Ice Block: Cold Snap resets it
+		Self(45438, 240, { noLearn = true, extraCharge = true, glow = "major" }),  -- Ice Block: Cold Snap resets it
 		Self(342245, 60, { aura = 342246 }),   -- Alter Time
 		Self(110959, 120, { aura = 110960 }),  -- Greater Invisibility
 		Self(55342, 120),                      -- Mirror Image
@@ -77,25 +80,25 @@ ns.SPELLS = {
 		Self(122783, 90),                      -- Diffuse Magic
 		Self(122278, 120),                     -- Dampen Harm
 		Self(122470, 90, { aura = 125174 }),   -- Touch of Karma
-		External(116849, 120),                 -- Life Cocoon
+		External(116849, 120, { glow = "major" }),  -- Life Cocoon
 	},
 	PALADIN = {
-		Self(642, 300),                        -- Divine Shield
+		Self(642, 300, { glow = "major" }),    -- Divine Shield
 		Self(498, 60),                         -- Divine Protection
 		Self(31850, 90),                       -- Ardent Defender
 		Self(86659, 180, { extraCharge = true }),  -- Guardian of Ancient Kings
-		External(1022, 300),                   -- Blessing of Protection
+		External(1022, 300, { glow = "major" }),  -- Blessing of Protection
 		External(6940, 120, { notOnSelf = true }), -- Blessing of Sacrifice
 	},
 	PRIEST = {
-		Self(47585, 120),                      -- Dispersion
+		Self(47585, 120, { glow = "major" }),  -- Dispersion
 		Self(19236, 90),                       -- Desperate Prayer
-		External(33206, 180, { extraCharge = true }),  -- Pain Suppression
-		External(47788, 180),                  -- Guardian Spirit
+		External(33206, 180, { extraCharge = true, glow = "major" }),  -- Pain Suppression
+		External(47788, 180, { glow = "major" }),  -- Guardian Spirit
 		External(62618, 180, { aura = 81782, area = true, lasts = 10 }),  -- Power Word: Barrier
 	},
 	ROGUE = {
-		Self(31224, 120),                      -- Cloak of Shadows
+		Self(31224, 120, { glow = "major" }),  -- Cloak of Shadows
 		Self(5277, 120),                       -- Evasion
 	},
 	SHAMAN = {
@@ -123,6 +126,7 @@ for class, list in pairs(ns.SPELLS) do
 		def.class = class
 		def.aura = def.aura or def.id
 		def.charges = def.charges or 1
+		def.glow = def.glow or "defensive"
 		ns.SPELL_BY_ID[def.id] = def
 		ns.CLASSES_WITH[def.id] = ns.CLASSES_WITH[def.id] or {}
 		ns.CLASSES_WITH[def.id][class] = true
