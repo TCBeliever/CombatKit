@@ -217,9 +217,15 @@ Enum = {
 	PvPMatchState = { Inactive = 0, Engaged = 3 },
 	LoadConfigResult = { Error = 0, NoChangesNecessary = 1, LoadInProgress = 2, Ready = 3 },
 }
+-- W.trinket[unit]: a duration object for the unit's PvP trinket; a zero one otherwise
 C_PvP = {
 	IsWarModeDesired = function() return W.warMode end,
 	GetActiveMatchState = function() return W.matchState end,
+	GetArenaCrowdControlDuration = function(unit)
+		log("trinket:" .. unit)
+		return (W.trinket and W.trinket[unit]) or { zero = true, IsZero = function(self) return self.zero end }
+	end,
+	RequestCrowdControlSpell = function(unit) log("trinket-request:" .. unit) end,
 }
 C_ChallengeMode = {
 	IsChallengeModeActive = function() return W.challengeActive end,

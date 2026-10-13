@@ -336,15 +336,40 @@ local function Draw(icon, e, at)
 	end
 end
 
+-- The PvP trinket, first in a row: the game keeps a Duration for every
+-- player's crowd control cooldown in an arena and hands it over, secret or
+-- not; fed to the icon's Cooldown it draws itself. Nothing is read back.
+local MEDALLION = 336126   -- Gladiator's Medallion, for the icon
+
+local function DrawTrinket(icon, unit)
+	icon.tex:SetTexture(C_Spell.GetSpellTexture(MEDALLION))
+	icon.tex:SetDesaturated(false)
+	icon.tex:SetAlpha(1)
+	SetActive(icon, false)
+	icon.mark:Hide()
+	icon.amb:Hide()
+	icon.dot:Hide()
+	icon.count:Hide()
+	if unit and C_PvP and C_PvP.GetArenaCrowdControlDuration then
+		local ok, duration = pcall(C_PvP.GetArenaCrowdControlDuration, unit)
+		if ok and duration ~= nil then
+			if pcall(icon.cd.SetCooldownFromDurationObject, icon.cd, duration, true) then return end
+		end
+	end
+	icon.cd:Clear()
+end
+
 -- a row of sample icons: the player's own class, one of each look: the
 -- first with its buff up, the second cooling with the estimate dot, the
--- third unknown, the rest ready
+-- third unknown, the rest ready; the trinket in front when it is on
 local function DrawSample(row, grow, at)
 	local _, class = UnitClass("player")
 	local defs = ns.SpellsFor(class, ns.Selection())
-	Layout(row, #defs, grow)
+	local lead = ns.db.trinket and 1 or 0
+	Layout(row, #defs + lead, grow)
+	if lead == 1 then DrawTrinket(row.icons[1], nil) end
 	for i, def in ipairs(defs) do
-		local icon = row.icons[i]
+		local icon = row.icons[i + lead]
 		icon.tex:SetTexture(C_Spell.GetSpellTexture(def.id))
 		icon.tex:SetDesaturated(i == 2 or i == 3)
 		icon.tex:SetAlpha(i == 3 and 0.6 or 1)
@@ -378,8 +403,10 @@ function UI.Refresh(at)
 			local t = ns.Tracker.Get(unit)
 			if t and (unit ~= "player" or ns.db.showSelf) and #t.order > 0 then
 				local grow = Place(row)
-				Layout(row, #t.order, grow)
-				for i, id in ipairs(t.order) do Draw(row.icons[i], t.spells[id], at) end
+				local lead = ns.db.trinket and 1 or 0
+				Layout(row, #t.order + lead, grow)
+				if lead == 1 then DrawTrinket(row.icons[1], unit) end
+				for i, id in ipairs(t.order) do Draw(row.icons[i + lead], t.spells[id], at) end
 				row:SetAlpha(ns.Tracker.failed and 0.35 or 1)
 				row.warn:SetShown(ns.Tracker.failed)
 				row:Show()

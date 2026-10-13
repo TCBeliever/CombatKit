@@ -258,6 +258,14 @@ AR.UI.Refresh(2300.02)
 local row = AR.UI.Rows().party1
 eq(#TR.Get("party1").order, #AR.SpellsFor("DRUID", true), "one icon per druid ability")
 check(row.icons[1] and row.icons[1]:IsShown(), "icons are shown")
+-- the PvP trinket leads the row, from the game's own cooldown data
+local n = #TR.Get("party1").order
+check(row.icons[n + 1]:IsShown() and not row.icons[n + 2], "one more icon than abilities: the trinket")
+eq(row.icons[1].tex.__texture, nil, "mock textures keep no file name")   -- the texture mock records nothing; the request does
+check(W.log[#W.log]:find("trinket:", 1, true) ~= nil, "the trinket icon asked the game for party1's duration")
+AR.db.trinket = false; AR.Apply()
+check(not row.icons[n + 1]:IsShown(), "trinket off: only the abilities")
+AR.db.trinket = true; AR.Apply()
 AR.db.externals = false
 AR.Apply()
 eq(#TR.Get("party1").order, #AR.SpellsFor("DRUID", false), "externals off: only the self buffs")
@@ -358,8 +366,9 @@ page.test:Click()
 check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
 check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
 local sample = AR.UI.Rows().player
-check(sample.icons[1].halo:IsShown() and sample.icons[1].pulse:IsPlaying() and sample.icons[3].mark:IsShown(), "one active and breathing, one unknown among the samples")
-check(not sample.icons[2].halo:IsShown(), "a cooling one has no glow")
+check(not sample.icons[1].halo:IsShown() and not sample.icons[1].mark:IsShown(), "the trinket leads the samples, plain")
+check(sample.icons[2].halo:IsShown() and sample.icons[2].pulse:IsPlaying() and sample.icons[4].mark:IsShown(), "one active and breathing, one unknown among the samples")
+check(not sample.icons[3].halo:IsShown(), "a cooling one has no glow")
 
 -- the status command and the log
 SlashCmdList.CKPARTYCD("")

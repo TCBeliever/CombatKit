@@ -24,6 +24,7 @@ local running = false
 ns.defaults = {
 	showSelf    = false,     -- the player's own row (debug: it is the self-test's reference)
 	externals   = true,
+	trinket     = true,      -- the PvP trinket first in every row, from the game's own cooldown data
 	disabled    = {},        -- [spellID] = true: not watched
 	iconSize    = 28,
 	spacing     = 2,
@@ -125,6 +126,8 @@ local function ApplyRoster()
 		watched[r.unit] = true
 		backend.SetWatch(r.unit, ns.SpellsFor(r.class, sel), true)
 		names[#names + 1] = r.unit .. "=" .. r.class
+		-- the trinket: ask the server for the unit's crowd control cooldown data
+		if ns.db.trinket and C_PvP and C_PvP.RequestCrowdControlSpell then pcall(C_PvP.RequestCrowdControlSpell, r.unit) end
 	end
 	for _, unit in ipairs(UNITS) do
 		if not watched[unit] then backend.SetWatch(unit, {}) end
@@ -195,6 +198,8 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 		if inArena then ApplyRoster() end
 	elseif event == "PVP_MATCH_STATE_CHANGED" or event == "PVP_MATCH_ACTIVE" then
 		MatchState()
+	elseif event == "ARENA_COOLDOWNS_UPDATE" then
+		ns.UI.Dirty()   -- a trinket cooldown changed: the rows feed it again
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		if a == "player" and type(c) == "number" then Tracker.OnPlayerCast(c) end
 	end
@@ -219,7 +224,7 @@ local function OnUpdate(_, elapsed)
 end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
-	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE" }
+	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE" }
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then
