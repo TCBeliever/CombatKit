@@ -348,12 +348,14 @@ function Tracker.KnownDuration(spellID) return durations[spellID] end
 
 function Tracker.OnPlayerCast(spellID, at)
 	at = at or now()
-	local def = ns.SPELL_BY_ID[spellID]
+	-- the spell cast may not be the one the list watches (a trap is cast as
+	-- another spell than the trap that holds the target): `casts` in Spells.lua
+	local def = ns.SPELL_BY_ID[spellID] or ns.SPELL_BY_CAST[spellID]
 	if not def then return end
-	recentCasts[spellID] = at
+	recentCasts[def.id] = at
 	local me = teammates.player
-	if me and me.spells[spellID] and def.kind == "self" then
-		selfTest.pending[spellID] = at
+	if me and me.spells[def.id] and def.kind == "self" then
+		selfTest.pending[def.id] = at
 	end
 end
 

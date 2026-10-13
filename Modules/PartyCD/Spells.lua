@@ -31,6 +31,9 @@ local ADDON, ns = ...
 -- corrects the cooldown estimate. `delayed` is how long, in seconds, the
 -- effect can wait after the cast before it lands (a trap on the ground, a
 -- totem's or a sigil's fuse): the player's own cast still explains it.
+-- `casts` lists the spell IDs the ability is cast as when that is not `id`
+-- (Freezing Trap is cast as 187650, the trap that holds the target is 3355):
+-- the player's own cast is recognised by them.
 -- `extraCharge` says a talent can add a charge, `noLearn` that something
 -- other than the cooldown can bring the ability back (a reset, a talent's
 -- shorter version, a cooldown cut by what the player does), so two close uses
@@ -98,7 +101,7 @@ ns.SPELLS = {
 		Self(187827, 120, { noLearn = true, specs = set(581) }), -- Metamorphosis (Vengeance): a talent gives a short one too
 		External(196718, 300, { aura = 209426, area = true, lasts = 8 }), -- Darkness
 		CC(179057, 45, { specs = set(577, 1480) }),  -- Chaos Nova
-		CC(217832, 45),                        -- Imprison
+		CC(217832, 45, { auras = { 217832, 221527 }, casts = { 221527 } }),  -- Imprison, or the PvP talent's version
 		CC(207684, 120, { aura = 207685, delayed = 3 }),  -- Sigil of Misery
 		Burst(191427, 120, { aura = 162264, specs = set(577) }),  -- Metamorphosis (Havoc)
 	},
@@ -122,8 +125,8 @@ ns.SPELLS = {
 	HUNTER = {
 		Self(186265, 180, { glow = "major" }), -- Aspect of the Turtle
 		Self(264735, 90, { extraCharge = true }),  -- Survival of the Fittest
-		CC(3355, 30, { delayed = 60 }),        -- Freezing Trap: armed on the ground for a minute
-		CC(19577, 60, { aura = 24394 }),       -- Intimidation
+		CC(3355, 30, { casts = { 187650 }, delayed = 60 }),  -- Freezing Trap (cast as 187650): armed on the ground for a minute
+		CC(19577, 60, { auras = { 24394, 1258508 } }),  -- Intimidation
 		Burst(19574, 90, { specs = set(253) }),  -- Bestial Wrath
 		Burst(288613, 120, { specs = set(254) }), -- Trueshot
 		Burst(360952, 120, { specs = set(255) }), -- Coordinated Assault
@@ -206,7 +209,7 @@ ns.SPELLS = {
 		Self(871, 180, { extraCharge = true, specs = set(73) }),  -- Shield Wall
 		Self(12975, 180, { specs = set(73) }), -- Last Stand
 		External(97462, 180, { aura = 97463, area = true, lasts = 10 }),  -- Rallying Cry
-		CC(107570, 30),                        -- Storm Bolt
+		CC(107570, 30, { aura = 132169 }),     -- Storm Bolt: the stun is 132169
 		CC(46968, 40, { aura = 132168 }),      -- Shockwave
 		CC(5246, 90),                          -- Intimidating Shout
 		Burst(107574, 90, { specs = set(71, 73) }),  -- Avatar
@@ -216,6 +219,7 @@ ns.SPELLS = {
 
 -- every definition by spell ID, and the classes that have it
 ns.SPELL_BY_ID = {}
+ns.SPELL_BY_CAST = {}   -- a spell ID the ability is cast as, when not its own
 ns.CLASSES_WITH = {}
 for class, list in pairs(ns.SPELLS) do
 	for _, def in ipairs(list) do
@@ -225,6 +229,7 @@ for class, list in pairs(ns.SPELLS) do
 		def.charges = def.charges or 1
 		def.glow = def.glow or "defensive"
 		ns.SPELL_BY_ID[def.id] = def
+		for _, cast in ipairs(def.casts or {}) do ns.SPELL_BY_CAST[cast] = def end
 		ns.CLASSES_WITH[def.id] = ns.CLASSES_WITH[def.id] or {}
 		ns.CLASSES_WITH[def.id][class] = true
 	end

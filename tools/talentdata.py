@@ -70,7 +70,9 @@ class DB2:
         if not os.path.exists(path):
             url = "https://wago.tools/db2/%s/csv?%s" % (table, urllib.parse.urlencode(q))
             sys.stderr.write("  fetching %s\n" % key)
-            open(path, "wb").write(fetch(url))
+            data = fetch(url)   # fetched first: a failed request leaves no empty file behind
+            with open(path, "wb") as f:
+                f.write(data)
         with open(path, encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         # wago's filter matches 498 and 4980 alike: keep the exact matches only

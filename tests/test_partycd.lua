@@ -271,6 +271,12 @@ eq(uses("party2", 8122), 1, "Psychic Scream on two opponents at once: one use")
 W.now = 2340; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-6", 207684)
 shown("arena1", 207684, 2342.5)
 eq(uses("player", 207684), 1, "Sigil of Misery bursting 2.5 s after the cast: still the player's own")
+-- a cast under another ID: the PvP talent's Imprison is still the player's own
+W.now = 2345; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-6b", 221527)
+shown("arena3", 217832, 2345.1)
+eq(uses("player", 217832), 1, "Imprison cast as 221527: recognised as the player's own")
+hidden("arena3", 217832, 2346)
+TR.RoundStart()
 -- a demon hunter teammate: the player's own Imprison is not theirs
 W.units.party2 = { friendly = true, class = "DEMONHUNTER", guid = "Player-4-DH" }
 fire("GROUP_ROSTER_UPDATE")
