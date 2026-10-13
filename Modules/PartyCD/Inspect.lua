@@ -8,6 +8,12 @@ local ADDON, ns = ...
 -- that names a watched ability and shortens or lengthens its cooldown, or
 -- gives it a charge. A watched ability that the tree offers and the teammate
 -- did not take is dropped from the row. PvP talents are read the same way.
+-- The teammate's specialization comes with the same answer
+-- (GetInspectSpecialization); an ability no spell list gives that spec
+-- (`specs` in Spells.lua) is dropped as well.
+--
+-- A request is never sent while the player has the inspect window open: it
+-- would replace whoever they are looking at.
 --
 -- Asked for once per teammate when they arrive and again at every round
 -- start; one request in flight at a time, retried at a fixed interval while
@@ -32,6 +38,34 @@ local onResult           -- fn(unit, specID, results, complete)
 local lastResult = {}    -- [unit] = a line for the status command
 
 local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
+
+-- the player is looking at someone in the inspect window
+local function UserInspecting()
+	if not InspectFrame then return false end
+	local ok, shown = pcall(InspectFrame.IsShown, InspectFrame)
+	return ok and shown == true
+end
+
+-- a specialization ID, or nil
+local function Spec(id)
+	if type(id) == "number" and plain(id) and id > 0 then return id end
+end
+
+local function InspectedSpec(unit)
+	local get = (C_SpecializationInfo and C_SpecializationInfo.GetInspectSpecialization) or GetInspectSpecialization
+	if not get then return nil end
+	local ok, id = pcall(get, unit)
+	return ok and Spec(id) or nil
+end
+
+local function PlayerSpec()
+	local api = C_SpecializationInfo
+	if not (api and api.GetSpecialization and api.GetSpecializationInfo) then return nil end
+	local okI, index = pcall(api.GetSpecialization)
+	if not okI or type(index) ~= "number" then return nil end
+	local ok, id = pcall(api.GetSpecializationInfo, index)
+	return ok and Spec(id) or nil
+end
 
 -- ---------------------------------------------------------------------------
 -- Reading a talent's text
@@ -311,10 +345,26 @@ local function Describe(results, complete)
 	return (#parts > 0 and table.concat(parts, ", ") or "no changes") .. (complete and "" or " (texts pending)")
 end
 
-local function Finish(p, configID, pvpIDs, forPlayer, at)
+-- abilities the spec does not have are missing, whatever the tree said
+local function ApplySpec(results, class, spec)
+	if not spec then return results end
+	results = results or {}
+	for _, def in ipairs(ns.SPELLS[class] or {}) do
+		if def.specs and not def.specs[spec] then
+			local r = results[def.id] or {}
+			r.missing = true
+			results[def.id] = r
+		end
+	end
+	return results
+end
+
+local function Finish(p, configID, pvpIDs, forPlayer, at, spec)
 	local results, complete = Inspect.Analyse(configID, p.class, pvpIDs, forPlayer)
+	results = ApplySpec(results, p.class, spec)
+	if spec then p.spec = spec end
 	if results then
-		lastResult[p.unit] = string.format("%s: %s", p.unit, Describe(results, complete))
+		lastResult[p.unit] = string.format("%s: spec %s, %s", p.unit, tostring(spec), Describe(results, complete))
 		if onResult then onResult(p.unit, results, complete) end
 	else
 		complete = false
@@ -336,8 +386,8 @@ function Inspect.Ready(guid, at)
 			local okG, g = pcall(UnitGUID, unit)
 			local mine = (okG and plain(g) and g == guid) or (inflight == p and not (okG and plain(g)))
 			if mine then
-				Finish(p, INSPECT_CONFIG, InspectedPvpTalents(unit), false, at)
-				if ClearInspectPlayer and not (InspectFrame and InspectFrame:IsShown()) then pcall(ClearInspectPlayer) end
+				Finish(p, INSPECT_CONFIG, InspectedPvpTalents(unit), false, at, InspectedSpec(unit))
+				if ClearInspectPlayer and not UserInspecting() then pcall(ClearInspectPlayer) end
 				return true
 			end
 		end
@@ -353,12 +403,13 @@ function Inspect.Tick(at)
 		me.tries = me.tries + 1
 		local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and select(2, pcall(C_ClassTalents.GetActiveConfigID))
 		if type(configID) == "number" then
-			Finish(me, configID, PlayerPvpTalents(), true, at)
+			Finish(me, configID, PlayerPvpTalents(), true, at, PlayerSpec())
 		else
 			me.nextAt = at + RETRY
 		end
 		if me.tries >= MAX_TRIES then pending.player = nil end
 	end
+	if UserInspecting() then return end   -- a request now would replace whoever they are looking at
 	if inflight then
 		if at - (inflight.sentAt or at) > TIMEOUT then
 			inflight.nextAt = at + RETRY

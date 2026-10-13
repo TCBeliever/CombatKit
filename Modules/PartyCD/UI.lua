@@ -339,10 +339,19 @@ end
 -- The PvP trinket, first in a row: the game keeps a Duration for every
 -- player's crowd control cooldown in an arena and hands it over, secret or
 -- not; fed to the icon's Cooldown it draws itself. Nothing is read back.
-local MEDALLION = 336126   -- Gladiator's Medallion, for the icon
+-- Which spell it is (the medallion, or a racial that shares its cooldown)
+-- the game says as well, once asked (RequestCrowdControlSpell); the
+-- medallion's icon stands in until then.
+local MEDALLION = 336126   -- Gladiator's Medallion
+
+local function TrinketSpell(unit)
+	if not (unit and C_PvP and C_PvP.GetArenaCrowdControlInfo) then return nil end
+	local ok, id = pcall(C_PvP.GetArenaCrowdControlInfo, unit)
+	if ok and type(id) == "number" and plain(id) and id > 0 then return id end
+end
 
 local function DrawTrinket(icon, unit)
-	icon.tex:SetTexture(C_Spell.GetSpellTexture(MEDALLION))
+	icon.tex:SetTexture(C_Spell.GetSpellTexture(TrinketSpell(unit) or MEDALLION))
 	icon.tex:SetDesaturated(false)
 	icon.tex:SetAlpha(1)
 	SetActive(icon, false)

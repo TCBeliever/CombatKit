@@ -226,6 +226,8 @@ C_PvP = {
 		return (W.trinket and W.trinket[unit]) or { zero = true, IsZero = function(self) return self.zero end }
 	end,
 	RequestCrowdControlSpell = function(unit) log("trinket-request:" .. unit) end,
+	-- W.trinketSpell[unit]: the spell of the unit's trinket (the medallion or a racial), once the server said
+	GetArenaCrowdControlInfo = function(unit) return W.trinketSpell and W.trinketSpell[unit] end,
 }
 C_ChallengeMode = {
 	IsChallengeModeActive = function() return W.challengeActive end,

@@ -95,7 +95,7 @@ local function plain(v) return type(canaccessvalue) ~= "function" or canaccessva
 -- inspect's answer: the teammate's own cooldowns and charges, and what they do not have
 local function Inspected(unit, results, complete)
 	for id, r in pairs(results) do
-		Tracker.SetCooldown(unit, id, r.cd, r.charges)
+		if r.cd then Tracker.SetCooldown(unit, id, r.cd, r.charges) end   -- nil: only the spec was known
 		Tracker.SetAvailable(unit, id, not r.missing)
 	end
 	for _, line in ipairs(Inspect.Debug()) do
@@ -226,8 +226,8 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 		if inArena then ApplyRoster() end
 	elseif event == "PVP_MATCH_STATE_CHANGED" or event == "PVP_MATCH_ACTIVE" then
 		MatchState()
-	elseif event == "ARENA_COOLDOWNS_UPDATE" then
-		ns.UI.Dirty()   -- a trinket cooldown changed: the rows feed it again
+	elseif event == "ARENA_COOLDOWNS_UPDATE" or event == "ARENA_CROWD_CONTROL_SPELL_UPDATE" then
+		ns.UI.Dirty()   -- a trinket cooldown or the trinket itself changed: the rows draw it again
 	elseif event == "INSPECT_READY" then
 		if inArena then Inspect.Ready(a) end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
@@ -257,7 +257,7 @@ local function OnUpdate(_, elapsed)
 end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
-	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "INSPECT_READY" }
+	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "ARENA_CROWD_CONTROL_SPELL_UPDATE", "INSPECT_READY" }
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then

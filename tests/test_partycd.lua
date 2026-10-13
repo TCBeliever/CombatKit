@@ -263,6 +263,20 @@ local n = #TR.Get("party1").order
 check(row.icons[n + 1]:IsShown() and not row.icons[n + 2], "one more icon than abilities: the trinket")
 eq(row.icons[1].tex.__texture, nil, "mock textures keep no file name")   -- the texture mock records nothing; the request does
 check(W.log[#W.log]:find("trinket:", 1, true) ~= nil, "the trinket icon asked the game for party1's duration")
+-- the icon is the spell the game says the teammate carries: the medallion, or a racial
+local asked = {}
+local realTexture = C_Spell.GetSpellTexture
+C_Spell.GetSpellTexture = function(id) asked[#asked + 1] = id; return realTexture(id) end
+AR.UI.Refresh(2300.03)
+local function askedFor(id) for _, x in ipairs(asked) do if x == id then return true end end return false end
+check(askedFor(336126), "nothing said yet: the medallion's icon")
+W.trinketSpell = { party1 = 59752 }
+asked = {}
+fire("ARENA_CROWD_CONTROL_SPELL_UPDATE", "party1")
+AR.UI.Refresh(2300.04)
+check(askedFor(59752), "the server named a racial for party1: its icon (the player's row still shows the medallion)")
+W.trinketSpell = nil
+C_Spell.GetSpellTexture = realTexture
 AR.db.trinket = false; AR.Apply()
 check(not row.icons[n + 1]:IsShown(), "trinket off: only the abilities")
 AR.db.trinket = true; AR.Apply()
@@ -460,7 +474,9 @@ fire("INSPECT_READY", "Player-2-DRUID")
 check(d.spells[22812].cd == 35 and not IN.Pending("party1"), "the PvP talent read: Barkskin 35 s, inspect done")
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
-eq(#d.order, #AR.SpellsFor("DRUID", true) - 1, "one icon fewer in the row")
+eq(#d.order, #AR.SpellsFor("DRUID", true) - 2, "two icons fewer: Ironbark not taken, Survival Instincts not a restoration ability")
+check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
+check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")
 
 -- the buff proves the ability after all
@@ -470,6 +486,26 @@ shown("party1", 22812, 5010)
 check(inRow("party1", 22812), "Barkskin seen on the druid: back in the row")
 shown("party1", 102342, 5012)
 check(inRow("party1", 102342), "Ironbark seen on the only druid: back as well")
+
+-- the player looking at someone: no request that would replace them
+W.units.party2 = { friendly = true, class = "PALADIN", guid = "Player-2-PALADIN", spec = 70 }
+fire("GROUP_ROSTER_UPDATE")
+InspectFrame = T.Mock("Frame", "InspectFrame")
+InspectFrame:Show()
+IN.Tick(5014)
+check(W.log[#W.log] ~= "inspect:party2", "the inspect window is open: nothing sent")
+InspectFrame:Hide()
+IN.Tick(5015)
+check(W.log[#W.log] == "inspect:party2", "closed: the request goes out")
+local cleared = #W.log
+InspectFrame:Show()
+fire("INSPECT_READY", "Player-2-PALADIN")
+check(W.log[#W.log] ~= "inspect-clear", "an answer while the window is open does not clear it")
+check(not inRow("party2", 31850) and not inRow("party2", 86659) and inRow("party2", 498), "retribution: no Ardent Defender, no Guardian of Ancient Kings; Divine Protection kept")
+InspectFrame:Hide()
+InspectFrame = nil
+W.units.party2 = nil
+fire("GROUP_ROSTER_UPDATE")
 
 -- a teammate out of inspect range: asked only once in range
 W.inspectable = { party2 = false }

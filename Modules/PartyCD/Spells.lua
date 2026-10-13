@@ -25,9 +25,24 @@ local ADDON, ns = ...
 -- the ability back (a reset, a talent's shorter version), so two close uses
 -- prove nothing about the cooldown.
 --
+-- `specs` names the specializations that have the ability at all (spec IDs:
+-- Havoc 577, Vengeance 581, Feral 103, Guardian 104, Restoration druid 105,
+-- Preservation 1468, Windwalker 269, Mistweaver 270, Holy paladin 65,
+-- Protection paladin 66, Retribution 70, Discipline 256, Holy priest 257,
+-- Shadow 258, Restoration shaman 264, Arms 71, Fury 72, Protection warrior 73);
+-- once inspect knows a teammate's spec, the others leave the row. Without it
+-- the whole class has the ability; a talent the spec's tree offers and the
+-- teammate did not take is found by inspect as well.
+--
 -- Spell and aura IDs, cooldowns and the names behind them are the game's own
 -- data, as the client reports them on 12.1.
 -- ===========================================================================
+
+local function set(...)
+	local t = {}
+	for i = 1, select("#", ...) do t[select(i, ...)] = true end
+	return t
+end
 
 local function Self(id, cd, extra)
 	local d = { id = id, cd = cd, kind = "self" }
@@ -51,18 +66,18 @@ ns.SPELLS = {
 	DEMONHUNTER = {
 		Self(198589, 60, { aura = 212800, extraCharge = true }),  -- Blur
 		Self(196555, 180, { glow = "major" }), -- Netherwalk
-		Self(187827, 120, { noLearn = true }), -- Metamorphosis (Vengeance): a talent gives a short one too
+		Self(187827, 120, { noLearn = true, specs = set(581) }), -- Metamorphosis (Vengeance): a talent gives a short one too
 		External(196718, 300, { aura = 209426, area = true, lasts = 8 }), -- Darkness
 	},
 	DRUID = {
 		Self(22812, 60),                       -- Barkskin
-		Self(61336, 180, { charges = 2 }),     -- Survival Instincts
-		External(102342, 90),                  -- Ironbark
+		Self(61336, 180, { charges = 2, specs = set(103, 104) }), -- Survival Instincts
+		External(102342, 90, { specs = set(105) }), -- Ironbark
 	},
 	EVOKER = {
 		Self(363916, 90, { extraCharge = true }),  -- Obsidian Scales
 		Self(374348, 90),                      -- Renewing Blaze
-		External(357170, 60, { extraCharge = true }),  -- Time Dilation
+		External(357170, 60, { extraCharge = true, specs = set(1468) }),  -- Time Dilation
 		External(374227, 120, { area = true, lasts = 8 }),  -- Zephyr
 	},
 	HUNTER = {
@@ -79,23 +94,23 @@ ns.SPELLS = {
 		Self(115203, 360),                     -- Fortifying Brew
 		Self(122783, 90),                      -- Diffuse Magic
 		Self(122278, 120),                     -- Dampen Harm
-		Self(122470, 90, { aura = 125174 }),   -- Touch of Karma
-		External(116849, 120, { glow = "major" }),  -- Life Cocoon
+		Self(122470, 90, { aura = 125174, specs = set(269) }), -- Touch of Karma
+		External(116849, 120, { glow = "major", specs = set(270) }),  -- Life Cocoon
 	},
 	PALADIN = {
 		Self(642, 300, { glow = "major" }),    -- Divine Shield
-		Self(498, 60),                         -- Divine Protection
-		Self(31850, 90),                       -- Ardent Defender
-		Self(86659, 180, { extraCharge = true }),  -- Guardian of Ancient Kings
+		Self(498, 60, { specs = set(65, 70) }), -- Divine Protection
+		Self(31850, 90, { specs = set(66) }), -- Ardent Defender
+		Self(86659, 180, { extraCharge = true, specs = set(66) }),  -- Guardian of Ancient Kings
 		External(1022, 300, { glow = "major" }),  -- Blessing of Protection
 		External(6940, 120, { notOnSelf = true }), -- Blessing of Sacrifice
 	},
 	PRIEST = {
-		Self(47585, 120, { glow = "major" }),  -- Dispersion
+		Self(47585, 120, { glow = "major", specs = set(258) }),  -- Dispersion
 		Self(19236, 90),                       -- Desperate Prayer
-		External(33206, 180, { extraCharge = true, glow = "major" }),  -- Pain Suppression
-		External(47788, 180, { glow = "major" }),  -- Guardian Spirit
-		External(62618, 180, { aura = 81782, area = true, lasts = 10 }),  -- Power Word: Barrier
+		External(33206, 180, { extraCharge = true, glow = "major", specs = set(256) }),  -- Pain Suppression
+		External(47788, 180, { glow = "major", specs = set(257) }),  -- Guardian Spirit
+		External(62618, 180, { aura = 81782, area = true, lasts = 10, specs = set(256) }),  -- Power Word: Barrier
 	},
 	ROGUE = {
 		Self(31224, 120, { glow = "major" }),  -- Cloak of Shadows
@@ -103,17 +118,17 @@ ns.SPELLS = {
 	},
 	SHAMAN = {
 		Self(108271, 120),                     -- Astral Shift
-		External(98008, 180, { aura = 325174, area = true, lasts = 6 }),  -- Spirit Link Totem
+		External(98008, 180, { aura = 325174, area = true, lasts = 6, specs = set(264) }),  -- Spirit Link Totem
 	},
 	WARLOCK = {
 		Self(104773, 180),                     -- Unending Resolve
 		Self(108416, 60),                      -- Dark Pact
 	},
 	WARRIOR = {
-		Self(118038, 120),                     -- Die by the Sword
-		Self(184364, 120),                     -- Enraged Regeneration
-		Self(871, 180, { extraCharge = true }),  -- Shield Wall
-		Self(12975, 180),                      -- Last Stand
+		Self(118038, 120, { specs = set(71) }), -- Die by the Sword
+		Self(184364, 120, { specs = set(72) }), -- Enraged Regeneration
+		Self(871, 180, { extraCharge = true, specs = set(73) }),  -- Shield Wall
+		Self(12975, 180, { specs = set(73) }), -- Last Stand
 		External(97462, 180, { aura = 97463, area = true, lasts = 10 }),  -- Rallying Cry
 	},
 }
