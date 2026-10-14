@@ -56,3 +56,7 @@ First public release.
 - Party CD: while an ability's aura is up, its icon wears one of the game's own animated borders, tinted by what the ability is for (green defensive, red offensive, violet crowd control, blue other, yellow an immunity or a big external). *Highlight* in Settings > Party CD: marching ants (the default), thin ants, or a band that runs round the edge. If the game lacks the texture, the breathing border from before stands in.
 - Party CD: cooldowns and talents from the game's data for 12.1.5; Ice Cold, now on Ice Block's button, counts as Ice Block.
 - Party CD: more abilities, picked from the game's own data: Vanish, Smoke Bomb (counted only on the rogue who drops it: an enemy rogue's cloud gives your team the same aura), Death Pact, Breath of Sindragosa, Rain from Above, Dream Flight, Soul Rip, Shield Charge, Interpose, Vampiric Embrace, Execution Sentence, Convoke the Spirits; and, unticked by default, Mass Polymorph, Master's Call, Invoke Xuen, Tree of Life and Summon Doomguard. Devourer's The Hunt and Spectral Sight, Marksmanship's Intimidation and the other Intimidating Shout count as the ability they are a version of; a teammate who did not take that version's talent loses it from the row, and a restoration druid with Ancient of Lore loses Tree of Life.
+
+## 1.1.2 (2026-10-14)
+
+- Marked for 12.1.5 as well (Interface 120105), so the game no longer lists the addon as out of date.
