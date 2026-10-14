@@ -3,6 +3,7 @@ CombatKit is a modular combat addon with a small resource footprint. It bundles:
 - **Loadout**: spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
+- **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their party frames.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No libraries, no texture or font files. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
@@ -18,6 +19,12 @@ Crit, haste, mastery, versatility, leech, avoidance, movement speed, primary sta
 **Range**
 
 Distance to your target and focus as colour-coded numbers, and one at the cursor for your mouseover. Works in combat, for friendly and hostile units. Font, update rate, which units to show, hide at melee range, drag to place.
+
+**Party CD** (beta, off by default)
+
+Arena only. A row of icons by each teammate's party frame (DandersFrames, FrameSort or the game's own; a row to drag where there is none): their defensive cooldowns, the externals they put on each other, their burst cooldowns, the crowd control they land on the opponents, and their racial ability. While an ability's aura is up its icon wears the game's own animated border, coloured by what the ability is for; once used it counts down the cooldown the teammate's inspected talents give it, and an ability they did not take leaves the row. The PvP trinket leads every row. An external or a crowd control is credited to whoever could have cast it; a teammate who arrives mid round shows "?" until a first use. The abilities are picked per class in the settings, those with a cooldown of a minute or more ticked by default.
+
+How it knows: other players' auras are secret to addons in an arena. The module asks the game to draw each watched aura into a hidden frame of its own and reads only whether it is there. The idea of detecting a secret aura through what the game draws of it came from AsIntendedCDs; the design here is new.
 
 **Extras**
 
