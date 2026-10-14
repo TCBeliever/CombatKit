@@ -6,6 +6,8 @@ Things set aside on purpose: not forgotten, not being worked on now. Take one ou
 
 Each one is in Spells.lua as the game's data suggests; a check in game settles it.
 
+AuraLab 0.8 learns these by itself while auras are not secret (open world, normal and heroic dungeons), from the player's casts and the party's: play with it loaded, `/reload` or log out, then `python tools/auralab_check.py` sorts every watched ability into confirmed / differs / no aura / more casts / not seen. `python tools/auralab_targets.py` rewrites AuraLab's list when Spells.lua changes (then deploy AuraLab).
+
 | Ability | Class, spec | What to check | If it fails |
 |---|---|---|---|
 | Fiery Brand 204021 | Demon Hunter, Vengeance | the debuff on the opponent shows, as 207771 or 207744 | find the aura ID (AuraLab learn mode), or take it out |
