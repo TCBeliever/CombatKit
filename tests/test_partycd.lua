@@ -877,8 +877,8 @@ DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
 -- the crowd control box was left ticked on above: Incapacitating Roar is watched though under a minute
-eq(table.concat(d.order, ","), "22812,740,473909,5211,99,22570,29166,20549",
-	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate; and the tauren's War Stomp, which inspect leaves alone")
+eq(table.concat(d.order, ","), "22812,740,473909,391528,5211,99,22570,29166,20549",
+	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore (Tree of Life is off by default); Convoke the Spirits; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate; and the tauren's War Stomp, which inspect leaves alone")
 check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
 check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")
@@ -942,6 +942,13 @@ check(T.said("inspect party1") and T.said("gave up"), "/ckpartycd tells what ins
 W.traits[77] = { nodes = { { entries = { { spell = 194223 }, { spell = 102560 } }, taken = 2 } } }
 local res = IN.Analyse(77, "DRUID", {}, nil)
 check(res and not res[194223].missing, "Incarnation taken on Celestial Alignment's node: the ability is there")
+-- a PvP talent that takes another ability's button: that ability leaves the row
+W.traits[79] = { nodes = { { entries = { { spell = 33891 } }, taken = 1 } } }
+W.pvpTalentInfo[9002] = { spellID = 473909 }
+res = IN.Analyse(79, "DRUID", { 9002 }, 105)
+check(res and res[33891].missing and not res[473909].missing, "Ancient of Lore taken: Tree of Life is out of the row, Ancient of Lore stays")
+res = IN.Analyse(79, "DRUID", {}, 105)
+check(res and not res[33891].missing, "without it: Tree of Life stays")
 W.traits[78] = { nodes = { { entries = { { spell = 1246167 } } } } }
 res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
 check(res and res[370965].missing, "Devourer's The Hunt offered and not taken: The Hunt leaves the row")

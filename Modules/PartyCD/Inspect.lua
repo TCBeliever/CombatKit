@@ -331,12 +331,17 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 	-- the specialization's passives
 	for _, source in ipairs((spec and data.spec and data.spec[spec]) or {}) do ApplyData(source) end
 
+	-- a PvP talent taken that takes another ability's button (`replaces`):
+	-- that ability is gone (Ancient of Lore for Tree of Life)
+	for _, def in ipairs(defs) do
+		if def.replaces and acc[def.id].taken and acc[def.replaces] then acc[def.replaces].replaced = true end
+	end
 	local results = {}
 	for _, def in ipairs(defs) do
 		local a = acc[def.id]
 		local base = ns.BaseCooldown(def)
 		local cd = math.max(1, math.floor(((base + a.sec) * a.pct) * 2 + 0.5) / 2)
-		results[def.id] = { cd = cd, charges = ns.BaseCharges(def) + a.charges, missing = a.offered and not a.taken }
+		results[def.id] = { cd = cd, charges = ns.BaseCharges(def) + a.charges, missing = (a.offered and not a.taken) or a.replaced or false }
 	end
 	return results, state.complete
 end

@@ -93,11 +93,11 @@ or under one as a cast or an aura.
 | 50334 | Berserk (casts 102558 Incarnation: Guardian of Ursoc) | 180s | Guardian | 50334 caster<br>102558 caster [102558] | caster | yes | in | burst: Guardian's Berserk or Incarnation, 180 s |
 | 106951 | Berserk (casts 102543 Incarnation: Avatar of Ashamane) | 180s | Feral | 106951 caster<br>102543 caster [102543]<br>252071 caster <- 102543 | caster | yes | in | burst: Feral's Berserk or Incarnation, 180 s |
 | 194223 | Celestial Alignment (casts 383410 Celestial Alignment) | 180s | Balance | 194223 caster<br>383410 caster [383410] | caster | yes | in | burst: Balance's Celestial Alignment (Orbital Strike's version on the same button), 180 s |
-| 391528 | Convoke the Spirits | 120s | all | 391528 caster<br>391528 allies | allies |  | in | burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed) |
+| 391528 | Convoke the Spirits | 120s | all | 391528 caster<br>391528 allies | allies | yes, as caster | in | burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed) |
 | 209749 | Faerie Swarm | 30s | Balance | 209749 enemy (slow -30%, disarm) | enemy | yes | in | control: disarm and slow (PvP talent), 30 s |
 | 99 | Incapacitating Roar | 30s | all | 99 enemies (incapacitate, slow -50%) | enemy | yes | in | control: incapacitate around the druid, 30 s |
 | 102560 | Incarnation: Chosen of Elune (casts 390414 Incarnation: Chosen of Elune) | 180s | Balance | 102560 caster<br>390414 caster [390414] | caster | cast of 194223 | in | burst: Balance's Incarnation, listed in Spells.lua as a cast of Celestial Alignment 194223, 180 s |
-| 33891 | Incarnation: Tree of Life (casts 473909 Ancient of Lore) | 180s; 473909: 90s | Restoration | 33891 caster (shapeshift, mechanic immunity)<br>473909 caster [473909] (shapeshift, damage taken -30%, mechanic immunity) | caster | yes (entry 473909) | in | defense: Restoration's healing form, 180 s; Spells.lua watches its PvP replacement Ancient of Lore 473909 only (proposed: Tree of Life itself as well) |
+| 33891 | Incarnation: Tree of Life (casts 473909 Ancient of Lore) | 180s; 473909: 90s | Restoration | 33891 caster (shapeshift, mechanic immunity)<br>473909 caster [473909] (shapeshift, damage taken -30%, mechanic immunity) | caster | yes | in | defense: Restoration's healing form, 180 s; Spells.lua watches its PvP replacement Ancient of Lore 473909 only (proposed: Tree of Life itself as well) |
 | 29166 | Innervate | 180s | all | 29166 ally | ally | yes | in | other: mana for a healer, 180 s |
 | 102342 | Ironbark | 90s | Restoration | 102342 ally (damage taken -20%) | ally | yes | in | defense: 20% less damage on an ally, 90 s |
 | 22570 | Maim | 30s | all | 203123 enemy by name of 22570 (stun)<br>203126 enemy by name of 22570 (stun) | enemy | yes | in | control: stun, 30 s |
@@ -172,7 +172,7 @@ or under one as a cast or an aura.
 | 186265 | Aspect of the Turtle | 180s | all | 186265 caster (damage taken -30%, mechanic immunity) | caster | yes | in | defense: immune to damage, 180 s |
 | 19574 | Bestial Wrath | 90s | Beast Mastery | 19574 caster | caster | yes | in | burst: Beast Mastery's main damage cooldown, 90 s |
 | 109248 | Binding Shot | 45s | all | 117405 ally by name of 109248<br>117526 enemy by name of 109248 (stun)<br>117526 ally by name of 109248 (stun)<br>117553 enemy by name of 109248 | enemies | yes, as enemyLater | in | control: stun when the target leaves the tether, 45 s |
-| 272651 | Command Pet (casts 1241871 Master's Call) | 0s; 1241871: 45s | all | 54216 ally by name of 1241871 (mechanic immunity, speed)<br>62305 caster by name of 1241871 (mechanic immunity)<br>1224810 ally by name of 1241871 (mechanic immunity) | ally |  | in | other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button) |
+| 272651 | Command Pet (casts 1241871 Master's Call) | 0s; 1241871: 45s | all | 54216 ally by name of 1241871 (mechanic immunity, speed)<br>62305 caster by name of 1241871 (mechanic immunity)<br>1224810 ally by name of 1241871 (mechanic immunity) | ally | yes (entry 1241871) | in | other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button) |
 | 187650 | Freezing Trap | 30s | all | 3355 enemy by name of 187650 (stun)<br>203337 enemy by name of 187650 (stun, school immunity)<br>212365 enemy by name of 187650<br>321177 caster by name of 187650 | enemies | yes, as enemyLater | in | control: incapacitate in the trap, 30 s |
 | 19577 | Intimidation | 60s | Beast Mastery, Survival | 24394 enemy by name of 19577 (stun)<br>1258508 enemy by name of 19577 (stun) | enemy | yes | in | control: the pet's stun, 60 s |
 | 474421 | Intimidation | 60s | Marksmanship | 24394 enemy by name of 474421 (stun)<br>1258508 enemy by name of 474421 (stun) | enemy | cast of 19577 | in | control: Marksmanship's own Intimidation, the same stun as 19577, folded into its entry, 60 s |
@@ -240,7 +240,7 @@ or under one as a cast or an aura.
 | 233759 | Grapple Weapon | 45s | Windwalker | 233759 enemy (disarm) | enemy | yes | in | control: disarm (PvP talent), 45 s |
 | 325197 | Invoke Chi-Ji, the Red Crane | 120s | Mistweaver | 325197 caster | caster | yes | in | defense: Mistweaver's healing celestial, 120 s |
 | 132578 | Invoke Niuzao, the Black Ox | 120s | Brewmaster | 132578 caster (absorb) | caster | yes | in | defense: Brewmaster's celestial, 120 s |
-| 123904 | Invoke Xuen, the White Tiger | 120s | Windwalker | 123904 caster | caster |  | in | burst: Windwalker's celestial, 120 s (proposed) |
+| 123904 | Invoke Xuen, the White Tiger | 120s | Windwalker | 123904 caster | caster | yes | in | burst: Windwalker's celestial, 120 s (proposed) |
 | 322118 | Invoke Yu'lon, the Jade Serpent | 120s | Mistweaver | 322118 caster | caster | yes | in | defense: Mistweaver's healing celestial, 120 s |
 | 119381 | Leg Sweep | 60s | all | 119381 enemies (stun) | enemy | yes | in | control: stun around the monk, 60 s |
 | 116849 | Life Cocoon | 120s | Mistweaver | 116849 ally (absorb) | ally | yes | in | defense: large absorb on an ally, 120 s |
@@ -399,7 +399,7 @@ or under one as a cast or an aura.
 | 410598 | Soul Rip | 60s | all | 410598 enemies (damage done -25%) | enemy | yes | in | defense: opponents nearby deal 25% less damage (PvP talent), 60 s (proposed) |
 | 205180 | Summon Darkglare | 120s | Affliction | 205180 caster | caster | yes | in | burst: Affliction's main damage cooldown, 120 s |
 | 265187 | Summon Demonic Tyrant | 60s | Demonology | 265187 caster | caster | yes | in | burst: Demonology's main damage cooldown, 60 s |
-| 1276672 | Summon Doomguard | 120s | Demonology | 1276672 caster | caster |  | in | burst: Demonology's large summon, 120 s (proposed) |
+| 1276672 | Summon Doomguard | 120s | Demonology | 1276672 caster | caster | yes | in | burst: Demonology's large summon, 120 s (proposed) |
 | 1122 | Summon Infernal | 120s | Destruction | 22703 enemies <- 1122 (stun) | enemyLater | yes | in | burst control: Destruction's Infernal, its landing stuns, 120 s |
 | 104773 | Unending Resolve | 180s | all | 104773 caster (mechanic immunity, damage taken -25%) | caster | yes | in | defense: 25% less damage and no interrupts, 180 s |
 | 1271802 | Blight of Tongues | 120s | all | 1272122 enemy by name of 1271802 | enemies |  | out | weakening curse on an opponent, no control by the design's tags, 120 s |
@@ -505,6 +505,7 @@ filter's blind spots are named so they can be checked.
 - 47476 Strangulate (DEATHKNIGHT): the data folds it under 221562 Asphyxiate, a talent or PvP talent on the same button
 - 91797 Monstrous Blow (DEATHKNIGHT): a pet's or a guardian's ability (skill line Pet - Ghoul): the module sees it on the opponent, the class's data does not give it
 - 473909 Ancient of Lore (DRUID): the data folds it under 33891 Incarnation: Tree of Life, a talent or PvP talent on the same button
+- 1241871 Master's Call (HUNTER): the data folds it under 272651 Command Pet, a talent or PvP talent on the same button
 - 110959 Greater Invisibility (MAGE): the data folds it under 66 Invisibility, a talent or PvP talent on the same button
 - 389539 Sentinel (PALADIN): the data folds it under 31884 Avenging Wrath, a talent or PvP talent on the same button
 - 228049 Guardian of the Forgotten Queen (PALADIN): the data folds it under 86659 Guardian of Ancient Kings, a talent or PvP talent on the same button
@@ -518,10 +519,7 @@ filter's blind spots are named so they can be checked.
 
 ## (b) Candidates marked `in` that Spells.lua lacks (proposed additions)
 
-- 391528 Convoke the Spirits (DRUID, 120s, allies): burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed)
-- 272651 Command Pet (HUNTER, 0s, ally): other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button)
-- 123904 Invoke Xuen, the White Tiger (MONK, 120s, caster): burst: Windwalker's celestial, 120 s (proposed)
-- 1276672 Summon Doomguard (WARLOCK, 120s, caster): burst: Demonology's large summon, 120 s (proposed)
+- none
 
 ## (c) Spells.lua entries marked `out` (proposed removals)
 

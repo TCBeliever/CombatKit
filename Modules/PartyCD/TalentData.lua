@@ -41,12 +41,14 @@ ns.TalentData = {
 		[22812] = { cd = 60, charges = 1, underControl = true },  -- Barkskin
 		[61336] = { cd = 180, charges = 1 },  -- Survival Instincts
 		[740] = { cd = 180, charges = 1 },  -- Tranquility
+		[33891] = { cd = 180, charges = 1 },  -- Incarnation: Tree of Life
 		[473909] = { cd = 90, charges = 1 },  -- Ancient of Lore
 		[102342] = { cd = 90, charges = 1 },  -- Ironbark
 		[194223] = { cd = 180, charges = 1 },  -- Celestial Alignment
 		[106951] = { cd = 180, charges = 1 },  -- Berserk
 		[5217] = { cd = 30, charges = 1 },  -- Tiger's Fury
 		[50334] = { cd = 180, charges = 1 },  -- Berserk
+		[391528] = { cd = 120, charges = 1 },  -- Convoke the Spirits
 		[5211] = { cd = 60, charges = 1 },  -- Mighty Bash
 		[99] = { cd = 30, charges = 1 },  -- Incapacitating Roar
 		[22570] = { cd = 30, charges = 1 },  -- Maim
@@ -73,6 +75,7 @@ ns.TalentData = {
 		[407028] = { cd = 45, charges = 1 },  -- Sticky Tar Bomb
 		[187650] = { cd = 30, charges = 1 },  -- Freezing Trap
 		[109248] = { cd = 45, charges = 1 },  -- Binding Shot
+		[1241871] = { cd = 45, charges = 1, underControl = true },  -- Master's Call
 		[45438] = { cd = 240, charges = 1 },  -- Ice Block
 		[342245] = { cd = 60, charges = 1 },  -- Alter Time
 		[110959] = { cd = 120, charges = 1 },  -- Greater Invisibility
@@ -95,6 +98,7 @@ ns.TalentData = {
 		[325197] = { cd = 120, charges = 1 },  -- Invoke Chi-Ji, the Red Crane
 		[116849] = { cd = 120, charges = 1 },  -- Life Cocoon
 		[1249625] = { cd = 90, charges = 2 },  -- Zenith
+		[123904] = { cd = 120, charges = 1 },  -- Invoke Xuen, the White Tiger
 		[119381] = { cd = 60, charges = 1 },  -- Leg Sweep
 		[115078] = { cd = 45, charges = 1 },  -- Paralysis
 		[198898] = { cd = 30, charges = 1 },  -- Song of Chi-Ji
@@ -160,6 +164,7 @@ ns.TalentData = {
 		[205180] = { cd = 120, charges = 1 },  -- Summon Darkglare
 		[265187] = { cd = 60, charges = 1 },  -- Summon Demonic Tyrant
 		[442726] = { cd = 60, charges = 1 },  -- Malevolence
+		[1276672] = { cd = 120, charges = 1 },  -- Summon Doomguard
 		[1122] = { cd = 120, charges = 1 },  -- Summon Infernal
 		[6789] = { cd = 45, charges = 1 },  -- Mortal Coil
 		[30283] = { cd = 60, charges = 1 },  -- Shadowfury
@@ -323,6 +328,9 @@ ns.TalentData = {
 			[1856] = { pct = -20 },  -- Vanish
 			[121471] = { pct = -20 },  -- Shadow Blades
 		},
+		[356962] = {  -- Kindred Beasts (pvp talent)
+			[1241871] = { pct = -50 },  -- Master's Call
+		},
 		[373035] = {  -- Protector of the Frail (talent)
 			[33206] = { charges = 1 },  -- Pain Suppression
 		},
@@ -407,6 +415,7 @@ ns.TalentData = {
 			[113724] = { sec = -5 },  -- Ring of Frost
 		},
 		[388212] = {  -- Gift of the Celestials (talent)
+			[123904] = { sec = -60 },  -- Invoke Xuen, the White Tiger
 			[132578] = { sec = -60 },  -- Invoke Niuzao, the Black Ox
 			[322118] = { sec = -60 },  -- Invoke Yu'lon, the Jade Serpent
 			[325197] = { sec = -60 },  -- Invoke Chi-Ji, the Red Crane
@@ -433,6 +442,7 @@ ns.TalentData = {
 			[194223] = { sec = -60 },  -- Celestial Alignment
 		},
 		[391174] = {  -- Berserk: Heart of the Lion (talent)
+			[33891] = { sec = -60 },  -- Incarnation: Tree of Life
 			[106951] = { sec = -60 },  -- Berserk
 			[473909] = { sec = -60 },  -- Ancient of Lore
 		},
@@ -451,9 +461,16 @@ ns.TalentData = {
 			[31821] = { sec = -30 },  -- Aura Mastery
 		},
 		[392986] = {  -- Xuen's Bond (talent)
+			[123904] = { sec = -30 },  -- Invoke Xuen, the White Tiger
 			[132578] = { sec = -30 },  -- Invoke Niuzao, the Black Ox
 			[322118] = { sec = -30 },  -- Invoke Yu'lon, the Jade Serpent
 			[325197] = { sec = -30 },  -- Invoke Chi-Ji, the Red Crane
+		},
+		[393414] = {  -- Ursoc's Guidance (talent)
+			[391528] = { pct = -50 },  -- Convoke the Spirits
+		},
+		[393991] = {  -- Elune's Guidance (talent)
+			[391528] = { pct = -50 },  -- Convoke the Spirits
 		},
 		[397103] = {  -- Defender's Aegis (talent)
 			[871] = { sec = -60, charges = 1 },  -- Shield Wall
@@ -505,6 +522,7 @@ ns.TalentData = {
 			[2094] = { pct = -10 },  -- Blind
 		},
 		[450989] = {  -- Efficient Training (talent)
+			[123904] = { sec = -25 },  -- Invoke Xuen, the White Tiger
 			[132578] = { sec = -25 },  -- Invoke Niuzao, the Black Ox
 			[322118] = { sec = -25 },  -- Invoke Yu'lon, the Jade Serpent
 			[325197] = { sec = -25 },  -- Invoke Chi-Ji, the Red Crane

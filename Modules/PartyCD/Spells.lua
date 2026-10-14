@@ -50,6 +50,12 @@ local ADDON, ns = ...
 -- (Spellwarden, Diamond Ice): its own spell then has no effect naming the
 -- version it brings, which sits next to it among the spell IDs.
 --
+-- `replaces` names the ability a PvP talent's own entry takes the button of
+-- (Ancient of Lore, Tree of Life): with the PvP talent taken, inspect takes
+-- the other out of the row. `window` on a Caster entry makes every sighting
+-- within that many seconds one use (Smoke Bomb's cloud, Tree of Life's 30 s
+-- of shifting in and out).
+--
 -- `external` (from how it is seen: on someone else than the caster) marks an
 -- ability that may be another teammate's: the sample rows show it with the
 -- shared-estimate mark; an entry says `external = false` when it is mostly the
@@ -156,12 +162,14 @@ ns.SPELLS = {
 		Caster(22812, 60, "defense"),           -- Barkskin
 		Caster(61336, 180, "defense", { extraCharge = true, specs = set(103, 104) }),  -- Survival Instincts: a second charge from the guardian passive or a talent
 		Caster(740, 180, "defense", { specs = set(105) }),  -- Tranquility
-		Caster(473909, 90, "defense", { specs = set(105) }),  -- Ancient of Lore (PvP talent)
+		Caster(33891, 180, "defense", { window = 30, defaultOff = true, specs = set(105) }),  -- Incarnation: Tree of Life: for 30 s the druid may shift in and out of the form, one use (off by default: the user's call)
+		Caster(473909, 90, "defense", { replaces = 33891, specs = set(105) }),  -- Ancient of Lore (PvP talent): takes Tree of Life's button
 		Ally(102342, 90, "defense", { specs = set(105) }),  -- Ironbark
 		Caster(194223, 180, "burst", { auras = { 194223, 102560, 383410, 390414 }, casts = { 102560, 383410, 390414 }, specs = set(102) }),  -- Celestial Alignment, or Incarnation; Orbital Strike turns them into 383410 and 390414
 		Caster(106951, 180, "burst", { auras = { 106951, 102543 }, casts = { 102543 }, specs = set(103) }),  -- Berserk, or Incarnation
 		Caster(5217, 30, "burst", { specs = set(103) }),  -- Tiger's Fury
 		Caster(50334, 180, "burst", { auras = { 50334, 102558 }, casts = { 102558 }, specs = set(104) }),  -- Berserk (Guardian), or Incarnation, which replaces it
+		Caster(391528, 120, "burst", { specs = set(102, 103, 104, 105) }),  -- Convoke the Spirits
 		Enemy(5211, 60, "control"),             -- Mighty Bash
 		Enemy(99, 30, "control"),               -- Incapacitating Roar
 		Enemy(22570, 30, "control", { aura = 203123 }),  -- Maim: the stun is 203123
@@ -192,6 +200,7 @@ ns.SPELLS = {
 		Enemy(407028, 45, "control", { aura = 407032, specs = set(255) }),  -- Sticky Tar Bomb (PvP talent)
 		EnemyLater(187650, 30, 60, "control", { auras = { 3355, 203337 } }),  -- Freezing Trap: the trap holds its target with 3355, or 203337 with Diamond Ice (PvP talent); armed on the ground for a minute
 		EnemyLater(109248, 45, 10, "control", { aura = 117526 }),  -- Binding Shot: the stun is 117526, when the target leaves the tether
+		Ally(1241871, 45, "other", { auras = { 54216, 1224810, 62305 } }),  -- Master's Call: Command Pet with a cunning pet; the buff on the ally (54216 or 1224810) or on the hunter (62305), by name: to confirm in game
 	},
 	MAGE = {
 		Caster(45438, 240, "defense", { auras = { 45438, 414658 }, casts = { 414658 }, big = true, extraCharge = true, noLearn = true }),  -- Ice Block, or Ice Cold, which takes its button (12.1.5); Cold Snap resets it
@@ -218,6 +227,7 @@ ns.SPELLS = {
 		Caster(325197, 120, "defense", { auras = { 325197, 343818 }, noLearn = true, specs = set(270) }),  -- Invoke Chi-Ji, the Red Crane
 		Ally(116849, 120, "defense", { big = true, specs = set(270) }),  -- Life Cocoon
 		Caster(1249625, 90, "burst", { charges = 2, specs = set(269) }),  -- Zenith
+		Caster(123904, 120, "burst", { defaultOff = true, specs = set(269) }),  -- Invoke Xuen, the White Tiger: a Conduit of the Celestials hero talent (off by default: the user's call)
 		Enemy(119381, 60, "control"),           -- Leg Sweep
 		Enemy(115078, 45, "control"),           -- Paralysis
 		Enemy(198898, 30, "control", { aura = 198909 }),  -- Song of Chi-Ji: the disorient is 198909
@@ -293,6 +303,7 @@ ns.SPELLS = {
 		Caster(205180, 120, "burst", { specs = set(265) }),  -- Summon Darkglare
 		Caster(265187, 60, "burst", { specs = set(266) }),  -- Summon Demonic Tyrant
 		Caster(442726, 60, "burst", { specs = set(265, 267) }),  -- Malevolence
+		Caster(1276672, 120, "burst", { defaultOff = true, specs = set(266) }),  -- Summon Doomguard: a Demonic Core cuts its cooldown, so off by default
 		EnemyLater(1122, 120, 2, "burst control", { aura = 22703, specs = set(267) }),  -- Summon Infernal: the stun where it lands
 		Enemy(6789, 45, "control"),             -- Mortal Coil
 		Enemy(30283, 60, "control"),            -- Shadowfury
