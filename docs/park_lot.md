@@ -18,5 +18,5 @@ Each one is in Spells.lua as the game's data suggests; a check in game settles i
 
 ## Party CD: later
 
-- `tools/candidates.py`: list candidates from the game's data only (cooldown, an aura on some unit, given by a class skill, talent, spec spell or PvP talent), and keep in Spells.lua the reason each one is in or out (docs/PartyCD-classification.md, section 6).
-- Six candidates not decided: Stoneform, Shadowmeld, Fireblood (racials: does the PvP trinket share their cooldown?), Breath of Eons (Augmentation burst), Invoke Xuen (Windwalker burst), Earth Elemental.
+The next round is written up in `docs/PartyCD-next.md`: the active highlight from Blizzard's own animated textures (A), racial abilities (B: Stoneform, Shadowmeld, Fireblood and the rest; does the PvP trinket share their cooldown?), the 24 additions `tools/candidates.py` proposes (C, Invoke Xuen among them), and small items (D).
+- Still not decided: Breath of Eons (Augmentation burst), Earth Elemental.
