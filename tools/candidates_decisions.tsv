@@ -189,7 +189,7 @@
 352278	out	a wall that blocks movement (PvP talent), no aura on a player that matters, 90 s
 66	in	defense: Greater Invisibility 110959, the talent on this button, is what Spells.lua watches (60% less damage); plain Invisibility 66 is a fade on a 300 s cooldown
 414664	in	other: invisibility for the team, 300 s
-383121	in	control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP (proposed)
+383121	in	control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP: off by default (user, 2026-10-14)
 55342	in	defense: images that take hits and lower damage, 120 s
 205025	out	makes casts instant, minor, 45 s
 235450	in	defense: Arcane's absorb, 30 s
@@ -220,7 +220,7 @@
 116849	in	defense: large absorb on an ally, 120 s
 354540	in	defense: breaks stuns and fears (PvP talent), 90 s
 115078	in	control: incapacitate, 45 s
-115310	in	defense: Mistweaver's group heal and dispel, 180 s (proposed)
+115310	out	an instant heal and dispel that leaves no aura: nothing for the module to see (356722, found by name, is a passive); its choice Restoral 388615 has none either
 109132	out	movement only, under 30 s (20 s)
 198898	in	control: disorient in a line, 30 s
 116680	out	empowers the next heal, rotational, 30 s
@@ -260,7 +260,7 @@
 19236	in	defense: a large self heal, 90 s
 47585	in	defense: 75% less damage, 120 s
 64843	in	defense: Holy's channelled group heal, 180 s
-205364	in	control: mind control on an opponent, 30 s (proposed)
+205364	out	control: mind control, 30 s; not watched (user, 2026-10-14)
 472433	out	extends healing over time already out (Discipline), a ramp tool, 90 s
 586	out	threat drop and small reduction, 30 s
 47788	in	defense: prevents an ally's death, 180 s

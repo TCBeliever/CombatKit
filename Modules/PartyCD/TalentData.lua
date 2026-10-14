@@ -83,6 +83,7 @@ ns.TalentData = {
 		[365350] = { cd = 90, charges = 1 },  -- Arcane Surge
 		[190319] = { cd = 120, charges = 1 },  -- Combustion
 		[31661] = { cd = 45, charges = 1 },  -- Dragon's Breath
+		[383121] = { cd = 60, charges = 1 },  -- Mass Polymorph
 		[113724] = { cd = 45, charges = 1 },  -- Ring of Frost
 		[389794] = { cd = 45, charges = 1 },  -- Snowdrift
 		[414664] = { cd = 300, charges = 1 },  -- Mass Invisibility
@@ -111,6 +112,7 @@ ns.TalentData = {
 		[210256] = { cd = 60, charges = 1 },  -- Blessing of Sanctuary
 		[6940] = { cd = 120, charges = 1 },  -- Blessing of Sacrifice
 		[31884] = { cd = 120, charges = 1 },  -- Avenging Wrath
+		[343527] = { cd = 60, charges = 1 },  -- Execution Sentence
 		[853] = { cd = 45, charges = 1 },  -- Hammer of Justice
 		[115750] = { cd = 90, charges = 1 },  -- Blinding Light
 		[47585] = { cd = 120, charges = 1, underControl = true },  -- Dispersion
@@ -118,6 +120,7 @@ ns.TalentData = {
 		[64843] = { cd = 180, charges = 1 },  -- Divine Hymn
 		[421453] = { cd = 240, charges = 1 },  -- Ultimate Penitence
 		[200183] = { cd = 120, charges = 1 },  -- Apotheosis
+		[15286] = { cd = 120, charges = 1 },  -- Vampiric Embrace
 		[33206] = { cd = 180, charges = 1 },  -- Pain Suppression
 		[47788] = { cd = 180, charges = 1 },  -- Guardian Spirit
 		[62618] = { cd = 180, charges = 1 },  -- Power Word: Barrier

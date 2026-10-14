@@ -204,6 +204,7 @@ ns.SPELLS = {
 		Caster(365350, 90, "burst", { auras = { 365350, 365362 }, specs = set(62) }),  -- Arcane Surge
 		Caster(190319, 120, "burst", { specs = set(63) }),  -- Combustion
 		Enemy(31661, 45, "control"),            -- Dragon's Breath
+		Enemy(383121, 60, "control", { defaultOff = true }),  -- Mass Polymorph: a choice against Ring of Frost, seldom taken in PvP
 		Enemies(113724, 45, 10, "control", { aura = 82691 }),  -- Ring of Frost
 		EnemyLater(389794, 45, 6, "control", { aura = 389831, specs = set(64) }),  -- Snowdrift (PvP talent): the stun is 389831, after standing in it
 		Allies(414664, 300, 1, "other"),        -- Mass Invisibility
@@ -236,6 +237,7 @@ ns.SPELLS = {
 		Ally(210256, 60, "defense", { specs = set(70) }),  -- Blessing of Sanctuary (PvP talent)
 		OtherAlly(6940, 120, "defense", { auras = { 6940, 199448 }, casts = { 199448 } }),  -- Blessing of Sacrifice; Ultimate Sacrifice (PvP talent) turns it into 199448
 		Caster(31884, 120, "burst"),            -- Avenging Wrath
+		Enemy(343527, 60, "burst", { specs = set(70) }),  -- Execution Sentence: the mark on the opponent
 		Enemy(853, 45, "control"),              -- Hammer of Justice
 		Enemy(115750, 90, "control", { aura = 105421 }),  -- Blinding Light
 	},
@@ -245,6 +247,7 @@ ns.SPELLS = {
 		Caster(64843, 180, "defense", { specs = set(257) }),  -- Divine Hymn: the channel on the priest
 		Caster(421453, 240, "defense", { specs = set(256) }),  -- Ultimate Penitence
 		Caster(200183, 120, "defense", { noLearn = true, specs = set(257) }),  -- Apotheosis
+		Caster(15286, 120, "defense", { specs = set(258) }),  -- Vampiric Embrace
 		Ally(33206, 180, "defense", { big = true, extraCharge = true, specs = set(256) }),  -- Pain Suppression
 		Ally(47788, 180, "defense", { big = true, specs = set(257) }),  -- Guardian Spirit
 		Allies(62618, 180, 10, "defense", { aura = 81782, specs = set(256) }),  -- Power Word: Barrier

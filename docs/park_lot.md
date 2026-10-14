@@ -17,6 +17,7 @@ Each one is in Spells.lua as the game's data suggests; a check in game settles i
 | Roar of Sacrifice 53480 | Hunter | can be put on the hunter (the data says yes) | make it OtherAlly |
 | Stoneform 20594, Fireblood 265221 | Dwarf, Dark Iron Dwarf | a teammate's PvP trinket use puts them on a 30 s cooldown (they share category 1166 with it) | yes: on ARENA_COOLDOWNS_UPDATE showing a fresh trinket use, give a ready Stoneform / Fireblood 30 s; until measured they count their own 120 s |
 | Vanish 1856 | Rogue | the 3 s buff on the rogue is 11327 (115193 is another Vanish of the same name, not watched) | find the aura ID (AuraLab learn mode) |
+| Shield Charge 385952 | Warrior, Protection | the stun on the opponent is 385954 (the data names it, nothing links it to the cast) | find the aura ID (AuraLab learn mode) |
 | Smoke Bomb 212182 | Rogue (PvP talent) | the cloud's aura 212183 shows on the rogue who dropped it; an enemy rogue's cloud over our rogue would count as a use (left as it is: rare) | if the rogue's own aura differs, watch that one |
 | War Stomp 20549, Quaking Palm 107079, Haymaker 287712, Bull Rush 255723 | Tauren, Pandaren, Kul Tiran, Highmountain Tauren | the debuff shows on the opponent with these IDs | find the aura ID (AuraLab learn mode) |
 

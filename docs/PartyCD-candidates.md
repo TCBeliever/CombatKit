@@ -12,7 +12,7 @@ button is listed under the base ability (`casts`). The decision and its reason a
 Racial abilities come from each race's own skill line ("Racial - Dwarf"), for the races its race mask
 names, and are listed last under *Racial*, the races in place of the specializations.
 
-Universe: 4596 spells. Candidates: 406 (in 187, out 219, undecided 0).
+Universe: 4596 spells. Candidates: 406 (in 185, out 221, undecided 0).
 
 Columns: *Auras* lists each aura ID and where it lands (caster, ally, allies, enemy, enemies): `<- X` when
 cast X triggers it, `[X]` when X (a version on the same button) applies it, `by name of X` when nothing in
@@ -213,7 +213,7 @@ or under one as a cast or an aura.
 | 45438 | Ice Block (casts 414658 Ice Cold) | 240s | all | 45438 caster (stun, school immunity, pacify and silence)<br>414658 caster [414658] (pacify and silence, damage taken -70%, speed) | caster | yes | in | defense: immune to damage, 240 s |
 | 66 | Invisibility (casts 110959 Greater Invisibility) | 300s; 110959: 120s | all | 66 caster<br>110960 caster <- 110959 (invisibility) | caster | yes (entry 110959) | in | defense: Greater Invisibility 110959, the talent on this button, is what Spells.lua watches (60% less damage); plain Invisibility 66 is a fade on a 300 s cooldown |
 | 414664 | Mass Invisibility | 300s | all | 414664 allies (invisibility) | allies | yes | in | other: invisibility for the team, 300 s |
-| 383121 | Mass Polymorph | 60s | all | 383121 enemies (incapacitate, transform) | enemy |  | in | control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP (proposed) |
+| 383121 | Mass Polymorph | 60s | all | 383121 enemies (incapacitate, transform) | enemy | yes | in | control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP: off by default (user, 2026-10-14) |
 | 55342 | Mirror Image | 120s | all | 55342 caster | caster | yes | in | defense: images that take hits and lower damage, 120 s |
 | 235450 | Prismatic Barrier | 30s | Arcane | 235450 caster (absorb, damage taken -15%) | caster | yes | in | defense: Arcane's absorb, 30 s |
 | 113724 | Ring of Frost (casts 353082 Ring of Fire) | 45s | all | 136511 caster <- 113724<br>353084 enemy by name of 353082 (incapacitate)<br>353102 caster by name of 353082 | enemyLater | yes, as enemies | in | control: incapacitate in the ring, 45 s (Ring of Fire on the same button) |
@@ -246,7 +246,6 @@ or under one as a cast or an aura.
 | 116849 | Life Cocoon | 120s | Mistweaver | 116849 ally (absorb) | ally | yes | in | defense: large absorb on an ally, 120 s |
 | 354540 | Nimble Brew | 90s | Brewmaster | 354540 allies (mechanic immunity) | allies | yes, as caster | in | defense: breaks stuns and fears (PvP talent), 90 s |
 | 115078 | Paralysis | 45s | all | 115078 enemy (stun) | enemy | yes | in | control: incapacitate, 45 s |
-| 115310 | Revival | 180s | Mistweaver | 356722 caster by name of 115310 | caster |  | in | defense: Mistweaver's group heal and dispel, 180 s (proposed) |
 | 198898 | Song of Chi-Ji | 30s | all | 198909 enemy by name of 198898 (stun) | enemies | yes, as enemy | in | control: disorient in a line, 30 s |
 | 116841 | Tiger's Lust | 30s | all | 116841 ally (speed +70%) | ally | yes | in | other: frees an ally from roots and slows, 30 s |
 | 122470 | Touch of Karma | 90s | Windwalker | 122470 enemy (absorb)<br>122470 caster (absorb) | enemy | yes, as caster | in | defense: absorb that redirects damage, 90 s |
@@ -260,6 +259,7 @@ or under one as a cast or an aura.
 | 325153 | Exploding Keg | 60s | Brewmaster | 325153 enemies<br>325153 caster | caster |  | out | tank's damage and dodge area, 60 s |
 | 113656 | Fists of Fury | 24s | Windwalker | 113656 caster | caster |  | out | rotational damage channel, under 30 s (24 s) |
 | 101545 | Flying Serpent Kick (casts 1217413 Slicing Winds) | 30s | Windwalker | 101545 caster (pacify and silence)<br>1217413 caster [1217413] | caster |  | out | movement only (Slicing Winds, its version, the same), 30 s |
+| 115310 | Revival | 180s | Mistweaver | 356722 caster by name of 115310 | caster |  | out | an instant heal and dispel that leaves no aura: nothing for the module to see (356722, found by name, is a passive); its choice Restoral 388615 has none either |
 | 109132 | Roll (casts 115008 Chi Torpedo) | 20s x2 | all | 107427 caster by name of 109132 (mechanic immunity)<br>109131 caster by name of 109132 (mechanic immunity)<br>115008 caster [115008] (mechanic immunity)<br>119085 caster <- 115008 (speed +30%) | caster |  | out | movement only, under 30 s (20 s) |
 | 116680 | Thunder Focus Tea | 30s | Mistweaver | 116680 caster | caster |  | out | empowers the next heal, rotational, 30 s |
 | 322109 | Touch of Death | 180s | all | 115080 enemy by name of 322109<br>124490 caster by name of 322109<br>344360 caster by name of 322109<br>344361 caster by name of 322109 (damage done +15%)<br>and 1 more by name | enemy |  | out | an execute, its marks are no cooldown a teammate should plan around, 180 s |
@@ -282,7 +282,7 @@ or under one as a cast or an aura.
 | 498 | Divine Protection | 60s | Holy | 498 caster (damage taken -20%) | caster | yes | in | defense: 20% less damage, 60 s |
 | 403876 | Divine Protection | 60s | Retribution | 403876 caster (damage taken -20%) | caster | cast of 498 | in | defense: Retribution's Divine Protection, listed in Spells.lua as a cast of 498, 60 s |
 | 642 | Divine Shield | 300s | all | 642 caster (school immunity) | caster | yes | in | defense: immune to damage, 300 s |
-| 343527 | Execution Sentence | 60s | Retribution | 343527 enemy<br>1234189 caster <- 343527<br>1260251 enemies <- 343527 | enemy |  | in | burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed) |
+| 343527 | Execution Sentence | 60s | Retribution | 343527 enemy<br>1234189 caster <- 343527<br>1260251 enemies <- 343527 | enemy | yes | in | burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed) |
 | 86659 | Guardian of Ancient Kings (casts 228049 Guardian of the Forgotten Queen) | 180s; 228049: 240s | Protection | 86659 caster (transform, damage taken -50%)<br>228049 caster [228049] | caster | yes | in | defense: 50% less damage (Protection), 180 s (Guardian of the Forgotten Queen on the same button) |
 | 853 | Hammer of Justice | 45s | all | 853 enemy (stun)<br>853 caster (stun) | enemy | yes | in | control: stun, 45 s |
 | 1044 | Blessing of Freedom | 25s | all | 1044 ally (mechanic immunity, speed) | ally |  | out | frees from roots and slows, under 30 s (25 s) |
@@ -300,7 +300,6 @@ or under one as a cast or an aura.
 | 19236 | Desperate Prayer | 90s | all | 19236 caster | caster | yes | in | defense: a large self heal, 90 s |
 | 47585 | Dispersion | 120s | Shadow | 47585 caster (damage taken -75%, pacify and silence, speed +50%, mechanic immunity) | caster | yes | in | defense: 75% less damage, 120 s |
 | 64843 | Divine Hymn | 180s | Holy | 64843 caster | caster | yes | in | defense: Holy's channelled group heal, 180 s |
-| 205364 | Dominate Mind | 30s | all | 205364 enemy (damage done) | enemy |  | in | control: mind control on an opponent, 30 s (proposed) |
 | 47788 | Guardian Spirit | 180s | Holy | 47788 ally | ally | yes | in | defense: prevents an ally's death, 180 s |
 | 88625 | Holy Word: Chastise | 60s | Holy | 200196 enemy by name of 88625 (stun)<br>200200 enemy by name of 88625 (stun)<br>247587 enemy by name of 88625 (stun) | enemy | yes | in | control: incapacitate or stun, 60 s |
 | 33206 | Pain Suppression | 180s | Discipline | 33206 ally (damage taken -40%) | ally | yes | in | defense: 40% less damage on an ally, 180 s |
@@ -309,9 +308,10 @@ or under one as a cast or an aura.
 | 8122 | Psychic Scream | 40s | all | 8122 enemies (fear) | enemy | yes | in | control: fear around the priest, 40 s |
 | 15487 | Silence | 30s | Shadow | 15487 enemy (silence) | enemy | yes | in | control: silence, 30 s |
 | 421453 | Ultimate Penitence | 240s | Discipline | 421453 caster (absorb, mechanic immunity) | caster | yes | in | defense: Discipline's healing channel, immune to control, 240 s |
-| 15286 | Vampiric Embrace | 120s | Shadow | 15286 caster | caster |  | in | defense: Shadow's group heal from its damage, 120 s (proposed) |
+| 15286 | Vampiric Embrace | 120s | Shadow | 15286 caster | caster | yes | in | defense: Shadow's group heal from its damage, 120 s (proposed) |
 | 228260 | Voidform | 120s | Shadow | 126733 caster by name of 228260<br>126738 caster by name of 228260<br>185916 caster by name of 228260<br>194249 caster by name of 228260 (shapeshift)<br>and 3 more by name | caster | yes | in | burst: Shadow's main damage cooldown, 120 s |
 | 121536 | Angelic Feather | 20s x3 | all | 121557 ally by name of 121536 (speed +40%) | ally |  | out | movement only, under 30 s (20 s) |
+| 205364 | Dominate Mind | 30s | all | 205364 enemy (damage done) | enemy |  | out | control: mind control, 30 s; not watched (user, 2026-10-14) |
 | 472433 | Evangelism | 90s | Discipline | 472433 caster | caster |  | out | extends healing over time already out (Discipline), a ramp tool, 90 s |
 | 586 | Fade | 30s | all | 586 caster (damage taken -10%) | caster |  | out | threat drop and small reduction, 30 s |
 | 120517 | Halo | 60s | Holy | 120517 caster | caster |  | out | rotational healing and damage, 60 s |
@@ -520,12 +520,7 @@ filter's blind spots are named so they can be checked.
 
 - 391528 Convoke the Spirits (DRUID, 120s, allies): burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed)
 - 272651 Command Pet (HUNTER, 0s, ally): other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button)
-- 383121 Mass Polymorph (MAGE, 60s, enemy): control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP (proposed)
-- 115310 Revival (MONK, 180s, caster): defense: Mistweaver's group heal and dispel, 180 s (proposed)
 - 123904 Invoke Xuen, the White Tiger (MONK, 120s, caster): burst: Windwalker's celestial, 120 s (proposed)
-- 343527 Execution Sentence (PALADIN, 60s, enemy): burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed)
-- 15286 Vampiric Embrace (PRIEST, 120s, caster): defense: Shadow's group heal from its damage, 120 s (proposed)
-- 205364 Dominate Mind (PRIEST, 30s, enemy): control: mind control on an opponent, 30 s (proposed)
 - 1276672 Summon Doomguard (WARLOCK, 120s, caster): burst: Demonology's large summon, 120 s (proposed)
 
 ## (c) Spells.lua entries marked `out` (proposed removals)
