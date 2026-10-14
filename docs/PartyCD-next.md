@@ -51,7 +51,7 @@ DB2（12.1.0.69933）查到的事實：
 
 **要做的：**
 1. **讀隊友的種族。** `PartyCD.lua` 的 `Roster()` 為每個單位多讀 `UnitRace(unit)` 的第二個值（raceFile，例如 `Dwarf`；熊貓人三個 race ID 都是 `Pandaren`），用 pcall 包起來、確認是一般值（`plain`），和 `class` 一起放進名單。不需要 inspect。
-2. **併進那一列。** Tracker 的隊友紀錄存 `race`；`Fit` 改呼叫 `ns.SpellsFor(class, sel, race)`，回傳職業技能加上該種族的技能，合併後照現有規則穩定排序（主標籤 defense → burst → control → other，再依偵測方式），同類保持原順序。名單更新時 GUID 沒變就沿用原紀錄（種族不會變）。
+2. **併進那一列。** Tracker 的隊友紀錄存 `race`；`Fit` 改呼叫 `ns.SpellsFor(class, sel, race)`，回傳職業技能，**種族技能一律接在最後面**（使用者決定）：不和職業技能混排，一個種族通常只有一個，照 `ns.RACIALS` 的順序。名單更新時 GUID 沒變就沿用原紀錄（種族不會變）。
 3. **註冊。** 種族技能也進 `ns.SPELL_BY_ID`、`ns.SPELL_BY_CAST`（偵測到光環、玩家自己施法都查這兩張表）；不進 `CLASSES_WITH`，改加 `ns.RACES_WITH[spellID] = { [race] = true }`，給需要知道「誰可能有」的地方用。
 4. **不用改、但要確認的：**
    - Backend 照技能清單開槽位：種族技能是一般的友方（Caster）或敵方（Enemy）光環。
@@ -62,7 +62,7 @@ DB2（12.1.0.69933）查到的事實：
 6. **範例圖示列。** 測試模式（`DrawSample`）依玩家自己的種族一起顯示種族技能。
 7. **出處。** `tools/candidates.py` 的全集加入種族技能（種族的 skill line，`SkillLineAbility` 依 RaceMask），每一筆寫進 `tools/candidates_decisions.tsv`；12.1 的新種族也由工具列出，不手寫。`tools/talentdata.py` 的 `watched_defs` 也會讀到 `ns.RACIALS` 裡的建構函式，確認它把種族技能的基礎冷卻寫進 TalentData 的 `base`。光環 ID 用 `tools/auradata.py` 再確認一次。
 8. **設定頁。** 種族頁已經有；如果 1.1.0 先藏起來了，接上追蹤後再打開。
-9. **測試**（假的後端與名單）：矮人隊友那一列有 Stoneform；`defaultOff` 的爆發類不出現、勾了才出現；牛頭人隊友的 War Stomp 被算到他頭上；兩個隊友都不是牛頭人時不出現；隊友用飾品後 Stoneform 被補上 30 秒冷卻（等第 5 點量完再定）；同一個隊友換位置（party1 → party2）時種族技能跟著走。
+9. **測試**（假的後端與名單）：矮人隊友那一列有 Stoneform，而且排在所有職業技能後面；`defaultOff` 的爆發類不出現、勾了才出現；牛頭人隊友的 War Stomp 被算到他頭上；兩個隊友都不是牛頭人時不出現；隊友用飾品後 Stoneform 被補上 30 秒冷卻（等第 5 點量完再定）；同一個隊友換位置（party1 → party2）時種族技能跟著走。
 
 **待使用者決定：** Shadowmeld 的標籤（目前 defense）；1.1.0 是否先隱藏種族頁。
 
