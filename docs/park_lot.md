@@ -13,8 +13,6 @@ Each one is in Spells.lua as the game's data suggests; a check in game settles i
 | Healing Tide Totem 108280 | Shaman, Restoration | an aura on the shaman after the cast | take it out: a totem alone cannot be seen |
 | Invoke Niuzao 132578 | Monk, Brewmaster | an aura on the monk after the cast | take it out |
 | Invoke Yu'lon 322118 | Monk, Mistweaver | an aura on the monk after the cast | take it out |
-| Time Stop 378441 | Evoker (PvP talent) | can be cast on oneself (the data says yes) | make it OtherAlly |
-| Roar of Sacrifice 53480 | Hunter | can be put on the hunter (the data says yes) | make it OtherAlly |
 | Stoneform 20594, Fireblood 265221 | Dwarf, Dark Iron Dwarf | a teammate's PvP trinket use puts them on a 30 s cooldown (they share category 1166 with it) | yes: on ARENA_COOLDOWNS_UPDATE showing a fresh trinket use, give a ready Stoneform / Fireblood 30 s; until measured they count their own 120 s |
 | Vanish 1856 | Rogue | the 3 s buff on the rogue is 11327 (115193 is another Vanish of the same name, not watched) | find the aura ID (AuraLab learn mode) |
 | Master's Call 1241871 | Hunter (Command Pet, cunning pet) | which buff shows: 54216 or 1224810 on the ally, 62305 on the hunter (the data names all three, nothing links them) | keep the one seen, drop the others |
