@@ -25,9 +25,9 @@ Each one is in Spells.lua as the game's data suggests; a check in game settles i
 
 ## Party CD: the highlight, to look at in game
 
-UI.lua draws the active highlight from the game's own textures (docs/PartyCD-next.md, A). In game: all three still load on 12.1 (a missing one falls back to the breathing strips, `/ckpartycd` shows nothing about it, look at the icon); the classic ants' 48 px cells line up (no seam, no jump at the loop); how many of the 30 cells the two atlases draw (an empty cell flashes) and their speed; violet and blue are visible on the ants; the size around the icon (ants 1.2x, atlases 1.4x) and whether the additive blend is too bright on a light icon.
+UI.lua draws the active highlight from the game's own textures (docs/PartyCD-next.md, A). Accepted by the user on the sample rows, 2026-10-14 ("looks fine"); the finer points, if something ever looks off: all three still load on 12.1 (a missing one falls back to the breathing strips, `/ckpartycd` shows nothing about it, look at the icon); the classic ants' 48 px cells line up (no seam, no jump at the loop); how many of the 30 cells the two atlases draw (an empty cell flashes) and their speed; violet and blue are visible on the ants; the size around the icon (ants 1.2x, atlases 1.4x) and whether the additive blend is too bright on a light icon.
 
 ## Party CD: later
 
-The next round is written up in `docs/PartyCD-next.md`. Done, to see in game: the highlight (A), racial abilities (B), the generated files' dates (D). Waiting: the 24 additions `tools/candidates.py` proposes (C, Invoke Xuen among them; to be picked), the stand-in frames' sides with DandersFrames grown from the centre (D).
+The next round in `docs/PartyCD-next.md` is done and released in 1.1.1 (A highlight, B racial abilities, C the proposed additions, D the generated files' dates). Left: the stand-in frames' sides with DandersFrames grown from the centre (D, `SLOT_CENTERED` in UI.lua), to compare with the real party in game.
 - Still not decided: Breath of Eons (Augmentation burst), Earth Elemental.
