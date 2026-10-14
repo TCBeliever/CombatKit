@@ -1,0 +1,415 @@
+# Decisions for the candidates tools/candidates.py lists from the game's data.
+# One row per candidate, keyed by its cast spell ID (the base button when a talent or a
+# PvP talent swaps it): spellID <TAB> in|out <TAB> the reason, in plain words.
+# The rule each reason names: the tags of docs/PartyCD-classification.md (defense, burst,
+# control, other) for `in`; for `out`: a cooldown under 30 s, movement only, rotational
+# damage or healing, a taunt, a slow or root only (not control by the design), no aura on
+# a player, or utility that does not decide an arena fight.
+# Proposals (in, not in Spells.lua; out, but in Spells.lua) come out in docs/PartyCD-candidates.md.
+
+# Death Knight
+1263569	out	pulls opponents together (Blood), no control by the design's tags, 120 s
+48707	in	defense: magic absorb on the DK, 60 s (Spellwarden puts it on an ally)
+51052	in	defense: zone of 15-20% less magic damage for the team, 240 s
+42650	in	burst: Unholy's army, 90 s
+221562	in	control: stun, 45 s; the PvP talent Strangulate (silence) takes its button
+207167	in	control: incapacitate in a cone, 60 s
+1249658	in	burst: Frost's damage cooldown, 90 s (proposed)
+1263824	out	rotational damage and a small self buff (Blood), 45 s
+49028	in	burst defense: Blood's weapon, parry and damage, 120 s
+56222	out	taunt, 8 s (Murderous Intent, its PvP version, 20 s)
+77606	out	steals a spell, the aura only marks the target, 20 s
+1233448	out	empowers the ghoul: the aura is on the pet, which the module does not watch, 45 s
+203173	out	links opponents' damage (PvP talent), no control, 30 s
+49576	out	grip, under 30 s (25 s)
+48743	in	defense: a large self heal, 120 s (proposed)
+43265	out	rotational damage area, 30 s
+48265	out	movement only, 45 s
+47568	out	resource cooldown with charges, 30 s, rotational
+279302	out	direct damage; the aura it leaves is only a slow, 90 s
+108199	out	pulls opponents together (Blood), no control by the design's tags, 90 s
+48792	in	defense: 30% less damage and stun immunity, 120 s
+49039	in	defense: immune to charm, fear and sleep, 120 s
+51271	in	burst: Frost's main damage cooldown, 45 s
+1247378	out	rotational damage (Unholy), 30 s
+61999	out	battle resurrection: no use in an arena round
+46584	out	summons the ghoul (Unholy, rotational), 30 s
+46585	out	summons a ghoul for a while, the aura is a pet marker, 120 s
+439843	out	hero talent's rotational damage mark, 45 s
+196770	out	rotational damage area, under 30 s (20 s)
+55233	in	defense: Blood's health and healing cooldown, 90 s
+212552	out	movement only, 60 s
+
+# Demon Hunter
+198589	in	defense: 25% less damage and dodge, 60 s
+179057	in	control: stun around the DH, 45 s
+196718	in	defense: chance to avoid damage for the team in an area, 300 s
+203720	out	tank's rotational armor, under 30 s (20 s)
+258860	out	rotational damage window on the target, 40 s
+198013	out	rotational damage channel, 30 s
+212084	out	rotational damage channel (Vengeance), 40 s
+204021	in	defense: the opponent deals 40% less damage to the DH (debuff on the opponent), 60 s
+205630	in	control: stun and lift (PvP talent), 60 s
+258920	out	rotational damage and resource, 30 s (Soul Immolation 60 s)
+217832	in	control: incapacitate, 45 s (the PvP version 221527 is listed under it in Spells.lua)
+187827	in	defense: Vengeance's Metamorphosis, more health and armor, 120 s
+191427	in	burst: Havoc's Metamorphosis, 120 s
+206803	in	defense: the DH flies out of melee reach (PvP talent), 90 s (proposed)
+202138	out	pulls in and slows only, no control by the design's tags, 60 s
+204596	out	rotational damage, 30 s
+207684	in	control: fear where the sigil goes off, 120 s (Sigil of Silence 202137 on the same button)
+207407	out	rotational damage, 60 s
+188501	in	other: sees stealthed and invisible opponents, 30 s
+1251417	in	other: Devourer's own Spectral Sight, the same as 188501, 30 s (proposed, as its Devourer version)
+247454	out	rotational damage, under 30 s (25 s)
+370965	in	burst: Havoc's charge and damage, 90 s
+1246167	in	burst: Devourer's own The Hunt, the same as 370965, 90 s (proposed, as its Devourer version)
+185245	out	taunt, 8 s (Tormentor, its PvP version, 20 s)
+198793	out	movement only, under 30 s (25 s)
+1234195	in	control: Devourer's stun, 45 s
+
+# Druid
+22812	in	defense: 20% less damage, usable while stunned, 60 s
+50334	in	burst: Guardian's Berserk or Incarnation, 180 s
+106951	in	burst: Feral's Berserk or Incarnation, 180 s
+155835	out	tank's resource cooldown, 40 s
+194223	in	burst: Balance's Celestial Alignment (Orbital Strike's version on the same button), 180 s
+391528	in	burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed)
+1850	out	movement only, 120 s (Tiger Dash 45 s)
+201664	out	tank's area damage-done debuff (Guardian PvP talent), 30 s
+329042	out	Guardian's PvP talent: the druid sleeps and heals, rarely decides a fight, 120 s
+209749	in	control: disarm and slow (PvP talent), 30 s
+274837	out	rotational damage (Feral), 45 s
+205636	out	summons treants for damage, the aura is not on an opponent who matters, 60 s
+22842	out	tank's frequent self heal with charges, 36 s
+202770	out	rotational damage, 60 s
+354654	out	tank's PvP talent area, small absorb, 60 s
+6795	out	taunt, 8 s (Alpha Challenge, its PvP version, 20 s)
+1261867	out	off-role boost, the aura does not say which role it boosts, 120 s
+1261870	out	off-role boost, the aura does not say which role it boosts, 120 s
+99	in	control: incapacitate around the druid, 30 s
+102560	in	burst: Balance's Incarnation, listed in Spells.lua as a cast of Celestial Alignment 194223, 180 s
+33891	in	defense: Restoration's healing form, 180 s; Spells.lua watches its PvP replacement Ancient of Lore 473909 only (proposed: Tree of Life itself as well)
+29166	in	other: mana for a healer, 180 s
+102342	in	defense: 20% less damage on an ally, 90 s
+204066	out	tank's damage and healing area, 60 s
+22570	in	control: stun, 30 s
+102359	out	root only, not control by the design's tags, 30 s
+5211	in	control: stun, 60 s
+8921	out	rotational damage (Red Moon, its version, 30 s)
+132158	out	makes one cast instant, minor, 60 s
+202246	out	charge and knockdown, under 30 s (25 s)
+78675	in	control: silence area, 60 s
+106898	out	movement only, 120 s
+1253799	out	tank's damage cooldown, the aura says nothing an opponent feels, 60 s
+61336	in	defense: 50% less damage, 180 s
+5217	in	burst: Feral's energy and damage, 30 s
+740	in	defense: Restoration's channelled group heal, 180 s
+132469	out	knockback and slow only, 30 s
+102793	out	pull back and slow only, 60 s
+88747	out	rotational damage, 30 s with charges
+
+# Evoker
+408233	out	teleport utility, 60 s
+360827	out	small armor buff on an ally (Augmentation), 30 s
+383005	out	returns an opponent's health to an earlier value (PvP talent): neither control nor defense on its own, 45 s
+357210	in	burst: Deep Breath, 120 s; Augmentation's Breath of Eons 403631 takes its button
+375087	in	burst: Devastation's main damage cooldown, 120 s
+355936	out	rotational healing, 30 s
+359816	in	defense: Preservation's large group heal, 120 s (proposed)
+377509	out	minor PvP talent heal, 60 s
+395152	out	Augmentation's rotational buff, 30 s
+370960	in	defense: Preservation's channelled heal (PvP talent), 180 s
+359073	out	rotational damage, 30 s
+357208	out	rotational damage, 30 s
+390386	out	group haste once per fight (Exhaustion), not a row's concern
+358267	out	movement only, 35 s
+358385	out	root only, not control by the design's tags, 90 s
+363916	in	defense: 30% less damage, 90 s
+372048	out	lengthens other control, no control of its own, 120 s
+406971	out	lengthens other control, no control of its own, 120 s
+370665	out	movement: carries an ally, 60 s
+363534	in	defense: Preservation's group heal back over time, 240 s
+406732	out	casting while moving, utility, 180 s
+382731	out	rotational healing, 30 s
+370537	out	stores heals for later, utility, 90 s
+368970	out	knock-up and slow only, 180 s
+357170	in	defense: delays damage on an ally, 60 s
+404977	out	speeds up other cooldowns (Augmentation), no aura that matters, 180 s
+374968	out	movement for the team, 120 s
+378441	in	defense: an ally is untouchable for a moment (PvP talent), 45 s
+370553	out	makes one empower instant, minor, 120 s
+396286	out	rotational damage, 40 s
+360995	out	rotational healing, under 30 s (24 s)
+374227	in	defense: 20% less area damage for the team, 120 s
+
+# Hunter
+186257	out	movement only, 180 s
+186289	out	range for melee attacks, utility, 90 s
+356719	out	slow only (PvP talent; the data shows a 90% slow), 60 s
+186265	in	defense: immune to damage, 180 s
+19574	in	burst: Beast Mastery's main damage cooldown, 90 s
+109248	in	control: stun when the target leaves the tether, 45 s
+1261193	out	rotational damage (Survival), 60 s
+199483	out	stealth utility, 60 s
+272651	in	other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button)
+208652	out	summons a hawk for damage, 30 s
+212431	out	rotational damage, 30 s
+5384	out	drops target and threat, utility, 30 s
+1543	out	reveals stealth, under 30 s (20 s)
+187650	in	control: incapacitate in the trap, 30 s
+190925	out	movement only, under 30 s (20 s)
+466904	out	group haste once per fight, not a row's concern, 360 s
+19577	in	control: the pet's stun, 60 s
+474421	in	control: Marksmanship's own Intimidation, the same stun as 19577, 60 s (proposed, as its Marksmanship version)
+212640	out	small heal, under 30 s (25 s)
+34477	out	threat redirect, PvE, 30 s
+53480	in	defense: an ally takes less damage and the pet takes part, 120 s
+213691	in	control: incapacitate (PvP talent), 30 s
+407028	in	control: disarm (PvP talent), 45 s
+264735	in	defense: 30% less damage, 90 s
+1250646	in	burst: Survival's damage cooldown, 90 s
+187698	out	slow only, 30 s
+212638	out	root only, under 30 s (25 s)
+288613	in	burst: Marksmanship's main damage cooldown, 120 s
+260243	out	rotational damage (Marksmanship), 45 s
+356707	out	calls a creature for utility (PvP talent), 60 s
+
+# Mage
+342245	in	defense: returns health and place to an earlier moment, 60 s
+365350	in	burst: Arcane's main damage cooldown, 90 s
+353128	out	rotational damage (PvP talent), 45 s
+235313	in	defense: Fire's absorb, 30 s
+1953	out	movement only, under 30 s (Shimmer 30 s)
+235219	out	resets other cooldowns, no lasting aura of its own; Ice Block's entry carries noLearn for it, 300 s
+190319	in	burst: Fire's main damage cooldown, 120 s
+120	out	slow and root only, under 30 s (25 s)
+31661	in	control: disorient in a cone, 45 s
+12051	out	mana channel, 45 s
+122	out	root only, not control by the design's tags, 30 s
+84714	out	rotational damage, 60 s
+11426	in	defense: Frost's absorb, 30 s
+45438	in	defense: immune to damage, 240 s
+414658	in	defense: Ice Cold, the talent version of Ice Block, listed in Spells.lua as an aura of 45438, 240 s
+352278	out	a wall that blocks movement (PvP talent), no aura on a player that matters, 90 s
+66	in	defense: Greater Invisibility 110959, the talent on this button, is what Spells.lua watches (60% less damage); plain Invisibility 66 is a fade on a 300 s cooldown
+414664	in	other: invisibility for the team, 300 s
+383121	in	control: polymorph on several opponents, 60 s (proposed)
+55342	in	defense: images that take hits and lower damage, 120 s
+205025	out	makes casts instant, minor, 45 s
+235450	in	defense: Arcane's absorb, 30 s
+205021	out	rotational damage channel, 60 s
+113724	in	control: incapacitate in the ring, 45 s (Ring of Fire on the same button)
+389794	in	control: stun after standing in it (PvP talent), 45 s
+30449	out	dispel utility (Kleptomania, its PvP version, 20 s)
+80353	out	group haste once per fight (Temporal Displacement), not a row's concern
+321507	out	rotational damage window (Arcane), 45 s
+
+# Monk
+202162	out	Brewmaster PvP talent, splits damage with nearby allies briefly, minor, 45 s
+322507	out	Brewmaster's routine absorb, used on cooldown; Fortifying Brew is its big one, 90 s
+443028	out	hero talent's healing channel, 90 s
+1241059	out	Brewmaster's routine absorb, used on cooldown; Fortifying Brew is its big one, 90 s
+123986	out	rotational damage and healing, 30 s
+202335	out	readies a later stun; only a buff on the monk, which says nothing about the stun, 45 s
+325153	out	tank's damage and dodge area, 60 s
+113656	out	rotational damage channel, under 30 s (24 s)
+101545	out	movement only (Slicing Winds, its version, the same), 30 s
+115203	in	defense: more health and 20% less damage, 360 s
+233759	in	control: disarm (PvP talent), 45 s
+325197	in	defense: Mistweaver's healing celestial, 120 s
+132578	in	defense: Brewmaster's celestial, 120 s
+123904	in	burst: Windwalker's celestial, 120 s (proposed)
+322118	in	defense: Mistweaver's healing celestial, 120 s
+119381	in	control: stun around the monk, 60 s
+116849	in	defense: large absorb on an ally, 120 s
+354540	in	defense: breaks stuns and fears (PvP talent), 90 s
+115078	in	control: incapacitate, 45 s
+115546	out	taunt, 8 s (Admonishment, its PvP version, 20 s)
+115310	in	defense: Mistweaver's group heal and dispel, 180 s (proposed)
+109132	out	movement only, under 30 s (20 s)
+198898	in	control: disorient in a line, 30 s
+116680	out	empowers the next heal, rotational, 30 s
+116841	in	other: frees an ally from roots and slows, 30 s
+322109	out	an execute, its marks are no cooldown a teammate should plan around, 180 s
+122470	in	defense: absorb that redirects damage, 90 s
+152175	out	rotational damage, 35 s
+126892	out	teleport utility, 60 s
+1249625	in	burst: Windwalker's damage cooldown, 90 s with charges
+
+# Paladin
+31850	in	defense: 30% less damage and a cheat death, 90 s
+31821	in	defense: Holy's group aura, 180 s
+216331	in	defense burst: Holy's healing and damage form, 60 s
+31884	in	burst: Avenging Wrath, 120 s; Protection's Sentinel 389539 takes its button
+1044	out	frees from roots and slows, under 30 s (25 s)
+1022	in	defense: immune to physical damage on an ally, 300 s
+6940	in	defense: takes part of an ally's damage, cannot be on oneself, 120 s (Ultimate Sacrifice's 199448 on the same button)
+210256	in	defense: removes stuns, fears and silences from an ally (PvP talent), 60 s
+204018	in	defense: Blessing of Spellwarding, immune to magic on an ally, listed in Spells.lua as an aura of 1022, 300 s
+115750	in	control: disorient around the paladin, 90 s (Searing Glare on the same button)
+498	in	defense: 20% less damage, 60 s
+403876	in	defense: Retribution's Divine Protection, listed in Spells.lua as a cast of 498, 60 s
+642	in	defense: immune to damage, 300 s
+190784	out	movement only, 45 s
+375576	out	rotational damage and healing, 60 s
+343527	in	burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed)
+86659	in	defense: 50% less damage (Protection), 180 s (Guardian of the Forgotten Queen on the same button)
+853	in	control: stun, 45 s
+62124	out	taunt, 8 s (Inquisition, its PvP version, 20 s)
+432459	out	hero talent's rotational absorb, 60 s with charges
+215652	out	Protection PvP talent, silences once on the next hit, minor, 45 s
+255937	out	rotational damage and slow, 30 s
+
+# Priest
+121536	out	movement only, under 30 s (20 s)
+200183	in	defense: Holy's healing cooldown, 120 s
+19236	in	defense: a large self heal, 90 s
+47585	in	defense: 75% less damage, 120 s
+64843	in	defense: Holy's channelled group heal, 180 s
+205364	in	control: mind control on an opponent, 30 s (proposed)
+472433	out	extends healing over time already out (Discipline), a ramp tool, 90 s
+586	out	threat drop and small reduction, 30 s
+47788	in	defense: prevents an ally's death, 180 s
+120517	out	rotational healing and damage, 60 s
+120644	out	rotational healing and damage, 60 s
+88625	in	control: incapacitate or stun, 60 s
+34861	out	rotational healing, 60 s
+2050	out	rotational healing, 60 s
+73325	out	pulls an ally to the priest, movement, 90 s
+375901	out	turns damage and healing around on an opponent briefly; neither control nor defense on its own, 45 s
+33206	in	defense: 40% less damage on an ally, 180 s
+10060	in	burst: haste on an ally, 120 s
+62618	in	defense: 20% less damage in an area for the team, 180 s
+8122	in	control: fear around the priest, 40 s
+211522	out	a summon whose fear comes later from the pet; the data shows no fear aura from the cast, 45 s
+15487	in	control: silence, 30 s
+20711	out	the form after death (Holy), no cast to plan around
+421453	in	defense: Discipline's healing channel, immune to control, 240 s
+15286	in	defense: Shadow's group heal from its damage, 120 s (proposed)
+263165	out	rotational damage channel, 30 s
+228260	in	burst: Shadow's main damage cooldown, 120 s
+
+# Rogue
+13750	in	burst: Outlaw's main damage cooldown, 180 s
+315341	out	rotational damage, 45 s
+13877	out	rotational cleave, 30 s
+271877	out	rotational damage and movement, 60 s
+2094	in	control: disorient, 120 s
+31224	in	defense: immune to magic, 120 s
+185311	out	small self heal, 30 s
+269513	out	rotational damage (PvP talent), 30 s
+360194	in	burst: Assassination's damage mark on the opponent, 120 s
+207777	in	control: disarm (PvP talent), 45 s
+5277	in	defense: dodge melee and ranged attacks, 120 s
+426591	out	hero talent's rotational damage, 45 s
+1776	out	incapacitate, but under 30 s (25 s)
+195457	out	movement only, 45 s
+408	in	control: stun, 30 s
+51690	in	burst: Outlaw's damage cooldown, 180 s (proposed)
+385627	in	burst: Assassination's damage mark on the opponent, 60 s
+1214909	out	rotational buff, 45 s
+280719	out	rotational damage, under 30 s (25 s)
+121471	in	burst: Subtlety's main damage cooldown, 90 s
+185313	out	rotational, under 30 s (20 s)
+5938	out	rotational damage and dispel, 30 s
+114018	out	group stealth for moving, utility, 360 s
+212182	in	defense: the team inside cannot be targeted from outside and takes less damage (PvP talent), 180 s (proposed)
+2983	out	movement only, 120 s
+57934	out	threat and damage redirect, rotational, 30 s
+1856	in	other: drops every target into stealth, 120 s (proposed)
+
+# Shaman
+443454	out	makes one cast instant, minor, 30 s
+114050	in	burst: Elemental's Ascendance, 180 s
+114052	in	defense: Restoration's Ascendance, a healing cooldown, 180 s
+556	out	teleport utility, 600 s
+108271	in	defense: 40% less damage, 120 s
+2825	out	group haste once per fight (Sated), not a row's concern
+409293	in	defense: the shaman is out of reach under ground (PvP talent), 120 s
+192058	in	control: stun where the totem goes off, 60 s
+204331	out	PvP totem that reflects some damage, minor, 45 s
+384352	in	burst: Enhancement's Ascendance 114051 takes this button (talent); Doom Winds itself is a damage window, 60 s
+198103	out	summons a guardian that taunts creatures; nothing an opponent feels, 180 s
+204336	out	absorbs one spell, the aura is on the totem's area, 30 s
+108280	in	defense: Restoration's healing totem, 180 s
+32182	out	group haste once per fight (Exhaustion), not a row's concern
+51514	in	control: polymorph, 30 s
+305483	in	control: stun channel (PvP talent), 45 s
+378081	out	makes one cast instant, minor, 60 s
+98008	in	defense: shares health and lowers damage for the team, 180 s
+58875	out	movement only, 60 s
+79206	in	other: casting while moving, 120 s
+191634	in	burst: Elemental's empowered casts, 60 s
+444995	out	hero talent's rotational totem, under 30 s (25 s)
+51490	out	knockback and slow only, 30 s
+73685	out	rotational healing, under 30 s (20 s)
+192077	out	movement for the team, 120 s
+
+# Warlock
+1271802	out	weakening curse on an opponent, no control by the design's tags, 120 s
+1271748	out	weakening curse on an opponent, no control by the design's tags, 120 s
+353753	out	PvP talent that knocks back, no control by the design's tags, 30 s
+104316	out	rotational summon, under 30 s (20 s)
+212459	out	summons a felguard that stuns by itself (PvP talent): the data shows no stun from the cast, 120 s
+152108	out	rotational damage, 30 s
+196447	out	rotational damage channel, under 30 s (25 s)
+29893	out	out-of-combat utility, 120 s
+1257052	out	rotational damage, 60 s
+108416	in	defense: absorb from the warlock's health, 60 s
+333889	out	quick pet summon, utility, 180 s
+108503	out	sacrifices the pet for a passive buff, 30 s
+80240	out	rotational cleave (Bane of Havoc, its PvP version, 45 s)
+5484	in	control: fear around the warlock, 40 s
+442726	in	burst: Malevolence, 60 s
+6789	in	control: horrify, 45 s
+212295	in	defense: reflects spells (PvP talent), 45 s
+264130	out	rotational resource, 30 s
+698	out	out-of-combat utility, 120 s
+30283	in	control: stun in an area, 60 s
+6353	out	rotational damage, 45 s
+410598	in	defense: opponents nearby deal 25% less damage (PvP talent), 60 s (proposed)
+386951	out	rotational damage over time copy, 30 s
+20707	out	battle resurrection: no use in an arena round
+205180	in	burst: Affliction's main damage cooldown, 120 s
+265187	in	burst: Demonology's main damage cooldown, 60 s
+1276672	in	burst: Demonology's large summon, 120 s (proposed)
+1122	in	burst control: Destruction's Infernal, its landing stuns, 120 s
+104773	in	defense: 25% less damage and no interrupts, 180 s
+
+# Warrior
+107574	in	burst: Avatar, 90 s
+18499	in	defense: breaks fear; Spells.lua watches Berserker Shout 384100, the talent on this button, which frees allies too, 60 s
+227847	in	burst: Bladestorm, 90 s
+1161	out	taunt, 120 s
+376079	out	rotational damage, 90 s
+100	out	movement only, under 30 s (20 s)
+167105	out	rotational damage window (Warbreaker on the same button), 45 s
+436358	out	hero talent's rotational damage, 30 s
+1160	out	tank's area damage-done debuff, 45 s
+118038	in	defense: parry and 30% less damage, 120 s
+236077	in	control: disarm (PvP talent), 45 s
+236273	out	a duel (PvP talent): neither side takes help, no control, 60 s
+184364	in	defense: Fury's healing and 30% less damage, 120 s
+6544	out	movement only, 45 s
+1277297	out	rotational absorb, under 30 s (20 s)
+1244088	in	defense: takes part of the team's damage, like Intervene, 30 s (proposed)
+3411	in	defense: takes the next hits for an ally, cannot be on oneself, 30 s
+5246	in	control: fear around the warrior, 90 s
+316593	in	control: the other Intimidating Shout, the same fear as 5246, 90 s (proposed, as its version)
+12975	in	defense: more health, 180 s
+385059	out	rotational damage, 45 s
+12323	out	slow only, 90 s
+97462	in	defense: more health for the team, 180 s
+228920	out	rotational damage, 90 s
+1719	in	burst: Fury's main damage cooldown, 90 s
+385952	in	control: Protection's charge stuns, 45 s (proposed)
+871	in	defense: 40% less damage, 180 s
+46968	in	control: stun in a cone, 40 s
+260643	out	rotational damage, under 30 s (21 s)
+392966	out	tank's spell block, PvE, 90 s
+23920	out	reflects a spell, under 30 s (25 s)
+107570	in	control: stun, 30 s
+260708	out	rotational cleave, 30 s
+355	out	taunt, 8 s (Oppressor, its PvP version, 20 s)
+384318	out	rotational damage, 90 s

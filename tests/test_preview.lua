@@ -33,7 +33,7 @@ check(p[2] == df and p[1] == "TOPLEFT" and p[3] == "TOPLEFT", "a stand-in is pla
 eq(p[4], 132, "one frame and a gap to the right")
 eq(p[5], 0, "on the same line")
 p = stand.party2.__point
-eq(p[4], 264, "the second two frames over")
+eq(p[4], -132, "grown from the centre: the second on the other side")
 check(not rows.party1.bg:IsShown(), "an anchored row has no drag background")
 check(stand.party1.label.__text:find("Test", 1, true) or stand.party1.label.__text:find("測試", 1, true), "the stand-in says it is a sample")
 
@@ -52,13 +52,19 @@ layout.growDirection = "VERTICAL"
 UI.Refresh()
 p = stand.party2.__point
 eq(p[4], 0, "vertical: no sideways step")
-eq(p[5], -204, "two frames and two gaps down")
+eq(p[5], 102, "grown from the centre: one frame and a gap up")
+layout.growthAnchor = "START"
+UI.Refresh()
+eq(stand.party2.__point[5], -204, "grown from the start: two frames and two gaps down")
 layout.growDirection = "HORIZONTAL"
+UI.Refresh()
+eq(stand.party2.__point[4], 264, "and sideways: two frames over")
+layout.growthAnchor = "CENTER"
 
 -- the frames scaled: the stand-ins with them
 layout.frameScale = 0.5
 UI.Refresh()
-eq(stand.party2.__point[4], 132, "half scale: half the step")
+eq(stand.party2.__point[4], -66, "half scale: half the step")
 layout.frameScale = 1
 
 -- without DandersFrames: the player's frame alone, stand-ins the same size below it

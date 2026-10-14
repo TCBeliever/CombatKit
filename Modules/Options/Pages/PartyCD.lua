@@ -47,6 +47,26 @@ local function Changed()
 	O.Changed()
 end
 
+local MEDALLION = 336126   -- Gladiator's Medallion: the PvP trinket's icon
+
+-- a spell's icon between a check box and its name; the click area takes the
+-- icon in, whatever the label (a language change sets it again)
+local function WithIcon(c)
+	c.icon = c:CreateTexture(nil, "ARTWORK")
+	c.icon:SetSize(16, 16)
+	c.icon:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
+	c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	c.label:ClearAllPoints()
+	c.label:SetPoint("LEFT", c.icon, "RIGHT", 6, 0)
+	local SetLabel = c.SetLabel
+	function c:SetLabel(label)
+		SetLabel(self, label)
+		self:SetWidth(self:GetWidth() + 22)
+	end
+	c:SetLabel(c.label:GetText())
+	return c
+end
+
 -- ---------------------------------------------------------------- the display
 local function BuildMain(p)
 	Skin.Field(p, "Show", 0, 0)
@@ -55,10 +75,11 @@ local function BuildMain(p)
 		Changed()
 	end), "Externals (buffs put on an ally)")
 	p.externals:SetPoint("TOPLEFT", X, -1)
-	p.trinket = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.trinket = CK.Bind(WithIcon(Skin.Checkbox(p, "", function(checked)
 		AR.db.trinket = checked
 		Changed()
-	end), "The PvP trinket")
+	end)), "The PvP trinket")
+	p.trinket.icon:SetTexture(C_Spell.GetSpellTexture(MEDALLION) or 134400)
 	p.trinket:SetPoint("TOPLEFT", X, -21)
 
 	-- by the party frames: which side, how far, shifted along the edge
@@ -151,12 +172,31 @@ end
 -- A class picked at the top; under it the class's
 -- abilities by category. A category's own box ticks or unticks everything
 -- under it, for the class shown; every ability has its box, its icon between
--- the box and the name. The categories sit in two columns, each in the
--- shorter one, so a class with many abilities still fits the window.
+-- the box and the name. The categories sit in two columns, in their order
+-- down the first and on into the second (the order of the icons in a row),
+-- broken where the taller column is shortest, so a class with many abilities
+-- still fits the window.
 local ROW_H = 20
+local GAP = 6         -- under a category
 local COL_MIN = 290   -- the second column starts at half the page, never closer than this
 local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Offensive cooldowns" }, { "control", "Crowd control" },
 	{ "other", "Other" } }
+
+-- how many of the categories go in the first column, given each one's height
+-- (0 for one the class does not have): the break that makes the taller column
+-- shortest, the first column taking the extra one on a tie. The last one
+-- (other) always ends the second column, bottom right.
+local function FirstColumn(heights)
+	local total = 0
+	for _, h in ipairs(heights) do total = total + h end
+	local best, bestTall, left = 0, total, 0
+	for k = 1, #heights - 1 do
+		left = left + heights[k]
+		local tall = math.max(left, total - left)
+		if tall <= bestTall then best, bestTall = k, tall end
+	end
+	return best
+end
 
 -- a tick: kept only when it differs from the default, so a later change of
 -- the default reaches every ability the user left alone
@@ -182,14 +222,7 @@ end
 
 -- a check box with the spell's icon between the box and the name
 local function AbilityRow(parent, onChange)
-	local c = Skin.Checkbox(parent, "", onChange)
-	c.icon = c:CreateTexture(nil, "ARTWORK")
-	c.icon:SetSize(16, 16)
-	c.icon:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
-	c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-	c.label:ClearAllPoints()
-	c.label:SetPoint("LEFT", c.icon, "RIGHT", 6, 0)
-	return c
+	return WithIcon(Skin.Checkbox(parent, "", onChange))
 end
 
 local function BuildSpells(p)
@@ -224,7 +257,14 @@ local function RefreshSpells(p)
 	local list = AR.SPELLS[p.class] or {}
 	local tops, used = { -34, -34 }, 0
 	local colX = math.max(COL_MIN, math.floor((p:GetWidth() or 0) / 2))
-	for _, cat in ipairs(CATEGORIES) do
+	local heights = {}
+	for i, cat in ipairs(CATEGORIES) do
+		local n = 0
+		for _, def in ipairs(list) do if def.tag == cat[1] then n = n + 1 end end
+		heights[i] = n > 0 and (n + 1) * ROW_H + GAP or 0
+	end
+	local first = FirstColumn(heights)
+	for i, cat in ipairs(CATEGORIES) do
 		local role = cat[1]
 		local header = p.headers[role]
 		local any, all = false, true
@@ -236,7 +276,7 @@ local function RefreshSpells(p)
 		end
 		header:SetShown(any)
 		if any then
-			local col = tops[2] > tops[1] and 2 or 1
+			local col = i <= first and 1 or 2
 			local x, y = (col - 1) * colX, tops[col]
 			header:ClearAllPoints()
 			header:SetPoint("TOPLEFT", x, y)
@@ -257,7 +297,6 @@ local function RefreshSpells(p)
 					c.def = def
 					c.icon:SetTexture(C_Spell.GetSpellTexture(def.id) or 134400)
 					c:SetLabel(SpellName(def))
-					c:SetWidth(c:GetWidth() + 22)   -- the icon between the box and the name
 					c:SetChecked(AR.Picked(def, db.picked))
 					c:ClearAllPoints()
 					c:SetPoint("TOPLEFT", x + 24, y)
@@ -265,7 +304,7 @@ local function RefreshSpells(p)
 					y = y - ROW_H
 				end
 			end
-			tops[col] = y - 6   -- a gap under the category
+			tops[col] = y - GAP
 		end
 	end
 	for i = used + 1, #p.abilities do p.abilities[i]:Hide() end
@@ -294,7 +333,7 @@ O.AddSection({
 	key = "PartyCD",
 	module = "PartyCD",
 	order = 35,
-	tab = function() return L["MOD_PartyCD"] end,
+	tab = function() return L["TAB_PartyCD"] end,   -- short in the tab list; the page says beta
 	GetNodes = function()
 		return {
 			{ key = "main", label = L["MOD_PartyCD"] },

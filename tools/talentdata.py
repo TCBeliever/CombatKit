@@ -366,42 +366,70 @@ def main():
     write(build, watched, base, mods, spec, name, kind)
     print("\nwrote %s" % os.path.relpath(OUT, ROOT))
 
+class LiveTalents:
+    """The nodes of the live talent trees and the specializations that see each one.
+
+    A talent counts only when its TraitDefinition reaches a node (TraitNodeEntry ->
+    TraitNodeXTraitNodeEntry -> TraitNode): a definition with no node is a removed talent.
+    For a class reworked in a patch the data keeps the old tree as well; its loadout rows
+    (TraitTreeLoadout) are all numbered under 500, the live tree's are not, so old trees
+    are left out.
+
+      node_specs  node -> the specializations whose tree shows it (a spec-set condition
+                  on the node or its group), or None for a class-tree node: every spec
+      def_nodes   TraitDefinition -> its live nodes
+      tree_of     node -> its tree
+      tree_specs  live tree -> the specializations that load it (gives the class)
+    """
+    def __init__(self, db):
+        rows = defaultdict(list)
+        self.tree_specs = defaultdict(set)
+        for r in db.rows("TraitTreeLoadout"):
+            rows[int(r["TraitTreeID"])].append(int(r["ID"]))
+            self.tree_specs[int(r["TraitTreeID"])].add(int(r["ChrSpecializationID"]))
+        old = {t for t, ids in rows.items() if max(ids) < 500}
+        for t in old:
+            del self.tree_specs[t]
+        spec_sets = defaultdict(set)
+        for r in db.rows("SpecSetMember"):
+            spec_sets[int(r["SpecSet"])].add(int(r["ChrSpecializationID"]))
+        shown_by = {}   # condition -> spec set, for the "available" (0) and "visible" (1) conditions
+        for r in db.rows("TraitCond"):
+            if r["CondType"] in ("0", "1") and r["SpecSetID"] not in ("", "0"):
+                shown_by[int(r["ID"])] = int(r["SpecSetID"])
+        node_conds = defaultdict(set)
+        for r in db.rows("TraitNodeXTraitCond"):
+            node_conds[int(r["TraitNodeID"])].add(int(r["TraitCondID"]))
+        group_conds = defaultdict(set)
+        for r in db.rows("TraitNodeGroupXTraitCond"):
+            group_conds[int(r["TraitNodeGroupID"])].add(int(r["TraitCondID"]))
+        for r in db.rows("TraitNodeGroupXTraitNode"):
+            node_conds[int(r["TraitNodeID"])] |= group_conds.get(int(r["TraitNodeGroupID"]), set())
+        self.tree_of = {int(r["ID"]): int(r["TraitTreeID"]) for r in db.rows("TraitNode")}
+        entry_def = {int(r["ID"]): int(r["TraitDefinitionID"]) for r in db.rows("TraitNodeEntry")}
+        self.def_nodes = defaultdict(set)
+        for r in db.rows("TraitNodeXTraitNodeEntry"):
+            e = int(r["TraitNodeEntryID"])
+            if e in entry_def and self.tree_of.get(int(r["TraitNodeID"])) not in old:
+                self.def_nodes[entry_def[e]].add(int(r["TraitNodeID"]))
+        self.node_specs = {}
+        for nodes in self.def_nodes.values():
+            for n in nodes:
+                if n not in self.node_specs:
+                    sets = [shown_by[c] for c in node_conds.get(n, ()) if c in shown_by]
+                    self.node_specs[n] = set().union(*(spec_sets[ss] for ss in sets)) if sets else None
+
 def tree_spec_audit(db, watched):
     """(spellID, (Spells.lua specs or None, tree specs), comment) for each watched talent whose
     nodes a spec-set condition limits to other specializations than Spells.lua says. A node
     with no such condition is in the class tree: every spec. Old trees (all loadout rows
     numbered under 500) are left out."""
-    rows = defaultdict(list)
-    for r in db.rows("TraitTreeLoadout"):
-        rows[int(r["TraitTreeID"])].append(int(r["ID"]))
-    spec_sets = defaultdict(set)
-    for r in db.rows("SpecSetMember"):
-        spec_sets[int(r["SpecSet"])].add(int(r["ChrSpecializationID"]))
-    shown_by = {}   # condition -> spec set, for the "available" (0) and "visible" (1) conditions
-    for r in db.rows("TraitCond"):
-        if r["CondType"] in ("0", "1") and r["SpecSetID"] not in ("", "0"):
-            shown_by[int(r["ID"])] = int(r["SpecSetID"])
-    node_conds = defaultdict(set)
-    for r in db.rows("TraitNodeXTraitCond"):
-        node_conds[int(r["TraitNodeID"])].add(int(r["TraitCondID"]))
-    group_conds = defaultdict(set)
-    for r in db.rows("TraitNodeGroupXTraitCond"):
-        group_conds[int(r["TraitNodeGroupID"])].add(int(r["TraitCondID"]))
-    for r in db.rows("TraitNodeGroupXTraitNode"):
-        node_conds[int(r["TraitNodeID"])] |= group_conds.get(int(r["TraitNodeGroupID"]), set())
-    tree_of = {int(r["ID"]): int(r["TraitTreeID"]) for r in db.rows("TraitNode")}
-    old = {t for t, ids in rows.items() if max(ids) < 500}
-    entry_def = {int(r["ID"]): int(r["TraitDefinitionID"]) for r in db.rows("TraitNodeEntry")}
-    def_nodes = defaultdict(set)
-    for r in db.rows("TraitNodeXTraitNodeEntry"):
-        e = int(r["TraitNodeEntryID"])
-        if e in entry_def and tree_of.get(int(r["TraitNodeID"])) not in old:
-            def_nodes[entry_def[e]].add(int(r["TraitNodeID"]))
+    live = LiveTalents(db)
     spell_nodes = defaultdict(set)
     for r in db.rows("TraitDefinition"):
         for v in (r["SpellID"], r["VisibleSpellID"]):
             if v not in ("", "0"):
-                spell_nodes[int(v)] |= def_nodes.get(int(r["ID"]), set())
+                spell_nodes[int(v)] |= live.def_nodes.get(int(r["ID"]), set())
     out = []
     for sid, _, _, hand, comment in watched:
         nodes = spell_nodes.get(sid)
@@ -409,12 +437,10 @@ def tree_spec_audit(db, watched):
             continue   # not a talent: a class skill, a spec spell, a PvP talent or a pet's
         specs = set()
         for n in nodes:
-            sets = [shown_by[c] for c in node_conds.get(n, ()) if c in shown_by]
-            if not sets:
+            if live.node_specs[n] is None:
                 specs = None   # a node of the class tree
                 break
-            for ss in sets:
-                specs |= spec_sets[ss]
+            specs |= live.node_specs[n]
         if specs is None:
             if hand:
                 out.append((sid, (hand, {"every spec"}), comment))

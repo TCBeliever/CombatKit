@@ -310,13 +310,17 @@ end
 -- frame (alone, or a group short of them), a box stands where their frame
 -- would be, so the rows can be adjusted as in an arena. Its size and place
 -- come from DandersFrames' own settings when it draws the party (frame size,
--- spacing, direction), next to the player's real frame; from the player's
--- frame alone otherwise (the same size, stacked below it). Without a frame
+-- spacing, direction; grown from the centre, one on each side), next to the
+-- player's real frame; from the player's frame alone otherwise (the same
+-- size, stacked below it). Without a frame
 -- of the player's own there is nothing to stand next to: the loose rows stay.
 -- A stand-in is clearly a sample: a dim box with a coloured edge and a label.
 -- ---------------------------------------------------------------------------
 local standIns = {}
 local SLOT = { party1 = 1, party2 = 2 }   -- how many frames over from the player's
+-- DandersFrames growing from the centre puts the group around the middle: the
+-- player's frame stays where it is alone, a teammate on each side of it
+local SLOT_CENTERED = { party1 = 1, party2 = -1 }
 
 local function DFConfig()
 	if not DandersFrames_GetPartyConfig then return nil end
@@ -330,7 +334,8 @@ local function DFPlayerFrame()
 	if ok then return FirstShowing(frames, "player") end
 end
 
--- the frame to measure from, a stand-in's width and height, and the step per slot
+-- the frame to measure from, a stand-in's width and height, the step per slot,
+-- and whether the group grows from its centre
 local function StandInGeometry()
 	local cfg = DFConfig()
 	local mine = cfg and DFPlayerFrame()
@@ -338,8 +343,9 @@ local function StandInGeometry()
 		local scale = tonumber(cfg.frameScale) or 1
 		local w, h = cfg.frameWidth * scale, cfg.frameHeight * scale
 		local gap = (tonumber(cfg.frameSpacing) or 0) * scale
-		if cfg.growDirection == "VERTICAL" then return mine, w, h, 0, -(h + gap) end
-		return mine, w, h, w + gap, 0
+		local centered = cfg.growthAnchor == "CENTER"
+		if cfg.growDirection == "VERTICAL" then return mine, w, h, 0, -(h + gap), centered end
+		return mine, w, h, w + gap, 0, centered
 	end
 	mine = FindFrame("player")
 	if not mine then return nil end
@@ -381,10 +387,10 @@ end
 
 -- the stand-in placed for a unit, or nil when there is nothing to stand next to
 local function PlaceStandIn(unit)
-	local slot = SLOT[unit]
-	if not slot then return nil end
-	local mine, w, h, dx, dy = StandInGeometry()
+	if not SLOT[unit] then return nil end
+	local mine, w, h, dx, dy, centered = StandInGeometry()
 	if not mine then return nil end
+	local slot = (centered and SLOT_CENTERED or SLOT)[unit]
 	local f = StandIn(unit)
 	f:SetSize(w, h)
 	f:ClearAllPoints()
