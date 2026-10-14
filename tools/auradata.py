@@ -48,10 +48,11 @@ def whom(t0, t1):
     return "target " + "/".join(str(x) for x in sorted(t))
 
 def watched():
-    """(spellID, kind, aura IDs, comment) per entry of Spells.lua"""
+    """(spellID, kind, aura IDs, comment) per entry of Spells.lua, the racial abilities included"""
     text = open(SPELLS, encoding="utf-8").read()
     out = []
-    for m in re.finditer(r"\b(Caster|Ally|OtherAlly|Allies|Enemy|Enemies|EnemyLater)\((\d+),\s*(\d+)(.*?)\),?\s*--\s*(.*)", text):
+    # a racial entry closes its race's braces too: ") },  -- name"
+    for m in re.finditer(r"\b(Caster|Ally|OtherAlly|Allies|Enemy|Enemies|EnemyLater)\((\d+),\s*(\d+)(.*?)\)(?:\s*\})?,?\s*--\s*(.*)", text):
         sid, extra = int(m.group(2)), m.group(4)
         many = re.search(r"auras\s*=\s*\{([\d,\s]+)\}", extra)
         one = re.search(r"\baura\s*=\s*(\d+)", extra)

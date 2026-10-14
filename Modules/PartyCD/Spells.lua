@@ -190,7 +190,7 @@ ns.SPELLS = {
 		EnemyLater(109248, 45, 10, "control", { aura = 117526 }),  -- Binding Shot: the stun is 117526, when the target leaves the tether
 	},
 	MAGE = {
-		Caster(45438, 240, "defense", { auras = { 45438, 414658 }, big = true, extraCharge = true, noLearn = true }),  -- Ice Block, or Ice Cold; Cold Snap resets it
+		Caster(45438, 240, "defense", { auras = { 45438, 414658 }, casts = { 414658 }, big = true, extraCharge = true, noLearn = true }),  -- Ice Block, or Ice Cold, which takes its button (12.1.5); Cold Snap resets it
 		Caster(342245, 60, "defense", { aura = 342246 }),  -- Alter Time
 		Caster(110959, 120, "defense", { auras = { 110960, 113862 } }),  -- Greater Invisibility
 		Caster(55342, 120, "defense"),          -- Mirror Image
@@ -308,19 +308,22 @@ ns.SPELLS = {
 	},
 }
 
--- Racial abilities, by the race (UnitRace's second value) and its race ID (for
--- the race's name). Shown on the spells page under "Racial" for a look; not
--- watched yet: teammates' races are not read and the PvP trinket's shared
--- cooldown (category 1166: Stoneform, Fireblood) is still to be measured
--- (docs/PartyCD-next.md, B). Cooldowns and auras are the game's data.
+-- Racial abilities, by the race (UnitRace's second value, the same for the
+-- three pandaren) and its race ID (for the race's name). A teammate of that
+-- race gets the ability at the end of the row, after every class ability;
+-- the spells page lists them under "Racial". Cooldowns and auras are the
+-- game's data (tools/candidates.py lists them from the racial skill lines).
+-- Stoneform and Fireblood share a cooldown category with the PvP trinket
+-- (1166); whether a trinket use puts them on cooldown is still to be measured
+-- in game (docs/park_lot.md), until then they count their own 120 s.
 -- `defaultOff` keeps an ability off by default whatever its cooldown.
 ns.RACIALS = {
 	{ race = "Dwarf", raceID = 3, Caster(20594, 120, "defense", { aura = 65116 }) },  -- Stoneform: the buff is 65116
 	{ race = "DarkIronDwarf", raceID = 34, Caster(265221, 120, "defense", { aura = 265226 }) },  -- Fireblood: the buff is 265226
-	{ race = "NightElf", raceID = 4, Caster(58984, 120, "defense") },  -- Shadowmeld (defense or other: to decide)
+	{ race = "NightElf", raceID = 4, Caster(58984, 120, "other") },  -- Shadowmeld: stealth, no damage taken off
 	{ race = "Orc", raceID = 2, Caster(33697, 120, "burst", { casts = { 20572, 33702 }, auras = { 33697, 20572, 33702 }, defaultOff = true }) },  -- Blood Fury, in each class's version
 	{ race = "Troll", raceID = 8, Caster(26297, 180, "burst", { defaultOff = true }) },  -- Berserking
-	{ race = "MagharOrc", raceID = 36, Caster(274738, 120, "burst", { auras = { 274739, 274740, 274741, 274742 }, defaultOff = true }) },  -- Ancestral Call: one of four buffs
+	{ race = "MagharOrc", raceID = 36, Caster(274738, 120, "burst", { auras = { 274738, 274739, 274740, 274741, 274742 }, defaultOff = true }) },  -- Ancestral Call: its own aura, and one of four buffs
 	{ race = "Pandaren", raceID = 24, Enemy(107079, 120, "control") },  -- Quaking Palm
 	{ race = "Tauren", raceID = 6, Enemy(20549, 90, "control") },  -- War Stomp
 	{ race = "KulTiran", raceID = 32, Enemy(287712, 150, "control") },  -- Haymaker
@@ -353,19 +356,28 @@ for _, r in ipairs(ns.RACIALS) do
 	ns.RACIAL_LIST[#ns.RACIAL_LIST + 1] = def
 end
 
--- every definition by spell ID, and the classes that have it
+-- every definition by spell ID, and the classes (or the race) that have it
 ns.SPELL_BY_ID = {}
 ns.SPELL_BY_CAST = {}   -- a spell ID the ability is cast as, when not its own
 ns.CLASSES_WITH = {}
+ns.RACES_WITH = {}
+local function Register(def)
+	ns.SPELL_BY_ID[def.id] = def
+	for _, cast in ipairs(def.casts or {}) do ns.SPELL_BY_CAST[cast] = def end
+end
 for class, list in pairs(ns.SPELLS) do
 	for _, def in ipairs(list) do
 		def.class = class
 		Complete(def)
-		ns.SPELL_BY_ID[def.id] = def
-		for _, cast in ipairs(def.casts or {}) do ns.SPELL_BY_CAST[cast] = def end
+		Register(def)
 		ns.CLASSES_WITH[def.id] = ns.CLASSES_WITH[def.id] or {}
 		ns.CLASSES_WITH[def.id][class] = true
 	end
+end
+for _, def in ipairs(ns.RACIAL_LIST) do
+	Register(def)
+	ns.RACES_WITH[def.id] = ns.RACES_WITH[def.id] or {}
+	ns.RACES_WITH[def.id][def.race] = true
 end
 
 -- whether a definition carries this tag, main or not
@@ -390,14 +402,19 @@ function ns.Picked(def, picked)
 	return v
 end
 
--- the definitions a teammate of this class gets, in list order, under a
--- selection { picked = { [spellID] = bool } } (anything else: every tick at
--- its default)
-function ns.SpellsFor(class, sel)
+-- the definitions a teammate of this class (and race, when known) gets, in
+-- list order, under a selection { picked = { [spellID] = bool } } (anything
+-- else: every tick at its default): the class's abilities, then the race's
+function ns.SpellsFor(class, sel, race)
 	if type(sel) ~= "table" then sel = {} end
 	local out = {}
 	for _, def in ipairs(ns.SPELLS[class] or {}) do
 		if ns.Picked(def, sel.picked) then out[#out + 1] = def end
+	end
+	if race then
+		for _, def in ipairs(ns.RACIAL_LIST) do
+			if def.race == race and ns.Picked(def, sel.picked) then out[#out + 1] = def end
+		end
 	end
 	return out
 end

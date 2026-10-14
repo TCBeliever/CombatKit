@@ -27,6 +27,8 @@ local function GrowItems()
 	return items
 end
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
+-- the highlight while an aura is up: the game's own animated borders (UI.lua)
+local GLOWS = { { "ants", "Highlight: ants" }, { "thin", "Highlight: thin ants" }, { "proc", "Highlight: proc" } }
 local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
 	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
 
@@ -149,6 +151,15 @@ local function BuildMain(p)
 		O.Refresh()
 	end), "Show sample rows")
 	p.test:SetPoint("TOPLEFT", X, y - 1)
+
+	-- the highlight while an aura is up
+	y = y - 24
+	Skin.Field(p, "Highlight", 0, y)
+	p.glow = Skin.Dropdown(p, 140, Items(GLOWS), function(_, item)
+		AR.db.glowStyle = item.value
+		Changed()
+	end)
+	p.glow:SetPoint("TOPLEFT", X, y)
 end
 
 local function RefreshMain(p)
@@ -169,6 +180,9 @@ local function RefreshMain(p)
 	end
 	p.unlock:SetChecked(not AR.IsLocked())
 	p.test:SetChecked(AR.IsTesting())
+	for _, g in ipairs(GLOWS) do
+		if g[1] == db.glowStyle then p.glow:SetValueText(L[g[2]]) end
+	end
 end
 
 -- ---------------------------------------------------------------- the spells, per class

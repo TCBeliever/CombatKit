@@ -37,10 +37,9 @@ missing there is downloaded whole, once.
 """
 import os, re, sys
 from collections import defaultdict
-from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from talentdata import DB2, ROOT, SPELLS, LiveTalents, num   # noqa: E402
+from talentdata import DATE_MARK, DB2, ROOT, SPELLS, LiveTalents, num, write_dated   # noqa: E402
 from auradata import APPLY_AURA, TRIGGERS, Data, read           # noqa: E402
 
 DECISIONS = os.path.join(ROOT, "tools", "candidates_decisions.tsv")
@@ -67,6 +66,11 @@ CLASSES = [
     ("WARRIOR", "Warrior", {71: "Arms", 72: "Fury", 73: "Protection"}),
 ]
 CLASS_OF_SPEC = {s: token for token, _, specs in CLASSES for s in specs}
+
+# the racial abilities, listed as one more "class": every race's own skill line ("Racial -
+# Dwarf"), for the races its race mask names, by the token UnitRace gives them (ChrRaces)
+RACIAL = "RACIAL"
+RACIAL_LINE = re.compile(r"^Racial - ")
 
 # SkillLineAbility.AcquireMethod: 2 and 4 are learned with the class. 3 marks a spell a
 # talent gives, or a long-gone artifact's; a live one comes in through the talent trees.
@@ -211,6 +215,8 @@ class Universe:
     def __init__(self, db, game):
         self.db, self.game = db, game
         self.spells = {token: {} for token, _, _ in CLASSES}
+        self.spells[RACIAL] = {}
+        self.races = defaultdict(set)   # a racial spell -> the races that have it
         self.variant = {}        # a talent's or PvP talent's spell -> the button it replaces
         self.spec_version = {}   # a specialization's own version -> the spell it replaces
         self.standalone = set()  # spells some source gives as a button of their own
@@ -278,6 +284,28 @@ class Universe:
                 elif s:
                     self.standalone.add(s)
             self.follow(token, sid, {spec}, "PvP")
+
+        # the racial skill lines, each for the races its race mask names (two 32-bit words,
+        # bit n for the race whose PlayableRaceBit is n)
+        race_of_bit = {int(r["PlayableRaceBit"]): r["ClientFileString"] for r in db.rows("ChrRaces")
+                       if int(r["PlayableRaceBit"] or -1) >= 0}
+        def races(m0, m1):
+            mask = (int(m0 or 0) & 0xFFFFFFFF) | ((int(m1 or 0) & 0xFFFFFFFF) << 32)
+            if mask == 0xFFFFFFFFFFFFFFFF:
+                return set()   # every race: not a race's own
+            return {race for bit, race in race_of_bit.items() if mask >> bit & 1}
+        racial_lines = {r["ID"] for r in db.rows("SkillLine") if RACIAL_LINE.match(r["DisplayName_lang"])}
+        line_races = defaultdict(set)
+        for r in db.rows("SkillRaceClassInfo"):
+            if r["SkillID"] in racial_lines:
+                line_races[r["SkillID"]] |= races(r["RaceMasks_0"], r["RaceMasks_1"])
+        for line in sorted(racial_lines, key=int):
+            for r in db.rows("SkillLineAbility", SkillLine=line):
+                if r["AcquireMethod"] in LEARNED_WITH_CLASS:
+                    sid = int(r["Spell"])
+                    self.add(RACIAL, sid, set(), "race")
+                    self.standalone.add(sid)
+                    self.races[sid] |= races(r["RaceMasks_0"], r["RaceMasks_1"]) or line_races[line]
 
         self.drop_junk()
 
@@ -349,6 +377,7 @@ class Candidate:
         self.token, self.key = token, key
         self.members = []   # the other cast IDs on the same button
         self.specs = set()
+        self.races = set()  # a racial ability's races
         self.sources = set()
         self.landings = []  # (aura, who, via, cast)
 
@@ -369,6 +398,7 @@ def candidates(game, uni):
                 if sid in spells:
                     c.specs |= spells[sid]["specs"]
                     c.sources |= spells[sid]["from"]
+                    c.races |= uni.races.get(sid, set())
                 for aura, who, via in game.landings(sid):
                     if not any(a == aura and w == who for a, w, _, _ in c.landings):
                         c.landings.append((aura, who, via, sid))
@@ -410,7 +440,11 @@ def listed():
         if m:
             token = m.group(1)
             continue
-        m = re.search(r"\b(%s)\((\d+),(.*?)\),?\s*--\s*(.*)" % "|".join(CONSTRUCTORS), line)
+        if re.match(r"ns\.RACIALS = \{", line):
+            token = RACIAL
+            continue
+        # a racial entry closes its race's braces too: ") },  -- name"
+        m = re.search(r"\b(%s)\((\d+),(.*?)\)(?:\s*\})?,?\s*--\s*(.*)" % "|".join(CONSTRUCTORS), line)
         if m and token:
             extra = m.group(3)
             casts = re.search(r"casts\s*=\s*\{([\d,\s]+)\}", extra)
@@ -454,7 +488,9 @@ def fmt_cd(game, sid):
     cd, charges = game.cooldown(sid)
     return "%gs%s" % (cd, " x%d" % charges if charges > 1 else "")
 
-def fmt_specs(token, specs):
+def fmt_specs(token, specs, races=()):
+    if token == RACIAL:
+        return ", ".join(sorted(races)) or "?"
     names = dict(next(s for t, _, s in CLASSES if t == token))
     if specs >= set(names):
         return "all"
@@ -502,7 +538,7 @@ def write_report(build, game, uni, cands, decided, entries):
     n_out = sum(1 for g in cands.values() for k in g if decided.get(k, ("",))[0] == "out")
     w("# Party CD: candidates from the game's data")
     w("")
-    w("> Generated by `tools/candidates.py` from the game's data files (DB2, via wago.tools), build %s, on %s." % (build, date.today().isoformat()))
+    w("> Generated by `tools/candidates.py` from the game's data files (DB2, via wago.tools), build %s, on %s." % (build, DATE_MARK))
     w("> Do not edit: change `tools/candidates_decisions.tsv` (the decisions) and run `python tools/candidates.py` again.")
     w("")
     w("Every ability below comes from the game's own tables only: the class skill line, the live talent trees,")
@@ -511,7 +547,8 @@ def write_report(build, game, uni, cands, decided, entries):
     w("apply-aura effects, or those of a spell it triggers, one link down; when the data links the cast to no aura,")
     w("the aura spells of the same name in the class's spell family). A talent's or PvP talent's spell on the same")
     w("button is listed under the base ability (`casts`). The decision and its reason are written by hand.")
-    w("Racial abilities are not in the universe (no class gives them).")
+    w("Racial abilities come from each race's own skill line (\"Racial - Dwarf\"), for the races its race mask")
+    w("names, and are listed last under *Racial*, the races in place of the specializations.")
     w("")
     w("Universe: %d spells. Candidates: %d (in %d, out %d, undecided %d)." % (total, n_cand, n_in, n_out, n_cand - n_in - n_out))
     w("")
@@ -532,12 +569,12 @@ def write_report(build, game, uni, cands, decided, entries):
     for e in entries:
         listed_ids[(e[0], e[1])] = "yes"
         listed_seen[(e[0], e[1])] = e[2]
-    for token, _, _ in CLASSES:
+    for token in [t for t, _, _ in CLASSES] + [RACIAL]:
         groups = cands[token]
         w("## %s" % token.capitalize() if token not in ("DEATHKNIGHT", "DEMONHUNTER") else
           "## %s" % {"DEATHKNIGHT": "Death Knight", "DEMONHUNTER": "Demon Hunter"}[token])
         w("")
-        w("| ID | Name | Cooldown | Specs | Auras | Seen | Listed | Decision | Reason |")
+        w("| ID | Name | Cooldown | %s | Auras | Seen | Listed | Decision | Reason |" % ("Races" if token == RACIAL else "Specs"))
         w("|---|---|---|---|---|---|---|---|---|")
         for key in sorted(groups, key=lambda k: (decided.get(k, ("~",))[0], game.name(k), k)):
             c = groups[key]
@@ -569,7 +606,7 @@ def write_report(build, game, uni, cands, decided, entries):
                 is_listed += " (entry %d)" % hit
             d, reason = decided.get(key, ("**undecided**", ""))
             w("| %d | %s | %s | %s | %s | %s | %s | %s | %s |" % (
-                key, cell(name), cd, fmt_specs(token, c.specs), "<br>".join(cell(a) for a in auras),
+                key, cell(name), cd, fmt_specs(token, c.specs, c.races), "<br>".join(cell(a) for a in auras),
                 seen, is_listed, d, cell(reason)))
         w("")
 
@@ -614,9 +651,8 @@ def write_report(build, game, uni, cands, decided, entries):
             c_list.append("- %d %s (%s): %s" % (e[1], game.name(e[1]), e[0], decided[key][1]))
     out.extend(c_list or ["- none"])
     w("")
-    with open(REPORT, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(out))
-    return a_list, b_list, c_list
+    wrote = write_dated(REPORT, "\n".join(out))
+    return a_list, b_list, c_list, wrote
 
 # ---------------------------------------------------------------------------
 
@@ -629,7 +665,7 @@ def main():
     cands = candidates(game, uni)
     decided = decisions()
     entries = listed()
-    a_list, b_list, c_list = write_report(build, game, uni, cands, decided, entries)
+    a_list, b_list, c_list, wrote = write_report(build, game, uni, cands, decided, entries)
 
     keys = {k for g in cands.values() for k in g}
     undecided = sorted(k for k in keys if k not in decided)
@@ -640,7 +676,8 @@ def main():
         len(a_list), len(b_list), len(c_list)))
     for sid in stale:
         print("  .. decision for %d %s, which is not a candidate (stale row)" % (sid, game.name(sid)))
-    print("wrote %s" % REPORT)
+    if wrote:
+        print("wrote %s" % REPORT)
     if undecided:
         for sid in undecided:
             print("  !! no decision for %d %s" % (sid, game.name(sid)))

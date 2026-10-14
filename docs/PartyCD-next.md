@@ -5,6 +5,8 @@
 
 ## A. 光環還在時的高亮：改用 Blizzard 內建的動畫材質
 
+**狀態：已做，待進遊戲看。** UI.lua 的 `GLOW_STYLES`：預設經典螞蟻線，設定主頁「高亮樣式」可換細螞蟻線、轉動光帶；灰階後依標籤上色；材質或圖集讀不到時退回四條呼吸邊框。經典螞蟻線的格子是 48 px（256 px 的檔，一行五格，22 格），不是平均切成 5×5，所以不用 FlipBook，由同一個 AnimationGroup 的 OnUpdate 逐格換 TexCoord；兩個圖集用 FlipBook，格數從遊戲的圖集表（UiTextureAtlasMember）推出：都是 333×400 px，5 欄 6 列（每格 66.6 px），先當 30 格。要看的項目在 `docs/park_lot.md`。
+
 **現況：** UI.lua 的 `icon.halo` 是四條邊框，依標籤上色、呼吸閃爍（`GLOW`、`UI.GlowOf`）。
 
 **要的：** 換成 Blizzard 內建的動畫邊框，**顏色分類維持不變**（defense 綠、burst 紅、control 紫、other 藍、`big` 黃），這是第一優先。
@@ -26,11 +28,13 @@
 6. 開關照舊：由 Tracker 的狀態決定（`SetActive`），範例圖示列（`DrawSample`）也要用新的樣式。
 7. 測試：tests 裡驗證顏色依標籤、退路生效、動畫隨狀態開關。
 
-**要進遊戲確認：** 三種材質在 12.1 都還在；紫和藍在螞蟻線上看不看得清楚；大小和不透明度。
+**進遊戲確認：** 2026-10-14 使用者看過範例圖示列，三種樣式「看起來不錯」，1.1.1 驗收。
 
 ## B. 種族技能
 
-**狀態：** 設定頁已經有（9cb853f）：職業選單最後的「種族」列出下表 10 個，可以勾選，爆發類用 `defaultOff` 預設關閉；資料在 Spells.lua 的 `ns.RACIALS` / `ns.RACIAL_LIST`（每筆帶 `race`、`raceID`，光環 ID 已從 DB2 查過）。**還沒接上追蹤**：隊友的種族沒讀，勾選目前不影響隊友那一列。建議放在 1.1.0 之後的版本，1.1.0 上架前設定頁的「種族」先隱藏（待使用者決定）。
+**狀態：已做，第 5 點待量。** 名單讀 `UnitRace`，種族技能接在那一列最後；註冊進 `SPELL_BY_ID`／`SPELL_BY_CAST`／`RACES_WITH`；範例圖示列依玩家自己的種族；TalentData 的 `base` 已有十個種族技能（`talentdata.py`、`auradata.py` 的讀法修好了，之前漏讀 `) },` 結尾的種族那幾行）；`candidates.py` 從種族的 skill line 列出 33 筆，全部寫了決定。Ancestral Call 補上自己的光環 274738（資料顯示施放就在自己身上）。第 5 點（飾品與 Stoneform／Fireblood 共用 1166）照計畫還沒做，記在 park lot。Shadowmeld 是 other（使用者決定，不算減傷）。
+
+**原本的狀態（9cb853f）：** 設定頁「種族」列出下表 10 個，爆發類 `defaultOff`；資料在 Spells.lua 的 `ns.RACIALS` / `ns.RACIAL_LIST`。追蹤已在 1.1.1 接上，種族頁照常顯示。
 
 DB2（12.1.0.69933）查到的事實：
 
@@ -38,7 +42,7 @@ DB2（12.1.0.69933）查到的事實：
 |---|---|---|---|---|
 | Stoneform（矮人） | 20594 | 120 s | 1166（分類冷卻 30 s） | defense |
 | Fireblood（黑鐵矮人） | 265221 | 120 s | 1166（30 s） | defense |
-| Shadowmeld（夜精靈） | 58984 | 120 s | — | defense 或 other（待定） |
+| Shadowmeld（夜精靈） | 58984 | 120 s | — | other（使用者決定） |
 | Quaking Palm（熊貓人） | 107079 | 120 s | — | control |
 | War Stomp（牛頭人） | 20549 | 90 s | — | control |
 | Haymaker（庫爾提拉斯人） | 287712 | 150 s | — | control |
@@ -64,13 +68,15 @@ DB2（12.1.0.69933）查到的事實：
 8. **設定頁。** 種族頁已經有；如果 1.1.0 先藏起來了，接上追蹤後再打開。
 9. **測試**（假的後端與名單）：矮人隊友那一列有 Stoneform，而且排在所有職業技能後面；`defaultOff` 的爆發類不出現、勾了才出現；牛頭人隊友的 War Stomp 被算到他頭上；兩個隊友都不是牛頭人時不出現；隊友用飾品後 Stoneform 被補上 30 秒冷卻（等第 5 點量完再定）；同一個隊友換位置（party1 → party2）時種族技能跟著走。
 
-**待使用者決定：** Shadowmeld 的標籤（目前 defense）；1.1.0 是否先隱藏種族頁。
+**已決定：** Shadowmeld 標 other。種族頁不用隱藏：追蹤已接上。
 
 ## C. 候選清單的 24 筆建議新增
 
 `docs/PartyCD-candidates.md` 的清單 (b)，加上 Incarnation: Tree of Life 33891。**待使用者挑選**；挑好的加進 Spells.lua（照分類設計的建構函式和標籤），光環 ID 用 `tools/auradata.py` 確認，進遊戲看得到再上。
 
 ## D. 小項
+
+**狀態：** TalentData.lua（以及 `docs/PartyCD-candidates.md`）內容沒變就不改日期，已做；範例替身框的左右待進遊戲對照。
 
 - 範例替身框：DandersFrames 從中間成長時，目前隊友 1 放右邊、隊友 2 放左邊；要進遊戲對照實際的隊伍排法，相反就對調 `SLOT_CENTERED`（UI.lua）。
 - `tools/talentdata.py` 每跑一次都會改 TalentData.lua 的日期，資料沒變也一樣；改成內容有變才更新日期。

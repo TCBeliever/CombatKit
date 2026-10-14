@@ -26,6 +26,7 @@ local running = false
 ns.defaults = {
 	showSelf    = false,     -- the player's own row (debug: it is the self-test's reference)
 	trinket     = true,      -- the PvP trinket first in every row, from the game's own cooldown data
+	glowStyle   = "ants",    -- the highlight while an aura is up: "ants" | "thin" | "proc" (UI.lua)
 	picked      = {},        -- [spellID] = true | false: ticked on or off on the spells page;
 	                         -- no entry: the default (on for a cooldown of a minute or more, Spells.lua)
 	iconSize    = 28,
@@ -111,6 +112,14 @@ local callbacks = {
 
 local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
 
+-- a unit's race as the game names it in files (UnitRace's second value:
+-- "Dwarf", "Tauren"; one "Pandaren" for all three), or nil
+local function RaceOf(unit)
+	local ok, _, race = pcall(UnitRace, unit)
+	if ok and type(race) == "string" and plain(race) and race ~= "" then return race end
+end
+ns.RaceOf = RaceOf
+
 -- inspect's answer: the teammate's own cooldowns and charges, and what they do not have
 local function Inspected(unit, results, complete)
 	for id, r in pairs(results) do
@@ -127,7 +136,8 @@ local function InspectAll()
 	for _, t in ipairs(Tracker.Teammates()) do Inspect.Want(t.unit, t.guid, t.class) end
 end
 
--- who is here: the player, then party1 and party2 while they exist
+-- who is here: the player, then party1 and party2 while they exist, with
+-- their class and race (no inspect needed for either)
 local function Roster()
 	local list = {}
 	for _, unit in ipairs(UNITS) do
@@ -135,7 +145,7 @@ local function Roster()
 			local _, class = UnitClass(unit)
 			local guid = UnitGUID(unit)
 			if type(class) == "string" and plain(class) and ns.SPELLS[class] then
-				list[#list + 1] = { unit = unit, guid = plain(guid) and guid or unit, class = class }
+				list[#list + 1] = { unit = unit, guid = plain(guid) and guid or unit, class = class, race = RaceOf(unit) }
 			end
 		end
 	end
@@ -164,8 +174,8 @@ local function ApplyRoster()
 			t.inspectAsked = true
 			Inspect.Want(r.unit, r.guid, r.class)
 		end
-		backend.SetWatch(r.unit, ns.FriendlyDefs(ns.SpellsFor(r.class, sel)), true)
-		names[#names + 1] = r.unit .. "=" .. r.class
+		backend.SetWatch(r.unit, ns.FriendlyDefs(ns.SpellsFor(r.class, sel, r.race)), true)
+		names[#names + 1] = r.unit .. "=" .. r.class .. (r.race and ("/" .. r.race) or "")
 		-- the trinket: ask the server for the unit's crowd control cooldown data
 		if ns.db.trinket and C_PvP and C_PvP.RequestCrowdControlSpell then pcall(C_PvP.RequestCrowdControlSpell, r.unit) end
 	end
@@ -175,15 +185,16 @@ local function ApplyRoster()
 			Inspect.Forget(unit)
 		end
 	end
-	-- the opponents: the debuffs of every crowd control the team has (the
-	-- player's own as well, so that a use of theirs is never a teammate's)
+	-- the opponents: the debuffs of every crowd control the team has, its
+	-- races' included (the player's own as well, so that a use of theirs is
+	-- never a teammate's)
 	local cc, seen = {}, {}
-	local classes = {}
-	for _, r in ipairs(list) do classes[r.class] = true end
+	local team = {}
+	for _, r in ipairs(list) do team[#team + 1] = r end
 	local _, own = UnitClass("player")
-	if type(own) == "string" and plain(own) then classes[own] = true end
-	for class in pairs(classes) do
-		for _, def in ipairs(ns.EnemyDefs(ns.SpellsFor(class, sel))) do
+	if type(own) == "string" and plain(own) then team[#team + 1] = { class = own, race = RaceOf("player") } end
+	for _, r in ipairs(team) do
+		for _, def in ipairs(ns.EnemyDefs(ns.SpellsFor(r.class, sel, r.race))) do
 			if not seen[def.id] then seen[def.id] = true; cc[#cc + 1] = def end
 		end
 	end

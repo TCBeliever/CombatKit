@@ -32,6 +32,7 @@ check(def(102342).external and def(6940).external and def(196718).external and n
 	and not def(408).external, "externals: on someone else than the caster")
 check(def(48707).seen == "ally" and not def(48707).external, "Anti-Magic Shell: may sit on an ally (Spellwarden), not hidden with the externals")
 check(AR.SPELL_BY_CAST[199448] == def(6940), "Ultimate Sacrifice's Blessing of Sacrifice is still Blessing of Sacrifice")
+check(AR.SPELL_BY_CAST[414658] == def(45438), "Ice Cold, on Ice Block's button since 12.1.5, is Ice Block")
 check(def(408).onEnemy and def(78675).onEnemy and def(187650).onEnemy and not def(102342).onEnemy, "looked for on the opponents")
 check(def(1122).tag == "burst" and AR.HasTag(def(1122), "control") and def(1122).noLearn,
 	"Summon Infernal: burst first, control too, and a burst is never learned from")
@@ -390,7 +391,7 @@ check(row.icons[1] and row.icons[1]:IsShown(), "icons are shown")
 -- the PvP trinket leads the row, from the game's own cooldown data
 local n = #TR.Get("party1").order
 check(row.icons[n + 1]:IsShown() and not row.icons[n + 2], "one more icon than abilities: the trinket")
-eq(row.icons[1].tex.__texture, nil, "mock textures keep no file name")   -- the texture mock records nothing; the request does
+eq(row.icons[1].tex.__texture, "icon336126", "the trinket leads the row: the medallion's icon until the game names the spell")
 check(W.log[#W.log]:find("trinket:", 1, true) ~= nil, "the trinket icon asked the game for party1's duration")
 -- the icon is the spell the game says the teammate carries: the medallion, or a racial
 local asked = {}
@@ -421,6 +422,145 @@ check(TR.Get("player") == nil, "the player's row switched off")
 AR.db.showSelf = true
 AR.Apply()
 check(TR.Get("player") ~= nil, "and back")
+
+-- ---------------------------------------------------------------- the highlight
+-- the game's own animated border while the aura is up, grey and tinted by the main tag
+local ANTS = "Interface\\SpellActivationOverlay\\IconAlertAnts"
+local function iconOf(unit, id)
+	for i, x in ipairs(TR.Get(unit).order) do
+		if x == id then return AR.UI.Rows()[unit].icons[i + (AR.db.trinket and 1 or 0)] end
+	end
+end
+local function tint(tex)
+	local r, g, b = tex:GetVertexColor()
+	return r and string.format("%.2f %.2f %.2f", r, g, b)
+end
+eq(AR.db.glowStyle, "ants", "the classic ants by default")
+shown("party1", 22812, 2400)
+AR.UI.Refresh(2400)
+local bark = iconOf("party1", 22812)
+local glow = bark.layer
+check(glow and glow.key == "ants" and glow.tex.__texture == ANTS, "Barkskin up: the classic ants, the game's own file")
+check(glow.tex:IsShown() and glow.anim:IsPlaying() and not bark.halo:IsShown(), "drawn and running; the old strips stay hidden")
+check(glow.tex:IsDesaturated(), "made grey first")
+eq(tint(glow.tex), "0.25 0.95 0.35", "then tinted green: a defensive")
+hidden("party1", 22812, 2408)
+AR.UI.Refresh(2408)
+check(not glow.tex:IsShown() and not glow.anim:IsPlaying(), "the aura gone: the ants stop and hide")
+shown("arena1", 5211, 2410)
+AR.UI.Refresh(2410)
+local bash = iconOf("party1", 5211)
+check(bash.layer.tex:IsShown() and bash.layer.anim:IsPlaying(), "Mighty Bash on an opponent: lit on the druid's row")
+eq(tint(bash.layer.tex), "0.70 0.45 1.00", "violet: a crowd control")
+hidden("arena1", 5211, 2414)
+-- another style from the settings: the band that runs round the edge, an atlas
+AR.db.glowStyle = "proc"; AR.Apply()
+shown("party1", 22812, 2470)
+AR.UI.Refresh(2470)
+check(bark.layer.key == "proc" and bark.layer.tex.__atlas == "UI-HUD-ActionBar-Proc-Loop-Flipbook", "the proc band, from its atlas")
+check(bark.layer.tex:IsShown() and bark.layer.anim:IsPlaying() and not glow.tex:IsShown(), "it runs; the ants are put away")
+eq(tint(bark.layer.tex), "0.25 0.95 0.35", "the colour follows to the new style")
+-- an atlas the game does not have: the four breathing strips instead
+W.missingAtlases = { RotationHelper_Ants_Flipbook = true }
+AR.db.glowStyle = "thin"; AR.Apply()
+AR.UI.Refresh(2471)
+check(bark.layer == nil and bark.halo:IsShown() and bark.pulse:IsPlaying(), "thin ants missing: the breathing strips")
+check(not bark.layers.proc.tex:IsShown(), "and nothing else drawn")
+hidden("party1", 22812, 2478)
+AR.UI.Refresh(2478)
+check(not bark.halo:IsShown() and not bark.pulse:IsPlaying(), "the strips go out with the aura too")
+-- the classic file missing (on an icon that never drew it)
+W.missingTextures = { [ANTS] = true }
+AR.db.glowStyle = "ants"
+bark.layers, bark.styleKey = nil, nil
+shown("party1", 22812, 2530)
+AR.UI.Refresh(2530)
+check(bark.layer == nil and bark.layers.ants == false and bark.halo:IsShown(), "the ants' file missing: the strips as well")
+hidden("party1", 22812, 2538)
+W.missingAtlases, W.missingTextures = nil, nil
+bark.layers, bark.styleKey = nil, nil
+AR.UI.Refresh(2538)
+
+-- ---------------------------------------------------------------- racial abilities
+-- a tauren druid and a dwarf priest: each race's ability ends the row
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-5-DRUID", race = "Tauren" }
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-5-PRIEST", race = "Dwarf" }
+fire("GROUP_ROSTER_UPDATE")
+local tauren, dwarf = TR.Get("party1"), TR.Get("party2")
+check(tauren.race == "Tauren" and dwarf.race == "Dwarf", "the races read from the roster, no inspect needed")
+eq(dwarf.order[#dwarf.order], 20594, "the dwarf priest's row ends with Stoneform")
+eq(#dwarf.order, #AR.SpellsFor("PRIEST", AR.Selection()) + 1, "after every priest ability")
+eq(tauren.order[#tauren.order], 20549, "the tauren druid's row ends with War Stomp")
+check(AR.SPELL_BY_ID[20594] and AR.RACES_WITH[20594].Dwarf and not AR.CLASSES_WITH[20594], "registered by race, not by class")
+local function watches(unit, id)
+	for _, d in ipairs(fake.watches[unit] or {}) do if d.id == id then return true end end
+	return false
+end
+check(watches("party2", 20594) and not watches("party1", 20594), "Stoneform's buff watched on the dwarf only")
+check(watches("arena1", 20549) and not watches("party1", 20549), "War Stomp's stun watched on the opponents")
+-- on by default as their cooldowns say, the bursts off until ticked
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-5-ORC", race = "Orc" }
+fire("GROUP_ROSTER_UPDATE")
+check(not TR.Get("party2").spells[33697], "Blood Fury: off by default though two minutes long")
+AR.db.picked[33697] = true; AR.Apply()
+eq(TR.Get("party2").order[#TR.Get("party2").order], 33697, "ticked: at the end of the orc's row")
+AR.db.picked[33697] = nil; AR.Apply()
+-- War Stomp lands: the tauren's, nobody else's
+W.units.party2 = { friendly = true, class = "DRUID", guid = "Player-5-DRUID2", race = "NightElf" }
+fire("GROUP_ROSTER_UPDATE")
+shown("arena2", 20549, 2600)
+eq(state("party1", 20549), "active", "War Stomp on an opponent: the tauren's")
+check(not TR.Get("party2").spells[20549], "the night elf druid has none to credit")
+hidden("arena2", 20549, 2602)
+local stomp, stompReady = state("party1", 20549, 2603)
+check(stomp == "cooling" and stompReady == 2690, "cooling for its 90 s")
+check(TR.Get("party2").order[#TR.Get("party2").order] == 58984, "Shadowmeld ends the night elf's row")
+-- nobody a tauren: War Stomp is not looked for
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-5-DRUID3", race = "Troll" }
+fire("GROUP_ROSTER_UPDATE")
+check(not watches("arena1", 20549), "no tauren in the team: War Stomp not watched")
+shown("arena1", 20549, 2610)
+check(not TR.Get("party1").spells[20549] and not TR.Get("party2").spells[20549], "a stomp seen anyway is nobody's here")
+hidden("arena1", 20549, 2611)
+-- the same teammate in another seat: the race goes with them
+W.units.party1 = { friendly = true, class = "PRIEST", guid = "Player-5-PRIEST", race = "Dwarf" }
+W.units.party2 = { friendly = true, class = "DRUID", guid = "Player-5-DRUID", race = "Tauren" }
+fire("GROUP_ROSTER_UPDATE")
+W.units.party1, W.units.party2 = W.units.party2, W.units.party1
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("party1").spells[20549] and not TR.Get("party1").spells[20594], "party1 is the tauren now: War Stomp")
+check(TR.Get("party2").spells[20594] and not TR.Get("party2").spells[20549], "party2 the dwarf: Stoneform")
+-- a race not read the first time is filled in when the game says it
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-5-PRIEST2" }
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("party2").race == nil and not TR.Get("party2").spells[20594], "no race yet: the class's abilities only")
+W.units.party2.race = "Dwarf"
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("party2").race == "Dwarf" and TR.Get("party2").spells[20594], "the race arrives: Stoneform joins the row")
+-- the player's own: a dwarf's Stoneform lights the own row; a tauren's own stomp is nobody else's
+AR.db.showSelf = false; AR.Apply()   -- the own row made again: a GUID's race never changes
+W.units.player.race = "Dwarf"
+AR.db.showSelf = true; AR.Apply()
+TR.OnPlayerCast(20594, 2650)
+shown("player", 20594, 2650.1)
+TR.SelfTestCheck(2651)
+eq(state("player", 20594), "active", "the player's own Stoneform lights the own row")
+check(not TR.failed, "and the self-test is satisfied")
+hidden("player", 20594, 2658)
+AR.db.showSelf = false; AR.Apply()
+W.units.player.race = "Tauren"
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-5-DRUID", race = "Tauren" }
+AR.db.showSelf = true; AR.Apply()
+check(watches("arena1", 20549), "the player a tauren: War Stomp watched")
+TR.OnPlayerCast(20549, 2660)
+shown("arena1", 20549, 2660.2)
+eq(#TR.Get("party1").spells[20549].uses, 0, "the player's own stomp: not the tauren teammate's")
+eq(state("player", 20549), "active", "but the player's")
+hidden("arena1", 20549, 2662)
+W.units.player.race = nil
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-3-DRUID" }
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-3-PRIEST" }
+fire("GROUP_ROSTER_UPDATE")
 
 -- a loose row, unlocked, dragged: the redraws leave it alone, and the drop is saved
 AR.UI.SetLocked(false)
@@ -510,6 +650,7 @@ main.tabs.PartyCD:Click()
 local body = main.bodies.PartyCD
 local page = body.pages.main
 check(page and page.iconSize and page.trinket, "the Party CD page is built")
+check(page.glow ~= nil, "with the highlight's style")
 check(page:IsShown() and not body.pages.spells:IsShown(), "it opens on the display page")
 -- the debug page: the player's own row
 CK.Options.Select("PartyCD", "debug")
@@ -582,9 +723,11 @@ page.test:Click()
 check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
 check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
 local sample = AR.UI.Rows().player
-check(not sample.icons[1].halo:IsShown() and not sample.icons[1].mark:IsShown(), "the trinket leads the samples, plain")
-check(sample.icons[2].halo:IsShown() and sample.icons[2].pulse:IsPlaying() and sample.icons[4].mark:IsShown(), "one active and breathing, one unknown among the samples")
-check(not sample.icons[3].halo:IsShown(), "a cooling one has no glow")
+check(not sample.icons[1].lit and not sample.icons[1].mark:IsShown(), "the trinket leads the samples, plain")
+local lit = sample.icons[2].layer
+check(lit and lit.key == "ants" and lit.tex:IsShown() and lit.anim:IsPlaying() and sample.icons[4].mark:IsShown(),
+	"one active with the ants running, one unknown among the samples")
+check(not sample.icons[3].lit and not (sample.icons[3].layer and sample.icons[3].layer.tex:IsShown()), "a cooling one has no highlight")
 -- the samples are the player's own specialization (havoc): vengeance's Metamorphosis is not among them
 local want = AR.db.trinket and 1 or 0
 for _, def in ipairs(AR.SpellsFor("DEMONHUNTER", AR.Selection())) do
@@ -594,6 +737,14 @@ local shownIcons = 0
 for _, icon in ipairs(sample.icons) do if icon:IsShown() then shownIcons = shownIcons + 1 end end
 eq(shownIcons, want, "sample icons: the trinket and the havoc abilities only")
 check(want < #AR.SpellsFor("DEMONHUNTER", AR.Selection()) + 1, "which is fewer than the whole class list")
+-- a dwarf player: Stoneform among the samples, last
+W.units.player.race = "Dwarf"
+AR.UI.Refresh()
+local last
+for _, icon in ipairs(sample.icons) do if icon:IsShown() then last = icon end end
+eq(last.tex.__texture, "icon20594", "a dwarf's samples end with Stoneform")
+W.units.player.race = nil
+AR.UI.Refresh()
 
 -- the status command and the log
 SlashCmdList.CKPARTYCD("")
@@ -639,7 +790,7 @@ check(#r == 1 and r[1].sec == -60, "minutes")
 -- into an arena again: a druid with talents, the player with their own; the
 -- talent spells are made up, and the data table below says what they do
 W.inInstance, W.instanceType = true, "arena"
-W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-2-DRUID", spec = 105, pvp = { 9001 } }
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-2-DRUID", spec = 105, pvp = { 9001 }, race = "Tauren" }
 W.units.party2 = nil
 W.traits = {
 	[-1] = { nodes = {
@@ -703,8 +854,8 @@ DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
 -- the crowd control box was left ticked on above: Incapacitating Roar is watched though under a minute
-eq(table.concat(d.order, ","), "22812,740,473909,5211,99,22570,29166",
-	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate")
+eq(table.concat(d.order, ","), "22812,740,473909,5211,99,22570,29166,20549",
+	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate; and the tauren's War Stomp, which inspect leaves alone")
 check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
 check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")

@@ -17,8 +17,6 @@
 1249658	in	burst: Frost's damage cooldown, 90 s (proposed)
 1263824	out	rotational damage and a small self buff (Blood), 45 s
 49028	in	burst defense: Blood's weapon, parry and damage, 120 s
-56222	out	taunt, 8 s (Murderous Intent, its PvP version, 20 s)
-77606	out	steals a spell, the aura only marks the target, 20 s
 1233448	out	empowers the ghoul: the aura is on the pet, which the module does not watch, 45 s
 203173	out	links opponents' damage (PvP talent), no control, 30 s
 49576	out	grip, under 30 s (25 s)
@@ -64,7 +62,6 @@
 247454	out	rotational damage, under 30 s (25 s)
 370965	in	burst: Havoc's charge and damage, 90 s
 1246167	in	burst: Devourer's own The Hunt, the same as 370965, 90 s (proposed, as its Devourer version)
-185245	out	taunt, 8 s (Tormentor, its PvP version, 20 s)
 198793	out	movement only, under 30 s (25 s)
 1234195	in	control: Devourer's stun, 45 s
 
@@ -84,7 +81,6 @@
 22842	out	tank's frequent self heal with charges, 36 s
 202770	out	rotational damage, 60 s
 354654	out	tank's PvP talent area, small absorb, 60 s
-6795	out	taunt, 8 s (Alpha Challenge, its PvP version, 20 s)
 1261867	out	off-role boost, the aura does not say which role it boosts, 120 s
 1261870	out	off-role boost, the aura does not say which role it boosts, 120 s
 99	in	control: incapacitate around the druid, 30 s
@@ -190,11 +186,10 @@
 84714	out	rotational damage, 60 s
 11426	in	defense: Frost's absorb, 30 s
 45438	in	defense: immune to damage, 240 s
-414658	in	defense: Ice Cold, the talent version of Ice Block, listed in Spells.lua as an aura of 45438, 240 s
 352278	out	a wall that blocks movement (PvP talent), no aura on a player that matters, 90 s
 66	in	defense: Greater Invisibility 110959, the talent on this button, is what Spells.lua watches (60% less damage); plain Invisibility 66 is a fade on a 300 s cooldown
 414664	in	other: invisibility for the team, 300 s
-383121	in	control: polymorph on several opponents, 60 s (proposed)
+383121	in	control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP (proposed)
 55342	in	defense: images that take hits and lower damage, 120 s
 205025	out	makes casts instant, minor, 45 s
 235450	in	defense: Arcane's absorb, 30 s
@@ -225,7 +220,6 @@
 116849	in	defense: large absorb on an ally, 120 s
 354540	in	defense: breaks stuns and fears (PvP talent), 90 s
 115078	in	control: incapacitate, 45 s
-115546	out	taunt, 8 s (Admonishment, its PvP version, 20 s)
 115310	in	defense: Mistweaver's group heal and dispel, 180 s (proposed)
 109132	out	movement only, under 30 s (20 s)
 198898	in	control: disorient in a line, 30 s
@@ -256,7 +250,6 @@
 343527	in	burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed)
 86659	in	defense: 50% less damage (Protection), 180 s (Guardian of the Forgotten Queen on the same button)
 853	in	control: stun, 45 s
-62124	out	taunt, 8 s (Inquisition, its PvP version, 20 s)
 432459	out	hero talent's rotational absorb, 60 s with charges
 215652	out	Protection PvP talent, silences once on the next hit, minor, 45 s
 255937	out	rotational damage and slow, 30 s
@@ -411,5 +404,40 @@
 23920	out	reflects a spell, under 30 s (25 s)
 107570	in	control: stun, 30 s
 260708	out	rotational cleave, 30 s
-355	out	taunt, 8 s (Oppressor, its PvP version, 20 s)
 384318	out	rotational damage, 90 s
+
+# Racial (each race's own skill line; Stoneform and Fireblood are listed in Spells.lua though the
+# filter misses them: their buffs 65116 and 265226 are applied by a server script)
+274738	in	burst: one of four random stat buffs on the Mag'har orc, 120 s; off by default
+260364	out	area damage and a slow (not control by the design), 180 s
+436344	out	empowered damage or a small heal around the Earthen, no aura worth a row
+26297	in	burst: haste on the troll, 180 s; off by default
+20572	in	burst: Blood Fury's attack power version, a cast of 33697 in Spells.lua
+33697	in	burst: Blood Fury, the orc's attack power and spell power, 120 s; off by default
+33702	in	burst: Blood Fury's spell power version, a cast of 33697 in Spells.lua
+255654	in	control: a charge whose stun (255723) lands on the opponent, watched there, 120 s
+68992	out	movement only
+28880	out	a small heal over time, not a cooldown that decides a fight
+59542	out	Gift of the Naaru (another class's version): a small heal over time
+59543	out	Gift of the Naaru (another class's version): a small heal over time
+59544	out	Gift of the Naaru (another class's version): a small heal over time
+59545	out	Gift of the Naaru (another class's version): a small heal over time
+59547	out	Gift of the Naaru (another class's version): a small heal over time
+59548	out	Gift of the Naaru (another class's version): a small heal over time
+121093	out	Gift of the Naaru (another class's version): a small heal over time
+370626	out	Gift of the Naaru (another class's version): a small heal over time
+416250	out	Gift of the Naaru (another class's version): a small heal over time
+287712	in	control: stun, 150 s
+312924	out	decoys that distract, utility
+312370	out	utility outside a fight (a camp to return to)
+312372	out	utility outside a fight (a teleport to the camp)
+281954	out	slow fall, movement only
+107079	in	control: incapacitate, 120 s
+291944	out	a small heal broken by direct damage
+58984	in	other: stealth that drops the night elf out of sight and targeting, 120 s (no damage taken off: not defense)
+256948	out	movement only (a teleport)
+1237885	out	area damage and a small heal, no defense or control
+20549	in	control: stun around the tauren, 90 s
+7744	out	shares the PvP trinket's cooldown: the trinket's icon draws it, from the game's data
+59752	out	shares the PvP trinket's cooldown: the trinket's icon draws it, from the game's data
+357214	out	a knockback and a slow, not control by the design

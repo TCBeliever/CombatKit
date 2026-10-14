@@ -84,11 +84,11 @@ local function Reorder(t)
 end
 
 -- the entries a teammate carries: the class's list under the selection
--- (the spells ticked on or off); entries that already exist are
--- kept with their estimates
+-- (the spells ticked on or off), the race's abilities after it; entries that
+-- already exist are kept with their estimates
 local function Fit(t, sel)
 	local spells, all = {}, {}
-	for _, def in ipairs(ns.SpellsFor(t.class, sel)) do
+	for _, def in ipairs(ns.SpellsFor(t.class, sel, t.race)) do
 		spells[def.id] = t.spells[def.id] or NewEntry(def, t.known)
 		all[#all + 1] = def.id
 	end
@@ -96,16 +96,18 @@ local function Fit(t, sel)
 	Reorder(t)
 end
 
-local function NewTeammate(unit, guid, class, sel, known)
-	local t = { unit = unit, guid = guid, class = class, spells = {}, order = {}, known = known and true or false }
+local function NewTeammate(unit, guid, class, race, sel, known)
+	local t = { unit = unit, guid = guid, class = class, race = race, spells = {}, order = {}, known = known and true or false }
 	Fit(t, sel)
 	return t
 end
 
--- The roster: { { unit = "party1", guid = "...", class = "DRUID" }, ... }. A
--- unit whose GUID changed is a new teammate; it starts known and ready when
--- the round has not begun (nothing can have been used before the gates),
--- unknown when it arrives mid round. One that stayed keeps its estimates.
+-- The roster: { { unit = "party1", guid = "...", class = "DRUID", race =
+-- "Tauren" }, ... } (race nil when the game did not say). A unit whose GUID
+-- changed is a new teammate; it starts known and ready when the round has not
+-- begun (nothing can have been used before the gates), unknown when it
+-- arrives mid round. One that stayed keeps its estimates, and its race: a
+-- race never changes, only one not read before is filled in.
 -- `sel` is the selection (see Spells.lua) with a `sig` that changes with it.
 function Tracker.SetRoster(list, sel, known)
 	if type(sel) ~= "table" then sel = { sig = "" } end
@@ -114,8 +116,9 @@ function Tracker.SetRoster(list, sel, known)
 		seen[r.unit] = true
 		local t = teammates[r.unit]
 		if not t or t.guid ~= r.guid or t.class ~= r.class then
-			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, sel, known)
-		elseif t.sig ~= sel.sig then
+			teammates[r.unit] = NewTeammate(r.unit, r.guid, r.class, r.race, sel, known)
+		elseif t.sig ~= sel.sig or (t.race == nil and r.race ~= nil) then
+			t.race = t.race or r.race
 			Fit(t, sel)
 		end
 	end
@@ -236,9 +239,13 @@ local function Entry(unit, spellID)
 	return t and t.spells[spellID], t
 end
 
--- who could have put this external on `holder`
--- the player's class has this ability (whether or not the player's own row is shown)
+-- the player's class (or race, for a racial ability) has this ability,
+-- whether or not the player's own row is shown
 local function PlayerHas(def)
+	if def.race then
+		local ok, _, race = pcall(UnitRace, "player")
+		return ok and type(race) == "string" and ns.RACES_WITH[def.id] and ns.RACES_WITH[def.id][race] == true
+	end
 	local ok, _, class = pcall(UnitClass, "player")
 	return ok and type(class) == "string" and ns.CLASSES_WITH[def.id] and ns.CLASSES_WITH[def.id][class] == true
 end

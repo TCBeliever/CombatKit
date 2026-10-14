@@ -15,8 +15,14 @@ Each one is in Spells.lua as the game's data suggests; a check in game settles i
 | Invoke Yu'lon 322118 | Monk, Mistweaver | an aura on the monk after the cast | take it out |
 | Time Stop 378441 | Evoker (PvP talent) | can be cast on oneself (the data says yes) | make it OtherAlly |
 | Roar of Sacrifice 53480 | Hunter | can be put on the hunter (the data says yes) | make it OtherAlly |
+| Stoneform 20594, Fireblood 265221 | Dwarf, Dark Iron Dwarf | a teammate's PvP trinket use puts them on a 30 s cooldown (they share category 1166 with it) | yes: on ARENA_COOLDOWNS_UPDATE showing a fresh trinket use, give a ready Stoneform / Fireblood 30 s; until measured they count their own 120 s |
+| War Stomp 20549, Quaking Palm 107079, Haymaker 287712, Bull Rush 255723 | Tauren, Pandaren, Kul Tiran, Highmountain Tauren | the debuff shows on the opponent with these IDs | find the aura ID (AuraLab learn mode) |
+
+## Party CD: the highlight, to look at in game
+
+UI.lua draws the active highlight from the game's own textures (docs/PartyCD-next.md, A). In game: all three still load on 12.1 (a missing one falls back to the breathing strips, `/ckpartycd` shows nothing about it, look at the icon); the classic ants' 48 px cells line up (no seam, no jump at the loop); how many of the 30 cells the two atlases draw (an empty cell flashes) and their speed; violet and blue are visible on the ants; the size around the icon (ants 1.2x, atlases 1.4x) and whether the additive blend is too bright on a light icon.
 
 ## Party CD: later
 
-The next round is written up in `docs/PartyCD-next.md`: the active highlight from Blizzard's own animated textures (A), racial abilities (B: Stoneform, Shadowmeld, Fireblood and the rest; does the PvP trinket share their cooldown?), the 24 additions `tools/candidates.py` proposes (C, Invoke Xuen among them), and small items (D).
+The next round is written up in `docs/PartyCD-next.md`. Done, to see in game: the highlight (A), racial abilities (B), the generated files' dates (D). Waiting: the 24 additions `tools/candidates.py` proposes (C, Invoke Xuen among them; to be picked), the stand-in frames' sides with DandersFrames grown from the centre (D).
 - Still not decided: Breath of Eons (Augmentation burst), Earth Elemental.

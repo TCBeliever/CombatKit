@@ -47,6 +47,13 @@ function UnitClass(unit)
 	if u and u.class then return u.class, u.class end
 	return "Demon Hunter", "DEMONHUNTER"
 end
+-- W.units[unit].race: a unit's race as UnitRace's second value; the player is human (no racial watched)
+function UnitRace(unit)
+	local u = W.units and W.units[unit]
+	if u and u.race then return u.race, u.race, 0 end
+	if unit == "player" then return "Human", "Human", 1 end
+	return nil
+end
 function UnitGUID(unit)
 	local u = W.units and W.units[unit]
 	if unit == "player" then return "Player-0-ME" end
@@ -150,6 +157,11 @@ C_Item = {
 		return u ~= nil and W.itemRange[id] ~= nil and u.yards <= W.itemRange[id]
 	end,
 }
+-- W.missingAtlases[name]: an atlas the client does not have
+C_Texture = { GetAtlasInfo = function(name)
+	if W.missingAtlases and W.missingAtlases[name] then return nil end
+	return { width = 66, height = 66 }
+end }
 C_Spell = {
 	GetOverrideSpell = function() return nil end,
 	GetSpellTexture = function(id) return "icon" .. id end,
@@ -413,6 +425,22 @@ local function Mock(kind, name)
 		end,
 		GetFont = function(self) if self.__font then return unpack(self.__font) end end,
 		SetFontObject = function(self, object) self.__font = nil; self.__fontObject = object end,
+		-- textures: what was set on them; W.missingTextures[file] is a file the client does not have
+		SetTexture = function(self, file)
+			if W.missingTextures and W.missingTextures[file] then self.__texture = nil return false end
+			self.__texture = file
+			return true
+		end,
+		GetTexture = function(self) return self.__texture end,
+		SetAtlas = function(self, name)
+			if W.missingAtlases and W.missingAtlases[name] then return false end
+			self.__atlas = name
+			return true
+		end,
+		SetVertexColor = function(self, r, g, b, a) self.__vertex = { r, g, b, a } end,
+		GetVertexColor = function(self) if self.__vertex then return unpack(self.__vertex) end end,
+		SetDesaturated = function(self, v) self.__desaturated = v and true or false end,
+		IsDesaturated = function(self) return self.__desaturated or false end,
 		SetBackdropColor = function(self, r, g, b, a) self.__bg = { r, g, b, a } end,
 		SetBackdropBorderColor = function(self, r, g, b, a) self.__border = { r, g, b, a } end,
 		SetPoint = function(self, ...) self.__point = { ... } end,

@@ -9,9 +9,10 @@ local L = CK.L
 -- and draws it:
 --
 --   ready     bright
---   active    bright, a breathing halo (the aura is up): green for a
---             defensive, yellow for an immunity or a big external, red for
---             a burst, violet for a crowd control on an opponent
+--   active    bright, an animated border around it (the aura is up): green
+--             for a defensive, yellow for an immunity or a big external, red
+--             for a burst, violet for a crowd control on an opponent, blue
+--             for the rest
 --   cooling   dark, a cooldown swipe with the time left
 --   unknown   dark, a "?" in the middle
 --
@@ -173,9 +174,9 @@ local function Row(unit)
 	return f
 end
 
--- the halo's colour by the ability's main tag (Spells.lua): green for defense,
--- red for burst, violet for control, blue for the rest; yellow instead for a
--- big one (an immunity, a large external)
+-- the highlight's colour by the ability's main tag (Spells.lua): green for
+-- defense, red for burst, violet for control, blue for the rest; yellow
+-- instead for a big one (an immunity, a large external)
 local GLOW = {
 	defense = { 0.25, 0.95, 0.35 },
 	big     = { 1.00, 0.85, 0.20 },
@@ -189,12 +190,127 @@ function UI.GlowOf(def)
 	return GLOW[def.tag] and def.tag or "defense"
 end
 
+-- The highlight while the aura is up: one of the game's own animated borders
+-- (client textures, run by an animation of our own; nothing of the action
+-- bars' glow code is called). Each is made grey and tinted with the tag's
+-- colour, so blue and violet stay as bright as the others. A texture the
+-- game does not have falls back to the four breathing strips (`halo`).
+--
+--   ants   the classic marching ants: a 256 px file, 48 px frames five to a
+--          line, the first 22 drawn (the cells after them are empty)
+--   thin   the newer thin ants (the rotation helper's), an atlas
+--   proc   the newer, longer band that runs round the edge (a proc's), an atlas
+--
+-- Both atlases are 5 frames across and 6 down (their size in the game's atlas
+-- table, 333 x 400 px, makes square frames of 66.6 px); how many of the 30
+-- cells are drawn, the speed and the size around the icon are to be checked
+-- in game.
+local GLOW_STYLES = {
+	ants = { file = "Interface\\SpellActivationOverlay\\IconAlertAnts", size = 256, cell = 48, columns = 5, frames = 22,
+		duration = 0.5, scale = 1.2 },
+	thin = { atlas = "RotationHelper_Ants_Flipbook", rows = 6, columns = 5, frames = 30, duration = 1, scale = 1.4 },
+	proc = { atlas = "UI-HUD-ActionBar-Proc-Loop-Flipbook", rows = 6, columns = 5, frames = 30, duration = 1, scale = 1.4 },
+}
+UI.GLOW_STYLES = { "ants", "thin", "proc" }   -- the settings page's order
+
+local function StyleKey()
+	local key = ns.db and ns.db.glowStyle
+	return GLOW_STYLES[key] and key or "ants"
+end
+
+-- the classic ants' frame `i` (from 0), cut out of the file
+local function AntsFrame(tex, s, i)
+	local unit = s.cell / s.size
+	local col, line = i % s.columns, math.floor(i / s.columns)
+	tex:SetTexCoord(col * unit, (col + 1) * unit, line * unit, (line + 1) * unit)
+end
+
+local function HasAtlas(name)
+	if not (C_Texture and C_Texture.GetAtlasInfo) then return true end   -- nothing to ask: SetAtlas says it
+	local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+	return ok and info ~= nil
+end
+
+-- one style's layer on an icon, made once: the texture over the icon and the
+-- animation that runs it; false when the game does not have the texture
+local function GlowLayer(icon, key)
+	icon.layers = icon.layers or {}
+	if icon.layers[key] ~= nil then return icon.layers[key] end
+	local s = GLOW_STYLES[key]
+	local tex = icon:CreateTexture(nil, "OVERLAY", nil, 7)
+	local ok
+	if s.atlas then
+		ok = HasAtlas(s.atlas) and tex:SetAtlas(s.atlas) ~= false
+	else
+		ok = tex:SetTexture(s.file) ~= false and tex:GetTexture() ~= nil
+	end
+	tex:Hide()
+	if not ok then
+		icon.layers[key] = false
+		return false
+	end
+	tex:SetDesaturated(true)
+	tex:SetBlendMode("ADD")
+	tex:SetPoint("CENTER")
+	local anim = tex:CreateAnimationGroup()
+	anim:SetLooping("REPEAT")
+	if s.atlas then
+		local flip = anim:CreateAnimation("FlipBook")
+		flip:SetFlipBookRows(s.rows)
+		flip:SetFlipBookColumns(s.columns)
+		flip:SetFlipBookFrames(s.frames)
+		flip:SetDuration(s.duration)
+	else
+		-- a file cut into 48 px cells is not an even grid of it: the frames are stepped here
+		AntsFrame(tex, s, 0)
+		local step = anim:CreateAnimation("Animation")
+		step:SetDuration(s.duration)
+		step:SetScript("OnUpdate", function(self)
+			local p = self:GetProgress() or 0
+			AntsFrame(tex, s, math.min(s.frames - 1, math.floor(p * s.frames)))
+		end)
+	end
+	local layer = { tex = tex, anim = anim, style = s, key = key }
+	icon.layers[key] = layer
+	return layer
+end
+
+local function SizeLayer(icon, layer)
+	local size = (icon.size or 28) * layer.style.scale
+	layer.tex:SetSize(size, size)
+end
+
+-- the highlight off, whichever is in use
+local function Unlit(icon)
+	if icon.layer then
+		icon.layer.anim:Stop()
+		icon.layer.tex:Hide()
+	end
+	icon.pulse:Stop()
+	icon.halo:Hide()
+	icon.lit = false
+end
+
+-- the icon follows the style picked in the settings; a change puts the
+-- highlight out (SetActive lights the new one) and asks for the colour again
+local function Choose(icon)
+	local key = StyleKey()
+	if icon.styleKey == key then return end
+	if icon.lit then Unlit(icon) end
+	icon.styleKey = key
+	icon.layer = GlowLayer(icon, key) or nil
+	icon.glowKind = nil
+	if icon.layer then SizeLayer(icon, icon.layer) end
+end
+
 local function Colour(icon, def)
+	Choose(icon)
 	local kind = UI.GlowOf(def)
 	local c = GLOW[kind]
 	if icon.glowKind == kind then return end
 	icon.glowKind = kind
 	for _, t in ipairs(icon.border) do t:SetColorTexture(c[1], c[2], c[3], 0.9) end
+	if icon.layer then icon.layer.tex:SetVertexColor(c[1], c[2], c[3], 1) end
 end
 
 local function Icon(row, i)
@@ -208,8 +324,8 @@ local function Icon(row, i)
 	icon.cd:SetAllPoints()
 	icon.cd:SetDrawEdge(false)
 	icon.cd:SetHideCountdownNumbers(false)
-	-- the active glow: a frame around the icon with four strips in the accent
-	-- colour, breathing while the buff is up
+	-- the fallback highlight: a frame around the icon with four strips in the
+	-- accent colour, breathing while the buff is up
 	icon.halo = CreateFrame("Frame", nil, icon)
 	icon.halo:SetPoint("TOPLEFT", -3, 3)
 	icon.halo:SetPoint("BOTTOMRIGHT", 3, -3)
@@ -256,15 +372,20 @@ local function Icon(row, i)
 	return icon
 end
 
+-- the highlight on or off, by the tracker's state (or the sample's look)
 local function SetActive(icon, on)
-	if on then
-		if not icon.halo:IsShown() then
+	Choose(icon)
+	if on and not icon.lit then
+		if icon.layer then
+			icon.layer.tex:Show()
+			icon.layer.anim:Play()
+		else
 			icon.halo:Show()
 			icon.pulse:Play()
 		end
-	elseif icon.halo:IsShown() then
-		icon.pulse:Stop()
-		icon.halo:Hide()
+		icon.lit = true
+	elseif not on and icon.lit then
+		Unlit(icon)
 	end
 end
 
@@ -472,6 +593,12 @@ local function Layout(row, n, spec)
 	for i = 1, n do
 		local icon = Icon(row, i)
 		icon:SetSize(size, size)
+		if icon.size ~= size then
+			icon.size = size
+			for _, layer in pairs(icon.layers or {}) do
+				if layer then SizeLayer(icon, layer) end
+			end
+		end
 		if icon.font ~= font then
 			icon.font = font
 			pcall(icon.cd.SetCountdownFont, icon.cd, font)
@@ -552,15 +679,15 @@ local function DrawTrinket(icon, unit)
 	icon.cd:Clear()
 end
 
--- a row of sample icons: the player's own class, one of each look: the
--- first with its buff up, the second cooling with the estimate dot, the
+-- a row of sample icons: the player's own class and race, one of each look:
+-- the first with its buff up, the second cooling with the estimate dot, the
 -- third unknown, the rest ready; the trinket in front when it is on
 local function DrawSample(row, spec, at)
 	local _, class = UnitClass("player")
 	-- the player's own specialization, as a real row would have it
 	local mySpec = ns.Inspect and ns.Inspect.PlayerSpec and ns.Inspect.PlayerSpec()
 	local defs = {}
-	for _, def in ipairs(ns.SpellsFor(class, ns.Selection())) do
+	for _, def in ipairs(ns.SpellsFor(class, ns.Selection(), ns.RaceOf("player"))) do
 		if not (mySpec and def.specs and not def.specs[mySpec]) then defs[#defs + 1] = def end
 	end
 	local lead = ns.db.trinket and 1 or 0
