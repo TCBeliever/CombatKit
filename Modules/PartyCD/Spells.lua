@@ -50,9 +50,10 @@ local ADDON, ns = ...
 -- (Spellwarden, Diamond Ice): its own spell then has no effect naming the
 -- version it brings, which sits next to it among the spell IDs.
 --
--- `external` (from how it is seen: on someone else than the caster) decides
--- what the externals switch hides; an entry says `external = false` when it is
--- mostly the caster's own (Anti-Magic Shell).
+-- `external` (from how it is seen: on someone else than the caster) marks an
+-- ability that may be another teammate's: the sample rows show it with the
+-- shared-estimate mark; an entry says `external = false` when it is mostly the
+-- caster's own (Anti-Magic Shell).
 --
 -- `cd` is the base cooldown in seconds and `charges` the charges, used only
 -- when the game's data (TalentData.lua, generated from the data files) has no
@@ -307,10 +308,50 @@ ns.SPELLS = {
 	},
 }
 
+-- Racial abilities, by the race (UnitRace's second value) and its race ID (for
+-- the race's name). Shown on the spells page under "Racial" for a look; not
+-- watched yet: teammates' races are not read and the PvP trinket's shared
+-- cooldown (category 1166: Stoneform, Fireblood) is still to be measured
+-- (docs/PartyCD-next.md, B). Cooldowns and auras are the game's data.
+-- `defaultOff` keeps an ability off by default whatever its cooldown.
+ns.RACIALS = {
+	{ race = "Dwarf", raceID = 3, Caster(20594, 120, "defense", { aura = 65116 }) },  -- Stoneform: the buff is 65116
+	{ race = "DarkIronDwarf", raceID = 34, Caster(265221, 120, "defense", { aura = 265226 }) },  -- Fireblood: the buff is 265226
+	{ race = "NightElf", raceID = 4, Caster(58984, 120, "defense") },  -- Shadowmeld (defense or other: to decide)
+	{ race = "Orc", raceID = 2, Caster(33697, 120, "burst", { casts = { 20572, 33702 }, auras = { 33697, 20572, 33702 }, defaultOff = true }) },  -- Blood Fury, in each class's version
+	{ race = "Troll", raceID = 8, Caster(26297, 180, "burst", { defaultOff = true }) },  -- Berserking
+	{ race = "MagharOrc", raceID = 36, Caster(274738, 120, "burst", { auras = { 274739, 274740, 274741, 274742 }, defaultOff = true }) },  -- Ancestral Call: one of four buffs
+	{ race = "Pandaren", raceID = 24, Enemy(107079, 120, "control") },  -- Quaking Palm
+	{ race = "Tauren", raceID = 6, Enemy(20549, 90, "control") },  -- War Stomp
+	{ race = "KulTiran", raceID = 32, Enemy(287712, 150, "control") },  -- Haymaker
+	{ race = "HighmountainTauren", raceID = 28, Enemy(255654, 120, "control", { aura = 255723 }) },  -- Bull Rush: the stun is 255723
+}
+
 -- where each way of being seen looks: on an opponent, or on the teammates; and
 -- whether the aura lands on someone else than the caster (an external)
 local ON_ENEMY = { enemy = true, enemies = true, enemyLater = true }
 local ON_OTHERS = { ally = true, otherAlly = true, allies = true }
+
+local function Complete(def)
+	def.auras = def.auras or { def.aura or def.id }
+	def.aura = def.auras[1]
+	def.charges = def.charges or 1
+	def.tag = def.tags[1]
+	def.onEnemy = ON_ENEMY[def.seen] or false
+	if def.external == nil then def.external = ON_OTHERS[def.seen] or false end   -- an entry may say otherwise
+	for _, t in ipairs(def.tags) do
+		if t == "burst" then def.noLearn = true end
+	end
+end
+
+-- the racial definitions, in list order, each knowing its race
+ns.RACIAL_LIST = {}
+for _, r in ipairs(ns.RACIALS) do
+	local def = r[1]
+	def.race, def.raceID = r.race, r.raceID
+	Complete(def)
+	ns.RACIAL_LIST[#ns.RACIAL_LIST + 1] = def
+end
 
 -- every definition by spell ID, and the classes that have it
 ns.SPELL_BY_ID = {}
@@ -319,15 +360,7 @@ ns.CLASSES_WITH = {}
 for class, list in pairs(ns.SPELLS) do
 	for _, def in ipairs(list) do
 		def.class = class
-		def.auras = def.auras or { def.aura or def.id }
-		def.aura = def.auras[1]
-		def.charges = def.charges or 1
-		def.tag = def.tags[1]
-		def.onEnemy = ON_ENEMY[def.seen] or false
-		if def.external == nil then def.external = ON_OTHERS[def.seen] or false end   -- an entry may say otherwise
-		for _, t in ipairs(def.tags) do
-			if t == "burst" then def.noLearn = true end
-		end
+		Complete(def)
 		ns.SPELL_BY_ID[def.id] = def
 		for _, cast in ipairs(def.casts or {}) do ns.SPELL_BY_CAST[cast] = def end
 		ns.CLASSES_WITH[def.id] = ns.CLASSES_WITH[def.id] or {}
@@ -345,6 +378,7 @@ end
 ns.DEFAULT_ON_COOLDOWN = 60
 
 function ns.DefaultOn(def)
+	if def.defaultOff then return false end
 	return ns.BaseCooldown(def) >= ns.DEFAULT_ON_COOLDOWN
 end
 
@@ -357,13 +391,13 @@ function ns.Picked(def, picked)
 end
 
 -- the definitions a teammate of this class gets, in list order, under a
--- selection { externals = bool, picked = { [spellID] = bool } } (a bare
--- boolean stands for the externals flag alone, every tick at its default)
+-- selection { picked = { [spellID] = bool } } (anything else: every tick at
+-- its default)
 function ns.SpellsFor(class, sel)
-	if type(sel) ~= "table" then sel = { externals = sel } end
+	if type(sel) ~= "table" then sel = {} end
 	local out = {}
 	for _, def in ipairs(ns.SPELLS[class] or {}) do
-		if (sel.externals or not def.external) and ns.Picked(def, sel.picked) then out[#out + 1] = def end
+		if ns.Picked(def, sel.picked) then out[#out + 1] = def end
 	end
 	return out
 end

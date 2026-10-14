@@ -84,7 +84,7 @@ local function Reorder(t)
 end
 
 -- the entries a teammate carries: the class's list under the selection
--- (externals or not, spells switched off); entries that already exist are
+-- (the spells ticked on or off); entries that already exist are
 -- kept with their estimates
 local function Fit(t, sel)
 	local spells, all = {}, {}
@@ -108,7 +108,7 @@ end
 -- unknown when it arrives mid round. One that stayed keeps its estimates.
 -- `sel` is the selection (see Spells.lua) with a `sig` that changes with it.
 function Tracker.SetRoster(list, sel, known)
-	if type(sel) ~= "table" then sel = { externals = sel, sig = tostring(sel) } end
+	if type(sel) ~= "table" then sel = { sig = "" } end
 	local seen = {}
 	for _, r in ipairs(list) do
 		seen[r.unit] = true

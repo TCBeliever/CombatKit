@@ -409,10 +409,11 @@ C_Spell.GetSpellTexture = realTexture
 AR.db.trinket = false; AR.Apply()
 check(not row.icons[n + 1]:IsShown(), "trinket off: only the abilities")
 AR.db.trinket = true; AR.Apply()
-AR.db.externals = false
+check(TR.Get("party1").spells[102342], "the druid's row has Ironbark")
+AR.db.picked[102342] = false
 AR.Apply()
-eq(#TR.Get("party1").order, #AR.SpellsFor("DRUID", false), "externals off: only the self buffs")
-AR.db.externals = true
+check(not TR.Get("party1").spells[102342], "Ironbark unticked: off the druid's row")
+AR.db.picked[102342] = nil
 AR.Apply()
 AR.db.showSelf = false
 AR.Apply()
@@ -508,7 +509,7 @@ check(main and main:IsShown(), "the settings window opens")
 main.tabs.PartyCD:Click()
 local body = main.bodies.PartyCD
 local page = body.pages.main
-check(page and page.iconSize and page.externals, "the Party CD page is built")
+check(page and page.iconSize and page.trinket, "the Party CD page is built")
 check(page:IsShown() and not body.pages.spells:IsShown(), "it opens on the display page")
 -- the debug page: the player's own row
 CK.Options.Select("PartyCD", "debug")

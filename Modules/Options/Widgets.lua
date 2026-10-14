@@ -95,7 +95,7 @@ end
 -- Dropdown: a button that opens a small pick list
 -- ---------------------------------------------------------------------------
 
-local LIST_ROWS = 12   -- more than this and the list scrolls with the mouse wheel
+local LIST_ROWS = 12   -- more than this and the list scrolls with the mouse wheel (a dropdown may set its own maxRows)
 
 local optionList
 local function ShowOptionList(anchor, items, onPick)
@@ -112,7 +112,7 @@ local function ShowOptionList(anchor, items, onPick)
 		f.thumb:SetWidth(2)
 		f:EnableMouseWheel(true)
 		f:SetScript("OnMouseWheel", function(self, delta)
-			local last = math.max(0, #self.items - LIST_ROWS)
+			local last = math.max(0, #self.items - self.rows)
 			self.offset = math.max(0, math.min(last, self.offset - delta))
 			self.Render()
 		end)
@@ -133,9 +133,10 @@ local function ShowOptionList(anchor, items, onPick)
 	local w = anchor:GetWidth() - 8
 	for _, item in ipairs(items) do
 		f.measure:SetText(item.label)
-		w = math.max(w, f.measure:GetStringWidth() + 16 + ((item.icon or item.swatch) and 22 or 0))
+		w = math.max(w, f.measure:GetStringWidth() + 16 + ((item.icon or item.atlas or item.swatch) and 22 or 0))
 	end
-	local rows = math.min(#items, LIST_ROWS)
+	local rows = math.min(#items, anchor.maxRows or LIST_ROWS)
+	f.rows = rows
 	for i = 1, rows do
 		local b = f.buttons[i]
 		if not b then
@@ -170,11 +171,16 @@ local function ShowOptionList(anchor, items, onPick)
 			local b, item = f.buttons[i], f.items[f.offset + i]
 			b.item = item
 			b.text:SetText(item.label)
+			if item.color then b.text:SetTextColor(item.color[1], item.color[2], item.color[3]) else b.text:SetTextColor(Skin.Color("text")) end
 			b.text:ClearAllPoints()
-			if item.icon or item.swatch then
+			if item.icon or item.atlas or item.swatch then
 				if item.swatch then
 					b.icon:SetColorTexture(item.swatch[1], item.swatch[2], item.swatch[3])
+				elseif item.atlas then
+					b.icon:SetTexCoord(0, 1, 0, 1)
+					b.icon:SetAtlas(item.atlas)
 				else
+					b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 					b.icon:SetTexture(item.icon)
 				end
 				b.icon:Show()
@@ -204,7 +210,9 @@ end
 function Skin.HideOptionList() if optionList then optionList:Hide() end end
 
 -- getItems(dropdown) -> { { label=, value=, icon= }, ... }; onPick(dropdown, item).
--- An item may carry swatch = { r, g, b }, a plain colour, instead of an icon.
+-- An item may carry swatch = { r, g, b }, a plain colour, or atlas = name instead
+-- of an icon, and color = { r, g, b } for its text. A dropdown's maxRows, when
+-- set, is how many rows its list shows before it scrolls.
 function Skin.Dropdown(parent, w, getItems, onPick)
 	local d = CreateFrame("Button", nil, parent, "BackdropTemplate")
 	d:SetSize(w, 20)
@@ -257,7 +265,8 @@ end
 
 -- A number to set: its name above, a slider with the ends marked, and under it a
 -- box the number can be typed into. opts: min, max, step (1), width (170),
--- format(v) -> text, parse(text) -> number | nil, onChange(v). The block is
+-- format(v) -> text, ends(v) -> text for the two end labels (format if
+-- absent), parse(text) -> number | nil, onChange(v). The block is
 -- Skin.SLIDER_H tall; .value is the box (its text is what the number reads as).
 Skin.SLIDER_H = 58
 function Skin.Percent(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end
@@ -270,6 +279,7 @@ function Skin.Slider(parent, key, opts)
 	local w = opts.width or 170
 	local step = opts.step or 1
 	local format = opts.format or function(v) return tostring(v) end
+	local ends = opts.ends or format   -- the fixed labels at both ends may carry a unit the box does not
 	local parse = opts.parse or tonumber
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(w, Skin.SLIDER_H)
@@ -294,9 +304,9 @@ function Skin.Slider(parent, key, opts)
 		Skin.Paint(thumb, function(t) t:SetVertexColor(Skin.Color("accent")) end)
 	end
 	f.slider = s
-	f.lo = Skin.Label(f, format(opts.min), nil, "dim")
+	f.lo = Skin.Label(f, ends(opts.min), nil, "dim")
 	f.lo:SetPoint("BOTTOMLEFT", 0, 2)
-	f.hi = Skin.Label(f, format(opts.max), nil, "dim")
+	f.hi = Skin.Label(f, ends(opts.max), nil, "dim")
 	f.hi:SetPoint("BOTTOMRIGHT", 0, 2)
 
 	local function snap(v)

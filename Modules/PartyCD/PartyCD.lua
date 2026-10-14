@@ -25,7 +25,6 @@ local running = false
 
 ns.defaults = {
 	showSelf    = false,     -- the player's own row (debug: it is the self-test's reference)
-	externals   = true,
 	trinket     = true,      -- the PvP trinket first in every row, from the game's own cooldown data
 	picked      = {},        -- [spellID] = true | false: ticked on or off on the spells page;
 	                         -- no entry: the default (on for a cooldown of a minute or more, Spells.lua)
@@ -67,6 +66,16 @@ local function InitDB()
 		end
 		ns.db.disabled = nil
 	end
+	-- earlier builds had a switch for the externals: switched off, it becomes
+	-- every external unticked on the spells page
+	if ns.db.externals == false then
+		for _, list in pairs(ns.SPELLS) do
+			for _, def in ipairs(list) do
+				if def.external and ns.db.picked[def.id] == nil then ns.db.picked[def.id] = false end
+			end
+		end
+	end
+	ns.db.externals = nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -133,14 +142,13 @@ local function Roster()
 	return list
 end
 
--- which spells are watched: the externals switch and the spells ticked on or
--- off, with a signature that changes with them
+-- which spells are watched: the spells ticked on or off, with a signature that
+-- changes with them
 function ns.Selection()
 	local ids = {}
 	for id, on in pairs(ns.db.picked) do ids[#ids + 1] = id .. (on and "+" or "-") end
 	table.sort(ids)
-	return { externals = ns.db.externals, picked = ns.db.picked,
-		sig = tostring(ns.db.externals) .. "|" .. table.concat(ids, ",") }
+	return { picked = ns.db.picked, sig = table.concat(ids, ",") }
 end
 
 local function ApplyRoster()
@@ -400,7 +408,7 @@ end
 function ns.IsRunning() return running end
 function ns.InArena() return inArena end
 
--- settings changed: redraw, and watch or stop watching the player and the externals
+-- settings changed: redraw, and watch or stop watching the player and the ticked spells
 function ns.Apply()
 	if inArena then ApplyRoster() end
 	ns.UI.Refresh()

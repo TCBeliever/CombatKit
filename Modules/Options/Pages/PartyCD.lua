@@ -38,8 +38,17 @@ local function Items(list)
 	end
 end
 
+local RACIAL = "RACIAL"   -- the picker's last entry: every racial ability
+
 local function ClassName(class)
+	if class == RACIAL then return L["Racial"] end
 	return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]) or class
+end
+
+-- the abilities the page lists for the picker's choice
+local function ListFor(class)
+	if class == RACIAL then return AR.RACIAL_LIST end
+	return AR.SPELLS[class] or {}
 end
 
 local function Changed()
@@ -70,35 +79,30 @@ end
 -- ---------------------------------------------------------------- the display
 local function BuildMain(p)
 	Skin.Field(p, "Show", 0, 0)
-	p.externals = CK.Bind(Skin.Checkbox(p, "", function(checked)
-		AR.db.externals = checked
-		Changed()
-	end), "Externals (buffs put on an ally)")
-	p.externals:SetPoint("TOPLEFT", X, -1)
 	p.trinket = CK.Bind(WithIcon(Skin.Checkbox(p, "", function(checked)
 		AR.db.trinket = checked
 		Changed()
 	end)), "The PvP trinket")
 	p.trinket.icon:SetTexture(C_Spell.GetSpellTexture(MEDALLION) or 134400)
-	p.trinket:SetPoint("TOPLEFT", X, -21)
+	p.trinket:SetPoint("TOPLEFT", X, -1)
 
 	-- by the party frames: which side, how far, shifted along the edge
-	Skin.Field(p, "Attach", 0, -46)
+	Skin.Field(p, "Attach", 0, -26)
 	p.attach = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		AR.db.attach = checked
 		Changed()
 	end), "Attach to party frames")
-	p.attach:SetPoint("TOPLEFT", X, -47)
+	p.attach:SetPoint("TOPLEFT", X, -27)
 	-- the side and how the lines line up go together: the second follows the first
-	Skin.Field(p, "Side", 0, -70)
+	Skin.Field(p, "Side", 0, -50)
 	p.side = Skin.Dropdown(p, 100, Items(SIDES), function(_, item)
 		AR.db.side = item.value
 		AR.db.grow = AR.UI.GrowFor(item.value, AR.db.grow)
 		Changed()
 		O.Refresh()
 	end)
-	p.side:SetPoint("TOPLEFT", X, -70)
-	p.growLabel = Skin.Field(p, "Grow", X + 116, -70)
+	p.side:SetPoint("TOPLEFT", X, -50)
+	p.growLabel = Skin.Field(p, "Grow", X + 116, -50)
 	p.grow = Skin.Dropdown(p, 100, GrowItems, function(_, item)
 		AR.db.grow = item.value
 		Changed()
@@ -113,7 +117,7 @@ local function BuildMain(p)
 		s:SetPoint("TOPLEFT", x, y)
 		return s
 	end
-	local row1 = -98
+	local row1 = -78
 	local row2 = row1 - Skin.SLIDER_H - 6
 	p.offset = Slider("Offset", 0, row1, { min = -40, max = 80, step = 1,
 		onChange = function(v) AR.db.offset = v; Changed() end })
@@ -149,7 +153,6 @@ end
 
 local function RefreshMain(p)
 	local db = AR.db
-	p.externals:SetChecked(db.externals)
 	p.trinket:SetChecked(db.trinket)
 	p.attach:SetChecked(db.attach)
 	p.offset:SetValue(db.offset)
@@ -208,16 +211,37 @@ local function Pick(def, checked)
 	end
 end
 
+local RACIAL_ICON = "Interface\\Icons\\INV_Misc_GroupNeedMore"   -- a generic one for every race
+local WHITE = { 1, 1, 1 }
+
+-- a class's colour as { r, g, b }; white for the racial entry
+local function ClassColor(class)
+	local c = class ~= RACIAL and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+	return c and { c.r, c.g, c.b } or WHITE
+end
+
+-- every class with its icon and colour, then the racial abilities
 local function ClassItems()
 	local items = {}
-	for _, class in ipairs(CLASSES) do items[#items + 1] = { label = ClassName(class), value = class } end
+	for _, class in ipairs(CLASSES) do
+		items[#items + 1] = { label = ClassName(class), value = class, atlas = "classicon-" .. class:lower(), color = ClassColor(class) }
+	end
+	items[#items + 1] = { label = ClassName(RACIAL), value = RACIAL, icon = RACIAL_ICON, color = WHITE }
 	return items
+end
+
+-- the race's name, from the game, for a racial ability
+local function RaceName(def)
+	if not (def.raceID and C_CreatureInfo and C_CreatureInfo.GetRaceInfo) then return def.race end
+	local ok, info = pcall(C_CreatureInfo.GetRaceInfo, def.raceID)
+	return ok and type(info) == "table" and info.raceName or def.race
 end
 
 local function SpellName(def)
 	local ok, name = pcall(C_Spell.GetSpellName, def.id)
-	if ok and type(name) == "string" and name ~= "" then return name end
-	return tostring(def.id)
+	if not (ok and type(name) == "string" and name ~= "") then name = tostring(def.id) end
+	if def.race then name = name .. " (" .. RaceName(def) .. ")" end
+	return name
 end
 
 -- a check box with the spell's icon between the box and the name
@@ -228,18 +252,19 @@ end
 local function BuildSpells(p)
 	local _, class = UnitClass("player")
 	p.class = AR.SPELLS[class] and class or CLASSES[1]
-	Skin.Field(p, "Class", 0, 0)
+	Skin.Field(p, "Class / race", 0, 0)
 	p.picker = Skin.Dropdown(p, 180, ClassItems, function(_, item)
 		p.class = item.value
 		O.Refresh()
 	end)
 	p.picker:SetPoint("TOPLEFT", X, 0)
+	p.picker.maxRows = #CLASSES + 1   -- the whole list at once, no scrolling
 
 	p.headers = {}
 	for _, cat in ipairs(CATEGORIES) do
 		local role = cat[1]
 		local h = CK.Bind(Skin.Checkbox(p, "", function(checked)
-			for _, def in ipairs(AR.SPELLS[p.class] or {}) do
+			for _, def in ipairs(ListFor(p.class)) do
 				if def.tag == role then Pick(def, checked) end
 			end
 			Changed()
@@ -254,7 +279,8 @@ end
 local function RefreshSpells(p)
 	local db = AR.db
 	p.picker:SetValueText(ClassName(p.class))
-	local list = AR.SPELLS[p.class] or {}
+	p.picker.text:SetTextColor(unpack(ClassColor(p.class)))
+	local list = ListFor(p.class)
 	local tops, used = { -34, -34 }, 0
 	local colX = math.max(COL_MIN, math.floor((p:GetWidth() or 0) / 2))
 	local heights = {}
@@ -342,7 +368,7 @@ O.AddSection({
 		}
 	end,
 	GetHeader = function(node)
-		if node == "spells" then return L["Spells"], L["PARTYCD_SPELLS_DESC"] end
+		if node == "spells" then return nil, nil end   -- the tab says it; the page starts at the top
 		if node == "debug" then return L["PAGE_debug"], L["PARTYCD_DEBUG_DESC"] end
 		return L["MOD_PartyCD"], L["MODDESC_PartyCD"]
 	end,

@@ -331,6 +331,8 @@ local function RefreshDetail()
 	body:ClearAllPoints()
 	if desc and desc ~= "" then
 		body:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -DESC_GAP)   -- the text wraps: its height is its own
+	elseif not title or title == "" then
+		body:SetPoint("TOPLEFT", 0, 0)   -- no header at all: the page starts at the top
 	else
 		body:SetPoint("TOPLEFT", 0, BODY_Y_BARE)
 	end

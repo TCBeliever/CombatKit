@@ -46,7 +46,8 @@ local function Build(p)
 	p.fontSize = Slider("Font size", 0, -58, { min = 8, max = 40,
 		onChange = function(v) RG.db.fontSize = v; Changed() end })
 	p.updateRate = Slider("Update every", 200, -58, { min = 0.05, max = 1, step = 0.05,
-		format = function(v) return string.format("%.2f s", v) end,
+		format = function(v) return string.format("%.2f", v) end,
+		ends = function(v) return string.format("%.2f s", v) end,
 		parse = function(t) return tonumber((t:gsub("s", ""):gsub("%s", ""))) end,
 		onChange = function(v) RG.db.updateRate = v; Changed() end })
 	p.offsetX = Slider("Mouseover offset X", 0, -124, { min = -200, max = 200, step = 5,
