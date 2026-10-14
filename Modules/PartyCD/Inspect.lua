@@ -251,6 +251,13 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 		end
 		acc[def.id] = { sec = 0, pct = 1, charges = 0, offered = false, taken = false }
 	end
+	-- a tree node may give the ability as another spell (`casts`: a talent's or
+	-- a specialization's version on the same button): it counts as the ability
+	local castOf = {}
+	for _, def in ipairs(defs) do
+		for _, cast in ipairs(def.casts or {}) do castOf[cast] = acc[def.id] end
+	end
+	local function Of(sid) return sid and (acc[sid] or castOf[sid]) end
 	local state = { complete = true }
 
 	-- what the data says a selected spell does, at the rank of the definition taken
@@ -297,11 +304,11 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 				if info.subTreeID and info.subTreeActive == false then rank = 0 end   -- a hero tree not chosen
 				for _, entryID in ipairs(info.entryIDs or {}) do
 					local sid = DefinitionSpell(configID, entryID)
-					if sid and acc[sid] then acc[sid].offered = true end
+					if Of(sid) then Of(sid).offered = true end
 				end
 				if rank > 0 and active.entryID then
 					local sid, override, definitionID = DefinitionSpell(configID, active.entryID)
-					if sid and acc[sid] then acc[sid].taken = true end
+					if Of(sid) then Of(sid).taken = true end
 					if not ApplyData(sid, definitionID, rank) and useText then
 						local text = TalentText(active.entryID, rank, sid, override, state)
 						if text then ApplyText(text) end
@@ -314,7 +321,7 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 		local ok, info = pcall(C_SpecializationInfo.GetPvpTalentInfo, talentID)
 		local sid = ok and type(info) == "table" and info.spellID
 		if sid then
-			if acc[sid] then acc[sid].taken = true end
+			if Of(sid) then Of(sid).taken = true end
 			if not ApplyData(sid) and useText then
 				local text = TalentText(nil, nil, sid, nil, state)
 				if text then ApplyText(text) end

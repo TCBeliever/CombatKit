@@ -125,10 +125,12 @@ ns.SPELLS = {
 		Caster(48792, 120, "defense"),          -- Icebound Fortitude
 		Caster(49039, 120, "defense"),          -- Lichborne
 		Caster(55233, 90, "defense", { specs = set(250) }),  -- Vampiric Blood
+		Caster(48743, 120, "defense"),          -- Death Pact
 		Ally(48707, 60, "defense", { auras = { 48707, 410358 }, external = false }),  -- Anti-Magic Shell; Spellwarden (PvP talent) puts it on an ally as 410358, but it stays the DK's own
 		Allies(51052, 240, 8, "defense", { aura = 145629 }),  -- Anti-Magic Zone
 		Caster(49028, 120, "burst defense", { aura = 81256, specs = set(250) }),  -- Dancing Rune Weapon
 		Caster(51271, 45, "burst", { specs = set(251) }),  -- Pillar of Frost
+		Caster(1249658, 90, "burst", { specs = set(251) }),  -- Breath of Sindragosa
 		Caster(42650, 90, "burst", { specs = set(252) }),  -- Army of the Dead
 		Enemy(221562, 45, "control"),           -- Asphyxiate
 		Enemy(47476, 45, "control"),            -- Strangulate
@@ -138,16 +140,17 @@ ns.SPELLS = {
 	DEMONHUNTER = {
 		Caster(198589, 60, "defense", { aura = 212800, extraCharge = true, specs = set(577, 1480) }),  -- Blur
 		Caster(187827, 120, "defense", { noLearn = true, specs = set(581) }),  -- Metamorphosis (Vengeance): a talent gives a short one too
+		Caster(206803, 90, "defense", { specs = set(577, 581) }),  -- Rain from Above (PvP talent)
 		Allies(196718, 300, 8, "defense", { aura = 209426 }),  -- Darkness
 		Enemy(204021, 60, "defense", { auras = { 207771, 207744 }, specs = set(581) }),  -- Fiery Brand: a defensive, but its debuff sits on the opponent (aura IDs to confirm in game)
 		Caster(191427, 120, "burst", { aura = 162264, specs = set(577) }),  -- Metamorphosis (Havoc)
-		Caster(370965, 90, "burst", { specs = set(577) }),  -- The Hunt
+		Caster(370965, 90, "burst", { auras = { 370965, 1246167 }, casts = { 1246167 }, specs = set(577, 1480) }),  -- The Hunt, or Devourer's 1246167 (whose buff Havoc's leaves as well)
 		Enemy(179057, 45, "control", { specs = set(577, 581) }),  -- Chaos Nova
 		Enemy(217832, 45, "control", { auras = { 217832, 221527 }, casts = { 221527 } }),  -- Imprison, or the PvP talent's version
 		Enemy(205630, 60, "control", { specs = set(577, 581) }),  -- Illidan's Grasp (PvP talent)
 		Enemy(1234195, 45, "control", { specs = set(1480) }),  -- Void Nova
 		EnemyLater(207684, 120, 3, "control", { aura = 207685 }),  -- Sigil of Misery
-		Caster(188501, 30, "other"),            -- Spectral Sight
+		Caster(188501, 30, "other", { auras = { 188501, 1251417 }, casts = { 1251417 } }),  -- Spectral Sight, or Devourer's 1251417
 	},
 	DRUID = {
 		Caster(22812, 60, "defense"),           -- Barkskin
@@ -169,6 +172,7 @@ ns.SPELLS = {
 	EVOKER = {
 		Caster(363916, 90, "defense", { extraCharge = true }),  -- Obsidian Scales
 		Caster(370960, 180, "defense", { specs = set(1468) }),  -- Emerald Communion (PvP talent)
+		Caster(359816, 120, "defense", { specs = set(1468) }),  -- Dream Flight
 		Ally(357170, 60, "defense", { extraCharge = true, specs = set(1468) }),  -- Time Dilation
 		Ally(378441, 45, "defense"),            -- Time Stop (PvP talent)
 		Allies(374227, 120, 8, "defense"),      -- Zephyr
@@ -183,7 +187,7 @@ ns.SPELLS = {
 		Caster(19574, 90, "burst", { specs = set(253) }),  -- Bestial Wrath
 		Caster(288613, 120, "burst", { specs = set(254) }),  -- Trueshot
 		Caster(1250646, 90, "burst", { specs = set(255) }),  -- Takedown
-		Enemy(19577, 60, "control", { auras = { 24394, 1258508 }, specs = set(253, 255) }),  -- Intimidation
+		Enemy(19577, 60, "control", { auras = { 24394, 1258508 }, casts = { 474421 }, specs = set(253, 254, 255) }),  -- Intimidation, or Marksmanship's 474421 (the same stun)
 		Enemy(213691, 30, "control"),           -- Scatter Shot (PvP talent)
 		Enemy(407028, 45, "control", { aura = 407032, specs = set(255) }),  -- Sticky Tar Bomb (PvP talent)
 		EnemyLater(187650, 30, 60, "control", { auras = { 3355, 203337 } }),  -- Freezing Trap: the trap holds its target with 3355, or 203337 with Diamond Ice (PvP talent); armed on the ground for a minute
@@ -253,6 +257,7 @@ ns.SPELLS = {
 	ROGUE = {
 		Caster(31224, 120, "defense", { big = true }),  -- Cloak of Shadows
 		Caster(5277, 120, "defense"),           -- Evasion
+		Caster(212182, 180, "defense", { aura = 212183, window = 5 }),  -- Smoke Bomb (PvP talent): the cloud's aura, counted on the rogue only (an enemy rogue's cloud puts the same aura on whoever stands in it); one use for the cloud's 5 s
 		Caster(13750, 180, "burst", { specs = set(260) }),  -- Adrenaline Rush
 		Caster(121471, 90, "burst", { specs = set(261) }),  -- Shadow Blades
 		Enemy(360194, 120, "burst", { specs = set(259) }),  -- Deathmark: the mark on the opponent
@@ -260,6 +265,7 @@ ns.SPELLS = {
 		Enemy(408, 30, "control"),              -- Kidney Shot
 		Enemy(2094, 120, "control"),            -- Blind
 		Enemy(207777, 45, "control"),           -- Dismantle (PvP talent)
+		Caster(1856, 120, "other", { aura = 11327, extraCharge = true }),  -- Vanish: the 3 s buff is 11327; Without a Trace adds a charge
 	},
 	SHAMAN = {
 		Caster(108271, 120, "defense"),         -- Astral Shift
@@ -280,6 +286,7 @@ ns.SPELLS = {
 		Caster(104773, 180, "defense"),         -- Unending Resolve
 		Caster(108416, 60, "defense"),          -- Dark Pact
 		Caster(212295, 45, "defense"),          -- Nether Ward (PvP talent)
+		Enemy(410598, 60, "defense"),           -- Soul Rip (PvP talent): opponents nearby deal less damage
 		Caster(205180, 120, "burst", { specs = set(265) }),  -- Summon Darkglare
 		Caster(265187, 60, "burst", { specs = set(266) }),  -- Summon Demonic Tyrant
 		Caster(442726, 60, "burst", { specs = set(265, 267) }),  -- Malevolence
@@ -298,13 +305,15 @@ ns.SPELLS = {
 		Caster(384100, 60, "defense"),          -- Berserker Shout
 		OtherAlly(3411, 30, "defense", { aura = 147833 }),  -- Intervene: the buff on the ally is 147833
 		Allies(97462, 180, 10, "defense", { aura = 97463 }),  -- Rallying Cry
+		Allies(1244088, 30, 1, "defense", { aura = 1244091, extraCharge = true, specs = set(71, 72) }),  -- Interpose: the shared damage aura on the team and the warrior; Safeguard (PvP talent) adds a charge
 		Caster(107574, 90, "burst"),            -- Avatar
 		Caster(1719, 90, "burst", { specs = set(72) }),  -- Recklessness
 		Caster(227847, 90, "burst", { specs = set(71, 72) }),  -- Bladestorm
 		Enemy(107570, 30, "control", { aura = 132169 }),  -- Storm Bolt: the stun is 132169
 		Enemy(46968, 40, "control", { aura = 132168 }),  -- Shockwave
-		Enemy(5246, 90, "control"),             -- Intimidating Shout
+		Enemy(5246, 90, "control", { auras = { 5246, 316593 }, casts = { 316593 } }),  -- Intimidating Shout, or its other version 316593
 		Enemy(236077, 45, "control"),           -- Disarm (PvP talent)
+		Enemy(385952, 45, "control", { aura = 385954, specs = set(73) }),  -- Shield Charge: the stun is 385954
 	},
 }
 

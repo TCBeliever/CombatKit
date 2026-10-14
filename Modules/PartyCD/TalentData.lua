@@ -14,10 +14,12 @@ ns.TalentData = {
 		[48792] = { cd = 120, charges = 1 },  -- Icebound Fortitude
 		[49039] = { cd = 120, charges = 1 },  -- Lichborne
 		[55233] = { cd = 90, charges = 1 },  -- Vampiric Blood
+		[48743] = { cd = 120, charges = 1 },  -- Death Pact
 		[48707] = { cd = 60, charges = 1 },  -- Anti-Magic Shell
 		[51052] = { cd = 240, charges = 1 },  -- Anti-Magic Zone
 		[49028] = { cd = 120, charges = 1 },  -- Dancing Rune Weapon
 		[51271] = { cd = 45, charges = 1 },  -- Pillar of Frost
+		[1249658] = { cd = 90, charges = 1 },  -- Breath of Sindragosa
 		[42650] = { cd = 90, charges = 1 },  -- Army of the Dead
 		[221562] = { cd = 45, charges = 1 },  -- Asphyxiate
 		[47476] = { cd = 45, charges = 1 },  -- Strangulate
@@ -25,6 +27,7 @@ ns.TalentData = {
 		[91797] = { cd = 90, charges = 1 },  -- Monstrous Blow
 		[198589] = { cd = 60, charges = 1 },  -- Blur
 		[187827] = { cd = 120, charges = 1 },  -- Metamorphosis
+		[206803] = { cd = 90, charges = 1 },  -- Rain from Above
 		[196718] = { cd = 300, charges = 1 },  -- Darkness
 		[204021] = { cd = 60, charges = 1 },  -- Fiery Brand
 		[191427] = { cd = 120, charges = 1 },  -- Metamorphosis
@@ -52,6 +55,7 @@ ns.TalentData = {
 		[29166] = { cd = 180, charges = 1 },  -- Innervate
 		[363916] = { cd = 90, charges = 1 },  -- Obsidian Scales
 		[370960] = { cd = 180, charges = 1, underControl = true },  -- Emerald Communion
+		[359816] = { cd = 120, charges = 1 },  -- Dream Flight
 		[357170] = { cd = 60, charges = 1 },  -- Time Dilation
 		[378441] = { cd = 45, charges = 1 },  -- Time Stop
 		[374227] = { cd = 120, charges = 1 },  -- Zephyr
@@ -124,6 +128,7 @@ ns.TalentData = {
 		[88625] = { cd = 60, charges = 1 },  -- Holy Word: Chastise
 		[31224] = { cd = 120, charges = 1 },  -- Cloak of Shadows
 		[5277] = { cd = 120, charges = 1 },  -- Evasion
+		[212182] = { cd = 180, charges = 1 },  -- Smoke Bomb
 		[13750] = { cd = 180, charges = 1 },  -- Adrenaline Rush
 		[121471] = { cd = 90, charges = 1 },  -- Shadow Blades
 		[360194] = { cd = 120, charges = 1 },  -- Deathmark
@@ -131,6 +136,7 @@ ns.TalentData = {
 		[408] = { cd = 30, charges = 1 },  -- Kidney Shot
 		[2094] = { cd = 120, charges = 1 },  -- Blind
 		[207777] = { cd = 45, charges = 1 },  -- Dismantle
+		[1856] = { cd = 120, charges = 1 },  -- Vanish
 		[108271] = { cd = 120, charges = 1 },  -- Astral Shift
 		[108280] = { cd = 180, charges = 1 },  -- Healing Tide Totem
 		[409293] = { cd = 120, charges = 1 },  -- Burrow
@@ -147,6 +153,7 @@ ns.TalentData = {
 		[104773] = { cd = 180, charges = 1, underControl = true },  -- Unending Resolve
 		[108416] = { cd = 60, charges = 1, underControl = true },  -- Dark Pact
 		[212295] = { cd = 45, charges = 1 },  -- Nether Ward
+		[410598] = { cd = 60, charges = 1 },  -- Soul Rip
 		[205180] = { cd = 120, charges = 1 },  -- Summon Darkglare
 		[265187] = { cd = 60, charges = 1 },  -- Summon Demonic Tyrant
 		[442726] = { cd = 60, charges = 1 },  -- Malevolence
@@ -163,6 +170,7 @@ ns.TalentData = {
 		[384100] = { cd = 60, charges = 1 },  -- Berserker Shout
 		[3411] = { cd = 30, charges = 1 },  -- Intervene
 		[97462] = { cd = 180, charges = 1 },  -- Rallying Cry
+		[1244088] = { cd = 30, charges = 1 },  -- Interpose
 		[107574] = { cd = 90, charges = 1 },  -- Avatar
 		[1719] = { cd = 90, charges = 1 },  -- Recklessness
 		[227847] = { cd = 90, charges = 1 },  -- Bladestorm
@@ -170,6 +178,7 @@ ns.TalentData = {
 		[46968] = { cd = 40, charges = 1 },  -- Shockwave
 		[5246] = { cd = 90, charges = 1 },  -- Intimidating Shout
 		[236077] = { cd = 45, charges = 1 },  -- Disarm
+		[385952] = { cd = 45, charges = 1 },  -- Shield Charge
 		[20594] = { cd = 120, charges = 1 },  -- Stoneform
 		[265221] = { cd = 120, charges = 1 },  -- Fireblood
 		[58984] = { cd = 120, charges = 1 },  -- Shadowmeld
@@ -190,6 +199,9 @@ ns.TalentData = {
 		[137010] = {  -- Guardian Druid (spec passive)
 			[22812] = { sec = -15 },  -- Barkskin
 			[61336] = { charges = 1 },  -- Survival Instincts
+		},
+		[137035] = {  -- Subtlety Rogue (spec passive)
+			[212182] = { sec = -60 },  -- Smoke Bomb
 		},
 		[192088] = {  -- Graceful Spirit (talent)
 			[79206] = { sec = -30 },  -- Spiritwalker's Grace
@@ -305,6 +317,7 @@ ns.TalentData = {
 			[119381] = { sec = -10, ranks = { [129821] = { sec = { -5, -10 } } } },  -- Leg Sweep
 		},
 		[354825] = {  -- Thief's Bargain (pvp talent)
+			[1856] = { pct = -20 },  -- Vanish
 			[121471] = { pct = -20 },  -- Shadow Blades
 		},
 		[373035] = {  -- Protector of the Frail (talent)
@@ -345,6 +358,9 @@ ns.TalentData = {
 		},
 		[382424] = {  -- Winter's Protection (talent)
 			[45438] = { sec = -30, ranks = { [85185] = { sec = { -29.999, -60 } } } },  -- Ice Block
+		},
+		[382513] = {  -- Without a Trace (talent)
+			[1856] = { charges = 1 },  -- Vanish
 		},
 		[382552] = {  -- Improved Ironbark (talent)
 			[102342] = { sec = -20 },  -- Ironbark
@@ -423,6 +439,7 @@ ns.TalentData = {
 			[107570] = { pct = -10 },  -- Storm Bolt
 			[118038] = { pct = -10 },  -- Die by the Sword
 			[184364] = { pct = -10 },  -- Enraged Regeneration
+			[1244088] = { pct = -10 },  -- Interpose
 		},
 		[391429] = {  -- Fodder to the Flame (talent)
 			[188501] = { sec = 30 },  -- Spectral Sight
@@ -444,6 +461,7 @@ ns.TalentData = {
 		[412713] = {  -- Interwoven Threads (talent)
 			[357170] = { pct = -10 },  -- Time Dilation
 			[357210] = { pct = -10 },  -- Deep Breath
+			[359816] = { pct = -10 },  -- Dream Flight
 			[363534] = { pct = -10 },  -- Rewind
 			[363916] = { pct = -10 },  -- Obsidian Scales
 			[370960] = { pct = -10 },  -- Emerald Communion
@@ -459,6 +477,7 @@ ns.TalentData = {
 		},
 		[424654] = {  -- Safeguard (pvp talent)
 			[3411] = { sec = 10, charges = 1 },  -- Intervene
+			[1244088] = { sec = 10, charges = 1 },  -- Interpose
 		},
 		[424742] = {  -- Battlefield Commander (talent)
 			[5246] = { sec = -15 },  -- Intimidating Shout
@@ -569,6 +588,9 @@ ns.TalentData = {
 		[1266307] = {  -- Demonic Resilience (talent)
 			[198589] = { charges = 1 },  -- Blur
 		},
+		[1266818] = {  -- Death Defiance (talent)
+			[48743] = { sec = -30 },  -- Death Pact
+		},
 		[1270255] = {  -- Oppressive Darkness (talent)
 			[5484] = { sec = -5 },  -- Howl of Terror
 			[30283] = { sec = -15 },  -- Shadowfury
@@ -589,6 +611,7 @@ ns.TalentData = {
 	spec = {
 		[70] = { 1258011 },
 		[104] = { 137010 },
+		[261] = { 137035 },
 		[269] = { 1258122 },
 		[270] = { 1258138 },
 	},

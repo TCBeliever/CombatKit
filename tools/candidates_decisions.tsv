@@ -58,10 +58,10 @@
 207684	in	control: fear where the sigil goes off, 120 s (Sigil of Silence 202137 on the same button)
 207407	out	rotational damage, 60 s
 188501	in	other: sees stealthed and invisible opponents, 30 s
-1251417	in	other: Devourer's own Spectral Sight, the same as 188501, 30 s (proposed, as its Devourer version)
+1251417	in	other: Devourer's own Spectral Sight, folded into 188501's entry, 30 s
 247454	out	rotational damage, under 30 s (25 s)
 370965	in	burst: Havoc's charge and damage, 90 s
-1246167	in	burst: Devourer's own The Hunt, the same as 370965, 90 s (proposed, as its Devourer version)
+1246167	in	burst: Devourer's own The Hunt, folded into 370965's entry (Havoc's leaves the same buff 1246167), 90 s
 198793	out	movement only, under 30 s (25 s)
 1234195	in	control: Devourer's stun, 45 s
 
@@ -157,7 +157,7 @@
 190925	out	movement only, under 30 s (20 s)
 466904	out	group haste once per fight, not a row's concern, 360 s
 19577	in	control: the pet's stun, 60 s
-474421	in	control: Marksmanship's own Intimidation, the same stun as 19577, 60 s (proposed, as its Marksmanship version)
+474421	in	control: Marksmanship's own Intimidation, the same stun as 19577, folded into its entry, 60 s
 212640	out	small heal, under 30 s (25 s)
 34477	out	threat redirect, PvE, 30 s
 53480	in	defense: an ally takes less damage and the pet takes part, 120 s
@@ -299,7 +299,7 @@
 1776	out	incapacitate, but under 30 s (25 s)
 195457	out	movement only, 45 s
 408	in	control: stun, 30 s
-51690	in	burst: Outlaw's damage cooldown, 180 s (proposed)
+51690	out	burst, 180 s, but its cooldown keeps being cut while the rogue fights (user, 2026-10-14): an estimate would always run long
 385627	in	burst: Assassination's damage mark on the opponent, 60 s
 1214909	out	rotational buff, 45 s
 280719	out	rotational damage, under 30 s (25 s)
@@ -389,7 +389,7 @@
 1244088	in	defense: takes part of the team's damage, like Intervene, 30 s (proposed)
 3411	in	defense: takes the next hits for an ally, cannot be on oneself, 30 s
 5246	in	control: fear around the warrior, 90 s
-316593	in	control: the other Intimidating Shout, the same fear as 5246, 90 s (proposed, as its version)
+316593	in	control: the other Intimidating Shout (its own fear 316593), folded into 5246's entry, 90 s
 12975	in	defense: more health, 180 s
 385059	out	rotational damage, 45 s
 12323	out	slow only, 90 s

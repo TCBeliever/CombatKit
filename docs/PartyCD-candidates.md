@@ -12,7 +12,7 @@ button is listed under the base ability (`casts`). The decision and its reason a
 Racial abilities come from each race's own skill line ("Racial - Dwarf"), for the races its race mask
 names, and are listed last under *Racial*, the races in place of the specializations.
 
-Universe: 4596 spells. Candidates: 406 (in 188, out 218, undecided 0).
+Universe: 4596 spells. Candidates: 406 (in 187, out 219, undecided 0).
 
 Columns: *Auras* lists each aura ID and where it lands (caster, ally, allies, enemy, enemies): `<- X` when
 cast X triggers it, `[X]` when X (a version on the same button) applies it, `by name of X` when nothing in
@@ -30,9 +30,9 @@ or under one as a cast or an aura.
 | 42650 | Army of the Dead | 90s | Unholy | 42650 caster | caster | yes | in | burst: Unholy's army, 90 s |
 | 221562 | Asphyxiate (casts 47476 Strangulate) | 45s | all | 221562 enemy<br>47476 enemy [47476] (silence) | enemy | yes | in | control: stun, 45 s; the PvP talent Strangulate (silence) takes its button |
 | 207167 | Blinding Sleet | 60s | all | 207167 enemies (incapacitate, slow -60%) | enemy | yes | in | control: incapacitate in a cone, 60 s |
-| 1249658 | Breath of Sindragosa | 90s | Frost | 1249658 caster | caster |  | in | burst: Frost's damage cooldown, 90 s (proposed) |
+| 1249658 | Breath of Sindragosa | 90s | Frost | 1249658 caster | caster | yes | in | burst: Frost's damage cooldown, 90 s (proposed) |
 | 49028 | Dancing Rune Weapon | 120s | Blood | 49028 caster<br>49028 ally | ally | yes, as caster | in | burst defense: Blood's weapon, parry and damage, 120 s |
-| 48743 | Death Pact | 120s | all | 48743 caster | caster |  | in | defense: a large self heal, 120 s (proposed) |
+| 48743 | Death Pact | 120s | all | 48743 caster | caster | yes | in | defense: a large self heal, 120 s (proposed) |
 | 48792 | Icebound Fortitude | 120s | all | 48792 caster (mechanic immunity, damage taken -30%) | caster | yes | in | defense: 30% less damage and stun immunity, 120 s |
 | 49039 | Lichborne | 120s | all | 49039 caster (mechanic immunity, shapeshift) | caster | yes | in | defense: immune to charm, fear and sleep, 120 s |
 | 51271 | Pillar of Frost | 45s | Frost | 51271 caster | caster | yes | in | burst: Frost's main damage cooldown, 45 s |
@@ -67,12 +67,12 @@ or under one as a cast or an aura.
 | 217832 | Imprison (casts 221527 Imprison) | 45s | all | 217832 enemy (stun)<br>221527 enemy [221527] (stun, school immunity) | enemy | yes | in | control: incapacitate, 45 s (the PvP version 221527 is listed under it in Spells.lua) |
 | 187827 | Metamorphosis (a specialization's version of 191427) | 120s | Vengeance | 187827 caster (transform) | caster | yes | in | defense: Vengeance's Metamorphosis, more health and armor, 120 s |
 | 191427 | Metamorphosis | 120s | all | 162264 caster <- 191427 (transform, speed)<br>201453 caster <- 191427 (school immunity) | caster | yes | in | burst: Havoc's Metamorphosis, 120 s |
-| 206803 | Rain from Above | 90s | Havoc, Vengeance | 206803 caster (transform, mechanic immunity, pacify and silence)<br>206959 caster <- 206803 (transform, mechanic immunity) | caster |  | in | defense: the DH flies out of melee reach (PvP talent), 90 s (proposed) |
+| 206803 | Rain from Above | 90s | Havoc, Vengeance | 206803 caster (transform, mechanic immunity, pacify and silence)<br>206959 caster <- 206803 (transform, mechanic immunity) | caster | yes | in | defense: the DH flies out of melee reach (PvP talent), 90 s (proposed) |
 | 207684 | Sigil of Misery (casts 202137 Sigil of Silence) | 120s; 202137: 90s | all | 207685 enemies by name of 207684 (fear)<br>204490 enemies by name of 202137 (silence)<br>320417 caster by name of 202137 | enemies | yes, as enemyLater | in | control: fear where the sigil goes off, 120 s (Sigil of Silence 202137 on the same button) |
 | 188501 | Spectral Sight | 30s | all | 188501 caster (slow -20%)<br>202688 caster <- 188501<br>215725 caster <- 188501 | caster | yes | in | other: sees stealthed and invisible opponents, 30 s |
-| 1251417 | Spectral Sight (a specialization's version of 188501) | 30s | Devourer | 1251417 caster (slow -20%)<br>202688 caster <- 1251417<br>215725 caster <- 1251417<br>1251707 caster <- 1251417 | caster |  | in | other: Devourer's own Spectral Sight, the same as 188501, 30 s (proposed, as its Devourer version) |
+| 1251417 | Spectral Sight (a specialization's version of 188501) | 30s | Devourer | 1251417 caster (slow -20%)<br>202688 caster <- 1251417<br>215725 caster <- 1251417<br>1251707 caster <- 1251417 | caster | cast of 188501 | in | other: Devourer's own Spectral Sight, folded into 188501's entry, 30 s |
 | 370965 | The Hunt | 90s | Havoc | 370965 caster<br>370967 caster <- 370965 | caster | yes | in | burst: Havoc's charge and damage, 90 s |
-| 1246167 | The Hunt | 90s | Devourer | 1246167 caster<br>370967 caster <- 1246167 | caster |  | in | burst: Devourer's own The Hunt, the same as 370965, 90 s (proposed, as its Devourer version) |
+| 1246167 | The Hunt | 90s | Devourer | 1246167 caster<br>370967 caster <- 1246167 | caster | cast of 370965 | in | burst: Devourer's own The Hunt, folded into 370965's entry (Havoc's leaves the same buff 1246167), 90 s |
 | 1234195 | Void Nova | 45s | Devourer | 1234195 enemy (stun) | enemy | yes | in | control: Devourer's stun, 45 s |
 | 203720 | Demon Spikes | 20s | Vengeance | 203819 caster by name of 203720 (damage taken) | caster |  | out | tank's rotational armor, under 30 s (20 s) |
 | 258860 | Essence Break | 40s | Havoc | 320338 enemy by name of 258860 | enemy |  | out | rotational damage window on the target, 40 s |
@@ -134,7 +134,7 @@ or under one as a cast or an aura.
 |---|---|---|---|---|---|---|---|---|
 | 357210 | Deep Breath (casts 403631 Breath of Eons) | 120s | all | 357210 caster (slow -200%)<br>403631 caster [403631] (slow -200%) | caster | yes | in | burst: Deep Breath, 120 s; Augmentation's Breath of Eons 403631 takes its button |
 | 375087 | Dragonrage | 120s | Devastation | 375087 caster | caster | yes | in | burst: Devastation's main damage cooldown, 120 s |
-| 359816 | Dream Flight | 120s | Preservation | 359816 caster (slow -200%, absorb) | caster |  | in | defense: Preservation's large group heal, 120 s (proposed) |
+| 359816 | Dream Flight | 120s | Preservation | 359816 caster (slow -200%, absorb) | caster | yes | in | defense: Preservation's large group heal, 120 s (proposed) |
 | 370960 | Emerald Communion | 180s | Preservation | 370960 caster (pacify and silence, mechanic immunity, root, heal over time) | caster | yes | in | defense: Preservation's channelled heal (PvP talent), 180 s |
 | 363916 | Obsidian Scales | 90s | all | 363916 caster (damage taken -30%, mechanic immunity) | caster | yes | in | defense: 30% less damage, 90 s |
 | 363534 | Rewind | 240s | Preservation | 363534 allies (heal over time) | allies | yes | in | defense: Preservation's group heal back over time, 240 s |
@@ -175,7 +175,7 @@ or under one as a cast or an aura.
 | 272651 | Command Pet (casts 1241871 Master's Call) | 0s; 1241871: 45s | all | 54216 ally by name of 1241871 (mechanic immunity, speed)<br>62305 caster by name of 1241871 (mechanic immunity)<br>1224810 ally by name of 1241871 (mechanic immunity) | ally |  | in | other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button) |
 | 187650 | Freezing Trap | 30s | all | 3355 enemy by name of 187650 (stun)<br>203337 enemy by name of 187650 (stun, school immunity)<br>212365 enemy by name of 187650<br>321177 caster by name of 187650 | enemies | yes, as enemyLater | in | control: incapacitate in the trap, 30 s |
 | 19577 | Intimidation | 60s | Beast Mastery, Survival | 24394 enemy by name of 19577 (stun)<br>1258508 enemy by name of 19577 (stun) | enemy | yes | in | control: the pet's stun, 60 s |
-| 474421 | Intimidation | 60s | Marksmanship | 24394 enemy by name of 474421 (stun)<br>1258508 enemy by name of 474421 (stun) | enemy |  | in | control: Marksmanship's own Intimidation, the same stun as 19577, 60 s (proposed, as its Marksmanship version) |
+| 474421 | Intimidation | 60s | Marksmanship | 24394 enemy by name of 474421 (stun)<br>1258508 enemy by name of 474421 (stun) | enemy | cast of 19577 | in | control: Marksmanship's own Intimidation, the same stun as 19577, folded into its entry, 60 s |
 | 53480 | Roar of Sacrifice | 120s | all | 53480 ally (damage taken -15%) | ally | yes | in | defense: an ally takes less damage and the pet takes part, 120 s |
 | 213691 | Scatter Shot | 30s | all | 213691 enemy (incapacitate) | enemy | yes | in | control: incapacitate (PvP talent), 30 s |
 | 407028 | Sticky Tar Bomb | 45s | Survival | 407032 enemy <- 407028 (disarm) | enemy | yes | in | control: disarm (PvP talent), 45 s |
@@ -335,11 +335,10 @@ or under one as a cast or an aura.
 | 207777 | Dismantle | 45s | all | 207777 enemy (disarm) | enemy | yes | in | control: disarm (PvP talent), 45 s |
 | 5277 | Evasion | 120s | all | 5277 caster (damage taken) | caster | yes | in | defense: dodge melee and ranged attacks, 120 s |
 | 408 | Kidney Shot | 30s | all | 408 enemy (stun) | enemy | yes | in | control: stun, 30 s |
-| 51690 | Killing Spree | 180s | Outlaw | 51690 caster (slow +25%) | caster |  | in | burst: Outlaw's damage cooldown, 180 s (proposed) |
 | 385627 | Kingsbane | 60s | Assassination | 385627 enemy (damage over time)<br>385627 caster (damage over time) | enemy | yes | in | burst: Assassination's damage mark on the opponent, 60 s |
 | 121471 | Shadow Blades | 90s | Subtlety | 121471 caster | caster | yes | in | burst: Subtlety's main damage cooldown, 90 s |
-| 212182 | Smoke Bomb | 180s | all | 88611 ally by name of 212182 (damage taken -10%)<br>139341 enemies by name of 212182<br>139341 caster by name of 212182<br>212183 ally by name of 212182 | ally |  | in | defense: the team inside cannot be targeted from outside and takes less damage (PvP talent), 180 s (proposed) |
-| 1856 | Vanish | 120s | all | 11327 caster by name of 1856 (stealth, speed)<br>115193 caster by name of 1856 (stealth, speed)<br>149255 caster by name of 1856 (stun)<br>248776 caster by name of 1856 (stealth)<br>and 2 more by name | ally |  | in | other: drops every target into stealth, 120 s (proposed) |
+| 212182 | Smoke Bomb | 180s | all | 88611 ally by name of 212182 (damage taken -10%)<br>139341 enemies by name of 212182<br>139341 caster by name of 212182<br>212183 ally by name of 212182 | ally | yes, as caster | in | defense: the team inside cannot be targeted from outside and takes less damage (PvP talent), 180 s (proposed) |
+| 1856 | Vanish | 120s | all | 11327 caster by name of 1856 (stealth, speed)<br>115193 caster by name of 1856 (stealth, speed)<br>149255 caster by name of 1856 (stun)<br>248776 caster by name of 1856 (stealth)<br>and 2 more by name | ally | yes, as caster | in | other: drops every target into stealth, 120 s (proposed) |
 | 315341 | Between the Eyes | 45s | Outlaw | 315341 caster | caster |  | out | rotational damage, 45 s |
 | 13877 | Blade Flurry | 30s | Outlaw | 13877 caster | caster |  | out | rotational cleave, 30 s |
 | 271877 | Blade Rush | 60s | Outlaw | 271896 caster by name of 271877 | caster |  | out | rotational damage and movement, 60 s |
@@ -348,6 +347,7 @@ or under one as a cast or an aura.
 | 426591 | Goremaw's Bite | 45s | Subtlety | 426593 enemy <- 426591 (damage over time)<br>1309274 caster <- 426591 | enemy |  | out | hero talent's rotational damage, 45 s |
 | 1776 | Gouge | 25s | all | 1776 enemy (stun) | enemy |  | out | incapacitate, but under 30 s (25 s) |
 | 195457 | Grappling Hook | 45s | Outlaw | 319600 caster by name of 195457 | caster |  | out | movement only, 45 s |
+| 51690 | Killing Spree | 180s | Outlaw | 51690 caster (slow +25%) | caster |  | out | burst, 180 s, but its cooldown keeps being cut while the rogue fights (user, 2026-10-14): an estimate would always run long |
 | 1214909 | Roll the Bones | 45s | Outlaw | 1214909 caster | caster |  | out | rotational buff, 45 s |
 | 280719 | Secret Technique | 25s | Subtlety | 281786 caster by name of 280719<br>282448 enemies by name of 280719 | caster |  | out | rotational damage, under 30 s (25 s) |
 | 185313 | Shadow Dance | 20s | Subtlety | 185313 caster | caster |  | out | rotational, under 30 s (20 s) |
@@ -396,7 +396,7 @@ or under one as a cast or an aura.
 | 6789 | Mortal Coil | 45s | all | 6789 enemy (fear) | enemy | yes | in | control: horrify, 45 s |
 | 212295 | Nether Ward | 45s | all | 212295 caster | caster | yes | in | defense: reflects spells (PvP talent), 45 s |
 | 30283 | Shadowfury | 60s | all | 30283 enemies (stun) | enemy | yes | in | control: stun in an area, 60 s |
-| 410598 | Soul Rip | 60s | all | 410598 enemies (damage done -25%) | enemy |  | in | defense: opponents nearby deal 25% less damage (PvP talent), 60 s (proposed) |
+| 410598 | Soul Rip | 60s | all | 410598 enemies (damage done -25%) | enemy | yes | in | defense: opponents nearby deal 25% less damage (PvP talent), 60 s (proposed) |
 | 205180 | Summon Darkglare | 120s | Affliction | 205180 caster | caster | yes | in | burst: Affliction's main damage cooldown, 120 s |
 | 265187 | Summon Demonic Tyrant | 60s | Demonology | 265187 caster | caster | yes | in | burst: Demonology's main damage cooldown, 60 s |
 | 1276672 | Summon Doomguard | 120s | Demonology | 1276672 caster | caster |  | in | burst: Demonology's large summon, 120 s (proposed) |
@@ -430,14 +430,14 @@ or under one as a cast or an aura.
 | 118038 | Die by the Sword | 120s | Arms, Protection | 118038 caster (damage taken -30%) | caster | yes | in | defense: parry and 30% less damage, 120 s |
 | 236077 | Disarm | 45s | all | 236077 enemy (disarm, damage taken) | enemy | yes | in | control: disarm (PvP talent), 45 s |
 | 184364 | Enraged Regeneration | 120s | Fury | 184364 caster (damage taken -30%) | caster | yes | in | defense: Fury's healing and 30% less damage, 120 s |
-| 1244088 | Interpose | 30s | Arms, Fury | 1244091 allies by name of 1244088 (damage split +30%, absorb)<br>1244091 caster by name of 1244088 (damage split +30%, absorb) | allies |  | in | defense: takes part of the team's damage, like Intervene, 30 s (proposed) |
+| 1244088 | Interpose | 30s | Arms, Fury | 1244091 allies by name of 1244088 (damage split +30%, absorb)<br>1244091 caster by name of 1244088 (damage split +30%, absorb) | allies | yes | in | defense: takes part of the team's damage, like Intervene, 30 s (proposed) |
 | 3411 | Intervene | 30s | all | 122506 ally by name of 3411<br>147833 ally by name of 3411 | otherAlly | yes | in | defense: takes the next hits for an ally, cannot be on oneself, 30 s |
 | 5246 | Intimidating Shout | 90s | all | 5246 enemy (fear, slow -70%)<br>5246 enemies (fear, slow -70%) | enemy | yes | in | control: fear around the warrior, 90 s |
-| 316593 | Intimidating Shout | 90s | all | 316593 enemies (fear)<br>316593 enemy (fear) | enemy |  | in | control: the other Intimidating Shout, the same fear as 5246, 90 s (proposed, as its version) |
+| 316593 | Intimidating Shout | 90s | all | 316593 enemies (fear)<br>316593 enemy (fear) | enemy | cast of 5246 | in | control: the other Intimidating Shout (its own fear 316593), folded into 5246's entry, 90 s |
 | 12975 | Last Stand | 180s | Protection | 12975 caster | caster | yes | in | defense: more health, 180 s |
 | 97462 | Rallying Cry | 180s | all | 97463 allies by name of 97462<br>316825 caster by name of 97462 | allies | yes | in | defense: more health for the team, 180 s |
 | 1719 | Recklessness | 90s | Fury | 1719 caster | caster | yes | in | burst: Fury's main damage cooldown, 90 s |
-| 385952 | Shield Charge | 45s | Protection | 385954 enemy by name of 385952 (stun) | enemy |  | in | control: Protection's charge stuns, 45 s (proposed) |
+| 385952 | Shield Charge | 45s | Protection | 385954 enemy by name of 385952 (stun) | enemy | yes | in | control: Protection's charge stuns, 45 s (proposed) |
 | 871 | Shield Wall | 180s | Protection | 871 caster (damage taken -40%) | caster | yes | in | defense: 40% less damage, 180 s |
 | 46968 | Shockwave | 40s | all | 132168 enemy by name of 46968 (stun) | enemy | yes | in | control: stun in a cone, 40 s |
 | 107570 | Storm Bolt | 30s | all | 132169 enemy by name of 107570 (stun)<br>222897 enemy by name of 107570 (stun) | enemy | yes | in | control: stun, 30 s |
@@ -518,29 +518,15 @@ filter's blind spots are named so they can be checked.
 
 ## (b) Candidates marked `in` that Spells.lua lacks (proposed additions)
 
-- 48743 Death Pact (DEATHKNIGHT, 120s, caster): defense: a large self heal, 120 s (proposed)
-- 1249658 Breath of Sindragosa (DEATHKNIGHT, 90s, caster): burst: Frost's damage cooldown, 90 s (proposed)
-- 206803 Rain from Above (DEMONHUNTER, 90s, caster): defense: the DH flies out of melee reach (PvP talent), 90 s (proposed)
-- 1246167 The Hunt (DEMONHUNTER, 90s, caster): burst: Devourer's own The Hunt, the same as 370965, 90 s (proposed, as its Devourer version)
-- 1251417 Spectral Sight (DEMONHUNTER, 30s, caster): other: Devourer's own Spectral Sight, the same as 188501, 30 s (proposed, as its Devourer version)
 - 391528 Convoke the Spirits (DRUID, 120s, allies): burst: Convoke the Spirits, a burst of damage or healing for every spec, 120 s (proposed)
-- 359816 Dream Flight (EVOKER, 120s, caster): defense: Preservation's large group heal, 120 s (proposed)
 - 272651 Command Pet (HUNTER, 0s, ally): other: Master's Call frees an ally from roots and slows, like Tiger's Lust, 45 s (proposed: 1241871 Master's Call, the cast on the Command Pet button)
-- 474421 Intimidation (HUNTER, 60s, enemy): control: Marksmanship's own Intimidation, the same stun as 19577, 60 s (proposed, as its Marksmanship version)
 - 383121 Mass Polymorph (MAGE, 60s, enemy): control: polymorph on several opponents, 60 s; a choice against Ring of Frost, seldom taken in PvP (proposed)
 - 115310 Revival (MONK, 180s, caster): defense: Mistweaver's group heal and dispel, 180 s (proposed)
 - 123904 Invoke Xuen, the White Tiger (MONK, 120s, caster): burst: Windwalker's celestial, 120 s (proposed)
 - 343527 Execution Sentence (PALADIN, 60s, enemy): burst: Retribution's damage mark on the opponent, like Kingsbane, 60 s (proposed)
 - 15286 Vampiric Embrace (PRIEST, 120s, caster): defense: Shadow's group heal from its damage, 120 s (proposed)
 - 205364 Dominate Mind (PRIEST, 30s, enemy): control: mind control on an opponent, 30 s (proposed)
-- 1856 Vanish (ROGUE, 120s, ally): other: drops every target into stealth, 120 s (proposed)
-- 51690 Killing Spree (ROGUE, 180s, caster): burst: Outlaw's damage cooldown, 180 s (proposed)
-- 212182 Smoke Bomb (ROGUE, 180s, ally): defense: the team inside cannot be targeted from outside and takes less damage (PvP talent), 180 s (proposed)
-- 410598 Soul Rip (WARLOCK, 60s, enemy): defense: opponents nearby deal 25% less damage (PvP talent), 60 s (proposed)
 - 1276672 Summon Doomguard (WARLOCK, 120s, caster): burst: Demonology's large summon, 120 s (proposed)
-- 316593 Intimidating Shout (WARRIOR, 90s, enemy): control: the other Intimidating Shout, the same fear as 5246, 90 s (proposed, as its version)
-- 385952 Shield Charge (WARRIOR, 45s, enemy): control: Protection's charge stuns, 45 s (proposed)
-- 1244088 Interpose (WARRIOR, 30s, allies): defense: takes part of the team's damage, like Intervene, 30 s (proposed)
 
 ## (c) Spells.lua entries marked `out` (proposed removals)
 

@@ -557,6 +557,29 @@ shown("arena1", 20549, 2660.2)
 eq(#TR.Get("party1").spells[20549].uses, 0, "the player's own stomp: not the tauren teammate's")
 eq(state("player", 20549), "active", "but the player's")
 hidden("arena1", 20549, 2662)
+
+-- ---------------------------------------------------------------- a rogue: Vanish and Smoke Bomb
+W.units.party1 = { friendly = true, class = "ROGUE", guid = "Player-6-ROGUE" }
+W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-6-PRIEST" }
+fire("GROUP_ROSTER_UPDATE")
+local rogue = TR.Get("party1")
+check(rogue.spells[1856] and rogue.spells[212182], "the rogue's row has Vanish and Smoke Bomb")
+check(def(1856).tag == "other" and def(1856).extraCharge and def(212182).tag == "defense", "Vanish other, a talent adds a charge; Smoke Bomb defense")
+-- an enemy rogue's cloud on our priest: the same aura, but not our rogue's use
+shown("party2", 212182, 2700)
+hidden("party2", 212182, 2705)
+eq(#rogue.spells[212182].uses, 0, "Smoke Bomb's aura on the priest alone: nobody's use")
+-- our rogue's own cloud: counted once, however often the rogue steps out and back in
+shown("party1", 212182, 2710)
+eq(state("party1", 212182), "active", "the aura on the rogue: Smoke Bomb used")
+hidden("party1", 212182, 2711)
+shown("party1", 212182, 2713)
+hidden("party1", 212182, 2715)
+eq(#rogue.spells[212182].uses, 1, "out of the cloud and back in: still one use")
+eq(rogue.spells[212182].cd, AR.BaseCooldown(def(212182)), "and the cooldown is not learned from it")
+shown("party1", 1856, 2720)
+eq(state("party1", 1856), "active", "Vanish's buff on the rogue")
+hidden("party1", 1856, 2723)
 W.units.player.race = nil
 W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-3-DRUID" }
 W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-3-PRIEST" }
@@ -915,6 +938,16 @@ check(not IN.Pending("party1"), "never answered: given up")
 SlashCmdList.CKPARTYCD("")
 check(T.said("inspect party1") and T.said("gave up"), "/ckpartycd tells what inspect found or did not")
 
+-- a node that gives the ability as another spell on its button counts as the ability
+W.traits[77] = { nodes = { { entries = { { spell = 194223 }, { spell = 102560 } }, taken = 2 } } }
+local res = IN.Analyse(77, "DRUID", {}, nil)
+check(res and not res[194223].missing, "Incarnation taken on Celestial Alignment's node: the ability is there")
+W.traits[78] = { nodes = { { entries = { { spell = 1246167 } } } } }
+res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
+check(res and res[370965].missing, "Devourer's The Hunt offered and not taken: The Hunt leaves the row")
+W.traits[78].nodes[1].taken = 1
+res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
+check(res and not res[370965].missing, "taken: it stays")
 W.inInstance, W.instanceType = false, nil
 fire("ZONE_CHANGED_NEW_AREA")
 W.traits, W.inspectable = nil, nil
