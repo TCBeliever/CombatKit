@@ -6,8 +6,6 @@ local CK = CombatKit
 CK.AddLocale("enUS", {
 	["GROUP_pve"] = "PvE",
 	["GROUP_pvp"] = "PvP",
-	["GROUPTAB_pve"] = "PvE scenarios",
-	["GROUPTAB_pvp"] = "PvP scenarios",
 
 	["SCN_world"]   = "Open world",
 	["SCN_delve"]   = "Delves",
@@ -22,7 +20,7 @@ CK.AddLocale("enUS", {
 	["ROLE_DAMAGER"] = "damage",
 
 	["LOADOUT_HINT"] = "Left click: switch now.",
-	["DRYRUN_MSG"]   = "Dry run: spec %s, talents %s, gear %s.",
+	["DRYRUN_MSG"]   = "Dry run: spec %s, talents %s, gear %s, PvP talents %s.",
 	["faked"]        = "simulated",
 })
 
@@ -40,10 +38,11 @@ CK.AddLocale("zhTW", {
 	["ROLE_DAMAGER"] = "傷害輸出",
 
 	["LOADOUT_HINT"] = "左鍵：立即切換。",
-	["DRYRUN_MSG"]   = "模擬：專精 %s，天賦 %s，裝備 %s。",
+	["DRYRUN_MSG"]   = "模擬：專精 %s，天賦 %s，裝備 %s，PvP 天賦 %s。",
 
 	-- HUD
 	["Talents"]        = "天賦",
+	["PvP talents"]    = "PvP 天賦",
 	["Gear"]           = "裝備",
 	["Ready"]          = "就緒",
 	["Applying"]       = "套用中",
@@ -56,6 +55,7 @@ CK.AddLocale("zhTW", {
 	["Queue: %s"]      = "排到：%s",
 	["Scenario"]       = "場景",
 	["Settings from"]  = "設定來源",
+	["Setup in use"]   = "使用中的組",
 	["Spec on entering"] = "進入時專精",
 	["Status"]         = "狀態",
 
@@ -69,10 +69,9 @@ CK.AddLocale("zhTW", {
 	["Could not equip %s."] = "無法換上 %s。",
 	["Not switching to %s: your role in this group is %s."] = "沒有切換到%s：你在這個隊伍的職責是%s。",
 	["Could not load the talent loadout: %s"] = "無法載入天賦配置：%s",
+	["Could not set the PvP talents: %s"] = "無法設定 PvP 天賦：%s",
 	["unknown reason"] = "原因不明",
 	["%s interrupted. Click the HUD to apply again."] = "%s被中斷。要套用時點一下 HUD。",
 	["Spec change"]   = "專精切換",
 	["Talent change"] = "天賦變更",
-	["GROUPTAB_pve"] = "pve 場景",
-	["GROUPTAB_pvp"] = "pvp 場景",
 })

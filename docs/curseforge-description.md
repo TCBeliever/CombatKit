@@ -1,6 +1,6 @@
 CombatKit is a modular combat addon with a small resource footprint. It bundles:
 
-- **Loadout**: spec, talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
+- **Loadout**: spec, talents, PvP talents and gear switched automatically by scenario: open world, delves, dungeons / M+, raids, arena, battlegrounds.
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
 - **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their party frames.
@@ -10,7 +10,7 @@ Every module is a load-on-demand addon of its own: a disabled module is never lo
 
 **Loadout**
 
-Switch spec, talents and gear automatically when you enter open world, delves, dungeons / M+, raids, arena or battlegrounds. One PvE and one PvP setup per spec, split further into scenarios if you want. With automatic switching on (off by default), applied once on entering and once on a spec change; what you change by hand afterwards is left alone. Open world and delves can switch your spec as well, and War Mode can use the PvP setup. A *Switch now* button applies any setup on demand. A smart gear check says on screen when to switch to PvP or PvE gear.
+Switch spec, talents, PvP talents and gear automatically when you enter open world, delves, dungeons / M+, raids, arena or battlegrounds. One PvE and one PvP setup per spec, split further into scenarios if you want; a PvP setup can carry three PvP talents as well, picked slot by slot or taken from the ones you have on, and a spec can keep up to three PvP setups, the one in use picked by hand. With automatic switching on (off by default), applied once on entering and once on a spec change; what you change by hand afterwards is left alone. Open world and delves can switch your spec as well, and War Mode can use the PvP setup. An *Apply* button applies any setup on demand. A smart gear check says on screen when to switch to PvP or PvE gear.
 
 **Stats**
 

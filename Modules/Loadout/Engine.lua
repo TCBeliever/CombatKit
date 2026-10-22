@@ -18,7 +18,8 @@ local CK = CombatKit
 --       },
 --     },
 --   }
---   specs[specID] = { configID=, configName=, setID=, setName= }
+--   specs[specID] = { configID=, configName=, setID=, setName=, pvp = { [slot] = talentID },
+--                     multi=, active=, alt = { [2] = { configID=, ... }, [3] = ... } }   -- up to 3 setups (PvP)
 --
 -- Per character because talent loadouts and equipment sets are.
 -- ---------------------------------------------------------------------------
@@ -196,6 +197,7 @@ local EVENTS = {
 	"PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED",
 	"PLAYER_SPECIALIZATION_CHANGED",
 	"TRAIT_CONFIG_UPDATED", "TRAIT_CONFIG_LIST_UPDATED", "ACTIVE_COMBAT_CONFIG_CHANGED", "CONFIG_COMMIT_FAILED",
+	"PLAYER_PVP_TALENT_UPDATE",
 	"UNIT_SPELLCAST_INTERRUPTED",
 	"EQUIPMENT_SETS_CHANGED", "EQUIPMENT_SWAP_FINISHED", "PLAYER_EQUIPMENT_CHANGED",
 	"UPDATE_BATTLEFIELD_STATUS",
@@ -236,6 +238,13 @@ end
 function handlers.TRAIT_CONFIG_UPDATED(configID)
 	ns.OnTalentsCommitted(configID)
 	ns.QueueCheck()
+end
+
+-- a PvP talent learned, by us or by hand; the settings page shows what is on
+function handlers.PLAYER_PVP_TALENT_UPDATE()
+	ns.ContinueApply()
+	ns.QueueCheck()
+	ns.RefreshOptions()
 end
 
 function handlers.CONFIG_COMMIT_FAILED()

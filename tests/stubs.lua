@@ -330,6 +330,19 @@ C_SpecializationInfo.GetInspectSpecialization = function(unit) return W.units[un
 C_SpecializationInfo.GetInspectSelectedPvpTalent = function(unit, i) return W.units[unit] and W.units[unit].pvp and W.units[unit].pvp[i] end
 C_SpecializationInfo.GetAllSelectedPvpTalentIDs = function() return W.pvpTalents or {} end
 C_SpecializationInfo.GetPvpTalentInfo = function(id) return W.pvpTalentInfo and W.pvpTalentInfo[id] end
+-- The current spec's PvP talent slots: W.pvpSlots[i] = { selected = talentID, list = { talentID, ... }, locked = bool }.
+-- LearnPvpTalent puts a talent in a slot (out of the one it was in, as the game does); W.pvpRefused ignores it.
+C_SpecializationInfo.GetPvpTalentSlotInfo = function(i)
+	local s = W.pvpSlots and W.pvpSlots[i]
+	if not s then return nil end
+	return { enabled = not s.locked, level = 10, selectedTalentID = s.selected, availableTalentIDs = s.list or {} }
+end
+function LearnPvpTalent(id, slot)
+	log("pvp:" .. id .. "@" .. slot)
+	if W.pvpRefused then return end
+	for _, s in pairs(W.pvpSlots) do if s.selected == id then s.selected = nil end end
+	W.pvpSlots[slot].selected = id
+end
 C_EquipmentSet = {
 	GetEquipmentSetIDs = function() local t = {} for id in pairs(W.sets) do t[#t + 1] = id end table.sort(t) return t end,
 	GetEquipmentSetInfo = function(id)
@@ -398,6 +411,7 @@ local function Mock(kind, name)
 		end,
 		CreateFontString = function() return Mock("FontString") end,
 		CreateTexture = function() return Mock("Texture") end,
+		CreateMaskTexture = function() return Mock("MaskTexture") end,
 		CreateAnimationGroup = function() return Mock("AnimationGroup") end,
 		CreateAnimation = function() return Mock("Animation") end,
 		GetStringWidth = function(self) if self.__secret then return T.SECRET end return 60 end,

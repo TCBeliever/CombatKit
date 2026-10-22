@@ -245,6 +245,117 @@ function Skin.Dropdown(parent, w, getItems, onPick)
 	return d
 end
 
+-- A square that shows an icon, or a dim "+" when empty, and opens the same pick
+-- list as a dropdown. getItems and onPick as for Skin.Dropdown.
+function Skin.IconDropdown(parent, size, getItems, onPick)
+	local d = CreateFrame("Button", nil, parent, "BackdropTemplate")
+	d:SetSize(size, size)
+	Skin.Backdrop(d, "element")
+	Hoverable(d)
+
+	d.icon = d:CreateTexture(nil, "ARTWORK")
+	d.icon:SetPoint("TOPLEFT", 2, -2)
+	d.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+	d.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	d.empty = Skin.Label(d, "+", nil, "dim")
+	d.empty:SetPoint("CENTER")
+
+	d:SetScript("OnClick", function(self)
+		if self.disabled then return end
+		ShowOptionList(self, getItems(self), function(item) onPick(self, item) end)
+	end)
+	d:SetScript("OnHide", Skin.HideOptionList)
+
+	-- nil: empty
+	function d:SetIcon(icon)
+		self.icon:SetTexture(icon)
+		self.icon:SetShown(icon ~= nil)
+		self.empty:SetShown(icon == nil)
+	end
+	-- disabled, the icon turns grey
+	function d:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		self:SetAlpha(self.disabled and 0.55 or 1)
+		self.icon:SetDesaturated(self.disabled)
+	end
+	d:SetIcon(nil)
+	return d
+end
+
+-- A PvP talent slot as the game's talent window draws it: an octagonal icon in
+-- the game's own frame, which opens the same pick list as a dropdown. The art
+-- is the game's (its atlases, nothing shipped here); a client without it gets
+-- the square of IconDropdown. iconSize is the icon: the frame around it keeps
+-- the game's proportions, 58 x 52 around 36, so it is TalentSlotSize() big.
+local SLOT_ART = {
+	mask = "talents-node-choice-mask", shadow = "talents-node-pvp-shadow", empty = "pvptalents-talentborder-empty",
+	set = "talents-node-pvp-filled", open = "talents-node-pvp-green",
+	readOnly = "talents-node-pvp-inspect", readOnlyOpen = "talents-node-pvp-inspect-empty",
+}
+
+local function AtlasInfo(name)
+	if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
+	local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+	return ok and info or nil
+end
+
+function Skin.TalentSlotSize(iconSize) return iconSize * 58 / 36, iconSize * 52 / 36 end
+
+function Skin.TalentSlot(parent, iconSize, getItems, onPick)
+	for _, name in pairs(SLOT_ART) do
+		if not AtlasInfo(name) then return Skin.IconDropdown(parent, iconSize, getItems, onPick) end
+	end
+	local scale = iconSize / 36
+	local d = CreateFrame("Button", nil, parent)
+	d:SetSize(Skin.TalentSlotSize(iconSize))
+
+	local shadow = AtlasInfo(SLOT_ART.shadow)
+	d.shadow = d:CreateTexture(nil, "BACKGROUND")
+	d.shadow:SetAtlas(SLOT_ART.shadow)
+	d.shadow:SetSize(shadow.width * scale, shadow.height * scale)
+	d.shadow:SetPoint("CENTER")
+
+	d.icon = d:CreateTexture(nil, "BORDER")
+	d.icon:SetSize(iconSize, iconSize)
+	d.icon:SetPoint("CENTER")
+	d.mask = d:CreateMaskTexture()
+	d.mask:SetAtlas(SLOT_ART.mask)
+	d.mask:SetSize(iconSize, iconSize)
+	d.mask:SetPoint("CENTER")
+	d.icon:AddMaskTexture(d.mask)
+
+	d.border = d:CreateTexture(nil, "ARTWORK")
+	d.border:SetAllPoints()
+
+	d:SetScript("OnClick", function(self)
+		if self.disabled then return end
+		ShowOptionList(self, getItems(self), function(item) onPick(self, item) end)
+	end)
+	d:SetScript("OnHide", Skin.HideOptionList)
+
+	-- set: the talent in the game's frame; empty: the game's empty slot.
+	-- Disabled, the frame is the one the game shows for someone else's talents
+	-- and the icon turns grey.
+	local function Paint(self)
+		if self.iconFile then self.icon:SetTexture(self.iconFile) else self.icon:SetAtlas(SLOT_ART.empty) end
+		self.icon:SetDesaturated(self.disabled)
+		local key = self.iconFile and "set" or "open"
+		if self.disabled then key = self.iconFile and "readOnly" or "readOnlyOpen" end
+		self.border:SetAtlas(SLOT_ART[key])
+	end
+	-- nil: empty
+	function d:SetIcon(icon)
+		self.iconFile = icon
+		Paint(self)
+	end
+	function d:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		Paint(self)
+	end
+	Paint(d)
+	return d
+end
+
 -- "- 100% +" as one block the caller places; .value is the label in the middle
 function Skin.Stepper(parent, onStep)
 	local holder = CreateFrame("Frame", nil, parent)

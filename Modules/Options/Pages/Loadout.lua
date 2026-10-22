@@ -10,8 +10,15 @@ local L, Skin, O = CK.L, CK.Skin, CK.Options
 local SPEC_ICON = 40
 local SPEC_SLOT = 84
 local FIELD_X   = O.FIELD_X
-local FIELD_W   = 300
+local FIELD_W   = 170   -- a loadout name of 15 characters or so fits
 local RIGHT_W   = O.RIGHT_W
+local ROW_H     = 28
+local PVP_ICON  = 26      -- the icon in a PvP talent slot; at the window's 1.5 about the game's own size
+local PVP_GAP   = 4       -- between slots, as in the game's talent window
+local PVP_SLOT_W, PVP_SLOT_H = Skin.TalentSlotSize(PVP_ICON)
+local PVP_ROW_H = PVP_SLOT_H + 4 + 20 + 8   -- the icons, then "Use current" on a line of its own
+local BUTTON_W  = 80      -- Apply
+local SET_W     = 28      -- the 1 2 3 buttons of "Multiple setups"
 
 local LO                -- the module, set whenever the section is used
 local selected = {}     -- { kind = "group" | "scenario" | "page", key= }
@@ -45,18 +52,94 @@ local function Changed()
 	LO.Check()   -- refreshes the HUD; editing settings never applies anything by itself
 end
 
-local function SetCell(idField, nameField, id, name)
-	local specs = ShownSpecs()
-	local cell = specs[selectedSpec] or {}
-	cell[idField], cell[nameField] = id, id and name or nil
-	if cell.configID == nil and cell.setID == nil then cell = nil end
+-- The setup the fields show and edit: with "Multiple setups" the one in use
+local function ShownSet()
+	return LO.ActiveSet(ShownSpecs()[selectedSpec])
+end
+
+local function IsEmpty(set) return set.configID == nil and set.setID == nil and set.pvp == nil end
+
+-- A cell with nothing left in it is removed
+local function Store(specs, cell)
+	if cell.alt and next(cell.alt) == nil then cell.alt = nil end
+	if IsEmpty(cell) and not cell.alt and not cell.multi then cell = nil end
 	specs[selectedSpec] = cell
 	Changed()
 end
 
+-- change(set) edits the setup shown for the picked spec; an empty second or third setup is dropped
+local function UpdateSet(change)
+	local specs = ShownSpecs()
+	local cell = specs[selectedSpec] or {}
+	local n = LO.ActiveIndex(cell)
+	local set = LO.GetSet(cell, n)
+	if not set then
+		set = {}
+		cell.alt = cell.alt or {}
+		cell.alt[n] = set
+	end
+	change(set)
+	if set.pvp and not LO.HasPvp(set.pvp) then set.pvp = nil end
+	if n > 1 and IsEmpty(set) then cell.alt[n] = nil end
+	Store(specs, cell)
+end
+
+-- "Multiple setups" on or off (back to the first either way), or the setup in use
+local function SetMulti(on)
+	local specs = ShownSpecs()
+	local cell = specs[selectedSpec] or {}
+	cell.multi, cell.active = on or nil, nil
+	Store(specs, cell)
+end
+
+local function SetActive(n)
+	local specs = ShownSpecs()
+	local cell = specs[selectedSpec] or {}
+	cell.active = n > 1 and n or nil
+	Store(specs, cell)
+end
+
+local function SetCell(idField, nameField, id, name)
+	UpdateSet(function(set) set[idField], set[nameField] = id, id and name or nil end)
+end
+
+local function SetPvp(slot, talentID)
+	UpdateSet(function(set)
+		set.pvp = set.pvp or {}
+		set.pvp[slot] = talentID
+	end)
+end
+
+-- "Use current": the three slots take the PvP talents that are on now
+local function CaptureCurrentPvp()
+	local slots = LO.GetPvpSlots()
+	UpdateSet(function(set)
+		set.pvp = {}
+		for i = 1, LO.PVP_SLOTS do
+			local s = slots[i]
+			set.pvp[i] = s and s.enabled and s.selected or nil
+		end
+	end)
+end
+
+local function CopySet(set)
+	local pvp
+	if set.pvp then
+		pvp = {}
+		for i = 1, LO.PVP_SLOTS do pvp[i] = set.pvp[i] end
+	end
+	return { configID = set.configID, configName = set.configName, setID = set.setID, setName = set.setName, pvp = pvp }
+end
+
 local function CopyCells(from, to)
 	for specID, cell in pairs(from) do
-		to[specID] = { configID = cell.configID, configName = cell.configName, setID = cell.setID, setName = cell.setName }
+		local copy = CopySet(cell)
+		copy.multi, copy.active = cell.multi, cell.active
+		if cell.alt then
+			copy.alt = {}
+			for n, set in pairs(cell.alt) do copy.alt[n] = CopySet(set) end
+		end
+		to[specID] = copy
 	end
 end
 
@@ -64,6 +147,30 @@ local function TalentItems()
 	local items = { { label = L["Not set"], value = nil } }
 	for _, c in ipairs(LO.GetTalentConfigs(selectedSpec)) do
 		items[#items + 1] = { label = c.name, value = c.id }
+	end
+	return items
+end
+
+-- The spec's PvP talents, as the game lists them, less those picked in the
+-- other two slots: a talent can only be on once. Every slot offers the same
+-- talents; a slot still locked offers none of its own, so all slots are asked.
+local function PvpItems(slot)
+	local items = { { label = L["Not set"], value = nil } }
+	local cell = ShownSet()
+	local taken = {}
+	for i = 1, LO.PVP_SLOTS do
+		if i ~= slot and cell and cell.pvp and cell.pvp[i] then taken[cell.pvp[i]] = true end
+	end
+	local seen = {}
+	local slots = LO.GetPvpSlots()
+	for i = 1, LO.PVP_SLOTS do
+		for _, id in ipairs(slots[i] and slots[i].list or {}) do
+			if not seen[id] and not taken[id] then
+				seen[id] = true
+				local name, icon = LO.GetPvpTalentInfo(id)
+				if name then items[#items + 1] = { label = name, value = id, icon = icon } end
+			end
+		end
 	end
 	return items
 end
@@ -169,9 +276,9 @@ local function BuildLoadout(p)
 	p.split = CK.Bind(Skin.Checkbox(p, "", function(checked)
 		LO.char.split[selected.key] = checked
 		Changed()
-	end), "Split into scenarios")
+	end), "Use different settings per scenario")
 	p.split:SetPoint("TOPLEFT", 0, 0)
-	Skin.Tooltip(p.split, "Split into scenarios", function() return "SPLIT_TIP_" .. selected.key end)
+	Skin.Tooltip(p.split, "Use different settings per scenario", function() return "SPLIT_TIP_" .. selected.key end)
 
 	-- checked: the scenario uses its group's settings. The label names the
 	-- group, so it is set on refresh.
@@ -201,35 +308,111 @@ local function BuildLoadout(p)
 	p.editor = editor
 	p.specButtons = {}   -- created on first refresh
 
-	local fieldY = -(SPEC_ICON + 4) - 4 - 14 - 14
-	Skin.Field(editor, "Talent loadout", 0, fieldY)
+	-- the rows under the spec picker: on the PvP pages "Multiple setups" first,
+	-- then loadout, PvP talents (PvP pages only), gear set, the button. Placed on
+	-- refresh, as the PvP rows come and go.
+	p.fieldY = -(SPEC_ICON + 4) - 4 - 14 - 14
+
+	-- up to three setups for the spec; the one picked with 1 2 3 is shown and used
+	p.multi = CK.Bind(Skin.Checkbox(editor, "", SetMulti), "Multiple setups")
+	Skin.Tooltip(p.multi, "Multiple setups", "MULTI_TIP")
+	p.setButtons = {}
+	for n = 1, LO.MAX_SETS do
+		p.setButtons[n] = Skin.Button(editor, tostring(n), SET_W, 20, function() SetActive(n) end)
+	end
+
+	p.talentsLabel = Skin.Field(editor, "Loadout", 0, p.fieldY)
 	p.talents = Skin.Dropdown(editor, FIELD_W, TalentItems, function(_, item)
 		SetCell("configID", "configName", item.value, item.label)
 	end)
-	p.talents:SetPoint("TOPLEFT", FIELD_X, fieldY)
 
-	Skin.Field(editor, "Equipment set", 0, fieldY - 28)
+	-- PvP talents: three icons picked one by one, or all three from what is on now
+	p.pvpLabel = Skin.Field(editor, "PvP", 0, p.fieldY)
+	p.pvpSlots = {}
+	for i = 1, LO.PVP_SLOTS do
+		local d = Skin.TalentSlot(editor, PVP_ICON, function() return PvpItems(i) end, function(_, item)
+			SetPvp(i, item.value)
+		end)
+		-- an icon says little on its own: the game's tooltip tells the talent
+		d:HookScript("OnEnter", function(self)
+			if not self.talentID then return end
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			if not pcall(GameTooltip.SetPvpTalent, GameTooltip, self.talentID) then
+				GameTooltip:SetText(LO.GetPvpTalentInfo(self.talentID) or "?", 1, 1, 1)
+			end
+			GameTooltip:Show()
+		end)
+		d:HookScript("OnLeave", GameTooltip_Hide)
+		p.pvpSlots[i] = d
+	end
+	p.pvpCapture = CK.Bind(Skin.Button(editor, "", BUTTON_W, 20, CaptureCurrentPvp), "Use current")
+	Skin.Tooltip(p.pvpCapture, "Use current", "PVP_CAPTURE_TIP")
+
+	p.gearLabel = Skin.Field(editor, "Gear set", 0, p.fieldY)
 	p.gear = Skin.Dropdown(editor, FIELD_W, GearItems, function(_, item)
 		SetCell("setID", "setName", item.value, item.label)
 	end)
-	p.gear:SetPoint("TOPLEFT", FIELD_X, fieldY - 28)
 
 	-- what the page shows, applied right now: the spec picked above, its talents and
 	-- gear, whatever is on already (so a loadout can be re-applied)
-	p.switch = CK.Bind(Skin.Button(editor, "", 110, 22, function()
-		local specs = ShownSpecs()
-		local setup = LO.BuildSetupFor(selectedSpec, specs[selectedSpec])
+	p.switch = CK.Bind(Skin.Button(editor, "", BUTTON_W, 22, function()
+		local setup = LO.BuildSetupFor(selectedSpec, ShownSet())
 		if setup then LO.ApplySetup(setup) end
 		O.Refresh()
-	end), "Switch now")
-	p.switch:SetPoint("TOPLEFT", FIELD_X, fieldY - 28 - 32)
-	Skin.Tooltip(p.switch, "Switch now", "SWITCH_NOW_TIP")
+	end), "Apply")
+	Skin.Tooltip(p.switch, "Apply", "SWITCH_NOW_TIP")
 
 	p.warmode = CK.Bind(Skin.Checkbox(editor, "", function(checked)
 		LO.char.warmodePvP = checked
 		Changed()
 	end), "Open world with War Mode uses PvP")
-	p.warmode:SetPoint("TOPLEFT", 0, fieldY - 28 - 32 - 36)
+end
+
+-- "Multiple setups" and its buttons, on a PvP page at y; returns the y of the next row
+local function RefreshMulti(p, shown, cell, usable, y)
+	local multi = cell and cell.multi or false
+	p.multi:SetShown(shown)
+	for _, b in ipairs(p.setButtons) do b:SetShown(shown and multi) end
+	if not shown then return y end
+	p.multi:ClearAllPoints()
+	p.multi:SetPoint("TOPLEFT", 0, y - 1)
+	p.multi:SetChecked(multi)
+	p.multi:SetDisabled(not usable)
+	local x = math.max(FIELD_X, p.multi:GetWidth() + 12)
+	for n, b in ipairs(p.setButtons) do
+		b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", x + (n - 1) * (SET_W + 4), y)
+		b:SetSelected(n == LO.ActiveIndex(cell))
+		b:SetDisabled(not usable)
+	end
+	return y - ROW_H
+end
+
+-- The PvP talent row of a PvP page at y; returns the y of the next row.
+-- The game lists PvP talents for the spec the player is in only: another
+-- spec's slots are greyed out, and so is the button.
+local function RefreshPvp(p, shown, cell, usable, inSpec, y)
+	p.pvpLabel:SetShown(shown)
+	for _, d in ipairs(p.pvpSlots) do d:SetShown(shown) end
+	p.pvpCapture:SetShown(shown)
+	if not shown then return y end
+	-- the label on the icons' middle line, whatever the font's height; the button under them
+	p.pvpLabel:ClearAllPoints()
+	p.pvpLabel:SetPoint("LEFT", p.editor, "TOPLEFT", 0, y - PVP_SLOT_H / 2)
+	for i, d in ipairs(p.pvpSlots) do
+		d:ClearAllPoints()
+		d:SetPoint("TOPLEFT", FIELD_X + (i - 1) * (PVP_SLOT_W + PVP_GAP), y)
+	end
+	p.pvpCapture:ClearAllPoints()
+	p.pvpCapture:SetPoint("TOPLEFT", FIELD_X, y - PVP_SLOT_H - 4)
+	for i, d in ipairs(p.pvpSlots) do
+		local id = cell and cell.pvp and cell.pvp[i]
+		d.talentID = id
+		d:SetDisabled(not (usable and inSpec))
+		d:SetIcon(id and (select(2, LO.GetPvpTalentInfo(id)) or 134400) or nil)
+	end
+	p.pvpCapture:SetDisabled(not (usable and inSpec))
+	return y - PVP_ROW_H
 end
 
 local function RefreshLoadout(p)
@@ -310,7 +493,9 @@ local function RefreshLoadout(p)
 		end
 	end
 
-	local cell = selectedSpec and specs[selectedSpec]
+	-- the whole cell, and the setup of it the fields show: the one in use
+	local whole = selectedSpec and specs[selectedSpec]
+	local cell = LO.ActiveSet(whole)
 	if cell then LO.RepairCell(cell, selectedSpec) end
 	local usable = editable and selectedSpec ~= nil
 	p.talents:SetDisabled(not usable)
@@ -320,9 +505,28 @@ local function RefreshLoadout(p)
 	-- nothing to switch to at all (this spec, nothing set): the button waits
 	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell) == nil)
 
+	-- the PvP pages add "Multiple setups" above the loadout and the PvP talents under it
+	local pvpPage = (isGroup and selected.key == "pvp") or (isScenario and scenario.group == "pvp")
+	local y = RefreshMulti(p, pvpPage, whole, usable, p.fieldY)
+	p.talentsLabel:ClearAllPoints()
+	p.talentsLabel:SetPoint("TOPLEFT", 0, y - 4)
+	p.talents:ClearAllPoints()
+	p.talents:SetPoint("TOPLEFT", FIELD_X, y)
+	y = RefreshPvp(p, pvpPage, cell, usable, selectedSpec == currentSpec, y - ROW_H)
+	p.gearLabel:ClearAllPoints()
+	p.gearLabel:SetPoint("TOPLEFT", 0, y - 4)
+	p.gear:ClearAllPoints()
+	p.gear:SetPoint("TOPLEFT", FIELD_X, y)
+	p.switch:ClearAllPoints()
+	p.switch:SetPoint("TOPLEFT", FIELD_X, y - 32)
+
 	local isPvP = isGroup and selected.key == "pvp"
 	p.warmode:SetShown(isPvP)
-	if isPvP then p.warmode:SetChecked(char.warmodePvP) end
+	if isPvP then
+		p.warmode:ClearAllPoints()
+		p.warmode:SetPoint("TOPLEFT", 0, y - 32 - 36)
+		p.warmode:SetChecked(char.warmodePvP)
+	end
 end
 
 -- ---------------------------------------------------------------------------
@@ -504,7 +708,7 @@ O.AddSection({
 		local curKind, curKey = CurrentNode()
 		for _, group in ipairs(LO.GROUPS) do
 			-- the group's tab; split into scenarios, those are a second strip under it, the group first
-			nodes[#nodes + 1] = { key = "group:" .. group, label = L["GROUPTAB_" .. group], subLabel = LO.GroupName(group),
+			nodes[#nodes + 1] = { key = "group:" .. group, label = LO.GroupName(group), subLabel = LO.GroupName(group),
 				here = (curKind == "group" and curKey == group) }
 			if LO.char.split[group] then
 				for _, s in ipairs(LO.SCENARIOS) do
@@ -542,7 +746,9 @@ O.AddSection({
 		-- a scenario whose group is no longer split has no page: fall back to the group
 		if kind == "scenario" and not LO.char.split[GroupOf(key)] then kind, key = "group", GroupOf(key) end
 		selected = { kind = kind, key = key }
-		if not selectedSpec then selectedSpec = LO.GetCurrentSpecID() end
+		-- opening the window or another page starts on the spec the page switches
+		-- to, else the one the character is in; a spec picked earlier is not kept
+		selectedSpec = LO.GetCurrentSpecID()
 		FocusSpec()
 	end,
 

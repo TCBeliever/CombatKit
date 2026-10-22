@@ -111,10 +111,107 @@ function ns.IsSetEquipped(setID)
 	return isEquipped and true or false, true
 end
 
+-- ---------------------------------------------------------------------------
+-- PvP talents: three slots, of the spec the player is in (the game answers for
+-- no other). It keeps one set per spec, not per talent loadout, so a loadout
+-- switch leaves them as they are. A cell keeps them as pvp = { [slot] = talentID };
+-- an empty slot is left alone. Talent IDs do not change, so no repair by name.
+-- ---------------------------------------------------------------------------
+
+ns.PVP_SLOTS = 3
+
+-- { [slot] = { enabled=, selected=, list = { talentID, ... }, available = { [talentID] = true } } }
+function ns.GetPvpSlots()
+	local out = {}
+	if not SI or not SI.GetPvpTalentSlotInfo then return out end
+	for i = 1, ns.PVP_SLOTS do
+		local ok, info = pcall(SI.GetPvpTalentSlotInfo, i)
+		if ok and type(info) == "table" then
+			local list, available = info.availableTalentIDs or {}, {}
+			for _, id in ipairs(list) do available[id] = true end
+			out[i] = { enabled = info.enabled and true or false, selected = info.selectedTalentID, list = list, available = available }
+		end
+	end
+	return out
+end
+
+-- name, icon of a PvP talent, or nil
+function ns.GetPvpTalentInfo(talentID)
+	if not talentID or not SI or not SI.GetPvpTalentInfo then return nil end
+	local ok, info = pcall(SI.GetPvpTalentInfo, talentID)
+	if ok and type(info) == "table" then return info.name, info.icon end
+end
+
+-- The talents a cell wants, in slot order: { { id=, slot= }, ... }
+local function PvpWanted(pvp)
+	local out, seen = {}, {}
+	if type(pvp) ~= "table" then return out end
+	for i = 1, ns.PVP_SLOTS do
+		local id = pvp[i]
+		if id and not seen[id] then
+			seen[id] = true
+			out[#out + 1] = { id = id, slot = i }
+		end
+	end
+	return out
+end
+
+function ns.HasPvp(pvp) return #PvpWanted(pvp) > 0 end
+
+-- What it takes to have `pvp` on. Which slot a talent sits in changes nothing
+-- in the game, so one that is on in another slot counts as on. A talent that
+-- is not on goes to its own slot when that slot holds nothing wanted, else to
+-- the first such slot. Returns plan { { id=, slot= }, ... }, how many wanted
+-- talents are on, how many there are, and how many cannot go anywhere (not
+-- this spec's, the slots still locked, or the data not loaded yet).
+function ns.PvpPlan(pvp)
+	local slots = ns.GetPvpSlots()
+	local want = PvpWanted(pvp)
+	local isWanted, on = {}, {}
+	for _, w in ipairs(want) do isWanted[w.id] = true end
+	local free = {}
+	for i = 1, ns.PVP_SLOTS do
+		local s = slots[i]
+		if s and s.enabled then
+			if s.selected then on[s.selected] = true end
+			if not (s.selected and isWanted[s.selected]) then free[i] = true end
+		end
+	end
+	local plan, have, missing = {}, 0, 0
+	for _, w in ipairs(want) do
+		if on[w.id] then
+			have = have + 1
+		else
+			local slot
+			if free[w.slot] and slots[w.slot].available[w.id] then
+				slot = w.slot
+			else
+				for i = 1, ns.PVP_SLOTS do
+					if free[i] and slots[i].available[w.id] then slot = i; break end
+				end
+			end
+			if slot then
+				free[slot] = nil
+				plan[#plan + 1] = { id = w.id, slot = slot }
+			else
+				missing = missing + 1
+			end
+		end
+	end
+	return plan, have, #want, missing
+end
+
+-- The talents' names, for the dry run and the debug log
+local function PvpNames(pvp)
+	local names = {}
+	for _, w in ipairs(PvpWanted(pvp)) do names[#names + 1] = ns.GetPvpTalentInfo(w.id) or tostring(w.id) end
+	return #names > 0 and table.concat(names, ", ") or "-"
+end
+
 -- Saved ids go stale: a loadout that was deleted and imported again gets a new
 -- id, and so does a recreated equipment set. The name was saved next to the
 -- id for exactly this; re-link by name when the id no longer resolves.
--- A cell is { configID, configName, setID, setName } for one spec.
+-- A cell is { configID, configName, setID, setName, pvp } for one spec.
 function ns.RepairCell(cell, specID)
 	if cell.setID and not C_EquipmentSet.GetEquipmentSetInfo(cell.setID) and cell.setName then
 		local id = C_EquipmentSet.GetEquipmentSetID(cell.setName)
@@ -151,22 +248,47 @@ local function ConfigExists(configID)
 	return ok and info ~= nil
 end
 
--- Returns cell (or nil), sourceKey ("pve" | "pvp" | scenario key), autoSpecID (or nil)
+-- "Multiple setups" (PvP pages): a cell can hold up to three setups. The first
+-- is the cell itself, the others cell.alt[2] and cell.alt[3]; cell.active says
+-- which one is used, the first unless another was picked.
+ns.MAX_SETS = 3
+
+function ns.ActiveIndex(cell)
+	if not (cell and cell.multi) then return 1 end
+	local n = cell.active or 1
+	return (n >= 1 and n <= ns.MAX_SETS) and n or 1
+end
+
+function ns.GetSet(cell, n)
+	if not cell then return nil end
+	if n == 1 then return cell end
+	return cell.alt and cell.alt[n] or nil
+end
+
+function ns.ActiveSet(cell) return ns.GetSet(cell, ns.ActiveIndex(cell)) end
+
+-- the setup in use, and its number when the cell has several
+local function InUse(cell, source, autoSpec)
+	return ns.ActiveSet(cell), source, autoSpec, cell and cell.multi and ns.ActiveIndex(cell) or nil
+end
+
+-- Returns cell (the setup in use, or nil), sourceKey ("pve" | "pvp" | scenario key),
+-- autoSpecID (or nil), the setup's number (nil unless the cell has several)
 function ns.ResolveTarget(key, specID)
 	local char = ns.char
 	local scenario = ns.SCENARIO_BY_KEY[key]
 	if not scenario then return nil end
 	if key == "world" and char.warmodePvP and ns.IsWarMode() then
-		return char.groups.pvp.specs[specID], "pvp", nil
+		return InUse(char.groups.pvp.specs[specID], "pvp", nil)
 	end
 	local group = scenario.group
 	if char.split[group] then
 		local entry = char.scenarios[key]
 		local autoSpec = scenario.autoSpec and entry.autoSpec or nil
-		if entry.custom then return entry.specs[specID], key, autoSpec end
-		return char.groups[group].specs[specID], group, autoSpec
+		if entry.custom then return InUse(entry.specs[specID], key, autoSpec) end
+		return InUse(char.groups[group].specs[specID], group, autoSpec)
 	end
-	return char.groups[group].specs[specID], group, nil
+	return InUse(char.groups[group].specs[specID], group, nil)
 end
 
 -- How the character compares to the target for `key`.
@@ -176,17 +298,17 @@ end
 -- set for it; otherwise the target is the current spec's own.
 function ns.GetStatus(key)
 	local specID = ns.GetCurrentSpecID()
-	local st = { key = key, specID = specID, state = "none", talentsOK = true, gearOK = true }
+	local st = { key = key, specID = specID, state = "none", talentsOK = true, gearOK = true, pvpOK = true }
 	if not specID then return st end   -- no spec yet (low level)
 
-	local cell, source, autoSpec = ns.ResolveTarget(key, specID)
-	st.cell, st.source, st.autoSpec = cell, source, autoSpec
+	local cell, source, autoSpec, setIndex = ns.ResolveTarget(key, specID)
+	st.cell, st.source, st.autoSpec, st.setIndex = cell, source, autoSpec, setIndex
 	local targetSpec = specID
 	if autoSpec and autoSpec ~= specID then
 		st.targetSpecID = autoSpec
 		st.state = "mismatch"
 		targetSpec = autoSpec
-		cell = ns.ResolveTarget(key, autoSpec)
+		cell, _, _, st.setIndex = ns.ResolveTarget(key, autoSpec)
 		st.cell = cell
 	end
 	if not cell then return st end
@@ -202,8 +324,16 @@ function ns.GetStatus(key)
 		local equipped, exists = ns.IsSetEquipped(cell.setID)
 		st.gearOK, st.gearMissing = (equipped and not st.targetSpecID) and true or false, not exists
 	end
-	if st.hasTalents or st.hasGear then
-		st.state = (st.talentsOK and st.gearOK) and "ready" or "mismatch"
+	if ns.HasPvp(cell.pvp) then
+		-- the slots answer for the spec the player is in: another spec's are not on yet
+		st.hasPvp = true
+		local _, have, want, missing = ns.PvpPlan(cell.pvp)
+		if st.targetSpecID then have, missing = 0, 0 end
+		st.pvpHave, st.pvpWant = have, want
+		st.pvpOK, st.pvpMissing = have == want, missing > 0
+	end
+	if st.hasTalents or st.hasGear or st.hasPvp then
+		st.state = (st.talentsOK and st.gearOK and st.pvpOK) and "ready" or "mismatch"
 	end
 	return st
 end
@@ -224,8 +354,10 @@ function ns.BuildSetup(key, targetSpecID)
 		if cell.setID and select(2, ns.IsSetEquipped(cell.setID)) then
 			setup.setID = cell.setID
 		end
+		-- what can be placed is worked out at the time, in the spec the setup ends in
+		if ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
 	end
-	if not setup.specID and not setup.configID and not setup.setID then return nil end
+	if not setup.specID and not setup.configID and not setup.setID and not setup.pvp then return nil end
 	return setup
 end
 
@@ -242,13 +374,14 @@ function ns.BuildSetupFor(specID, cell)
 		ns.RepairCell(cell, specID)
 		if cell.configID and ConfigExists(cell.configID) then setup.configID = cell.configID end
 		if cell.setID and select(2, ns.IsSetEquipped(cell.setID)) then setup.setID = cell.setID end
+		if ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
 	end
-	if not setup.specID and not setup.configID and not setup.setID then return nil end
+	if not setup.specID and not setup.configID and not setup.setID and not setup.pvp then return nil end
 	return setup
 end
 
 -- ===========================================================================
--- Applying a setup: spec, then gear and talents
+-- Applying a setup: spec, then gear and talents, then PvP talents
 --
 -- Every step is a request the client may drop without a word: it is still in
 -- the previous cast, it is mid-transition, the player moved. So nothing is
@@ -269,7 +402,7 @@ local APPLY_TIMEOUT = 15     -- without any new request
 local CAST_WINDOW   = 8      -- an interruption this long after a request still counts as ours
 local CAST_GONE     = 0.5    -- a cast must be gone this long before it is called interrupted
 
-local pending   -- { setup=, expires=, steps = { spec={}, talents={}, gear={} }, commitSpecID=, commitConfigID= }
+local pending   -- { setup=, expires=, steps = { spec={}, talents={}, gear={}, pvp={} }, commitSpecID=, commitConfigID= }
 local ticking = false
 
 local function IsCasting()
@@ -328,12 +461,22 @@ local function LoadTalents(specID, configID)
 	return true
 end
 
+-- PvP talents are learned at once, no cast. Returns accepted, reason
+local function LearnPvp(plan)
+	if not LearnPvpTalent then return false, L["unknown reason"] end
+	for _, change in ipairs(plan) do
+		local ok, err = pcall(LearnPvpTalent, change.id, change.slot)
+		if not ok then return false, tostring(err) end
+	end
+	return true
+end
+
 -- Names for a setup, for the dry run and the debug log
 local function DescribeSetup(setup)
 	local spec = setup.specID and ns.GetSpecByID(setup.specID)
 	local config = setup.configID and select(2, pcall(C_Traits.GetConfigInfo, setup.configID))
 	local set = setup.setID and C_EquipmentSet.GetEquipmentSetInfo(setup.setID)
-	return spec and spec.name or "-", type(config) == "table" and config.name or "-", set or "-"
+	return spec and spec.name or "-", type(config) == "table" and config.name or "-", set or "-", PvpNames(setup.pvp)
 end
 
 -- What the apply is held up by, logged once per change and shown on the HUD
@@ -436,12 +579,24 @@ function ns.ContinueApply()
 			return Finish(L["Could not equip %s."], setName)
 		end
 	end
+	local talentsDone = true
 	if setup.configID and (ns.GetActiveConfigID(specID) ~= setup.configID or (force and not pending.steps.talents.tries)) then
-		done = false
+		done, talentsDone = false, false
 		local gone = CastGone(pending.steps.talents)
 		if gone then return Interrupted("talents") elseif gone == false then return end
 		if not Ask("talents", function() return LoadTalents(specID, setup.configID) end) then
 			return Finish(L["Could not load the talent loadout: %s"], pending.steps.talents.reason or L["unknown reason"])
+		end
+	end
+	-- PvP talents once the loadout is in, so the two changes never cross. What is
+	-- on already is not asked again, forced or not: there is nothing to drop.
+	if setup.pvp and talentsDone then
+		local plan = ns.PvpPlan(setup.pvp)
+		if #plan > 0 then
+			done = false
+			if not Ask("pvp", function() return LearnPvp(plan) end) then
+				return Finish(L["Could not set the PvP talents: %s"], pending.steps.pvp.reason or L["unknown reason"])
+			end
 		end
 	end
 	if done then
@@ -465,8 +620,8 @@ function ns.ApplySetup(setup)
 		ns.Msg(L["DRYRUN_MSG"], DescribeSetup(setup))
 		return
 	end
-	ns.Debug("apply: spec %s, talents %s, gear %s", DescribeSetup(setup))
-	pending = { setup = setup, expires = GetTime() + APPLY_TIMEOUT, steps = { spec = {}, talents = {}, gear = {} } }
+	ns.Debug("apply: spec %s, talents %s, gear %s, PvP talents %s", DescribeSetup(setup))
+	pending = { setup = setup, expires = GetTime() + APPLY_TIMEOUT, steps = { spec = {}, talents = {}, gear = {}, pvp = {} } }
 	if InCombatLockdown() then ns.Msg(L["In combat. It will be applied when combat ends."]) end
 	ns.ContinueApply()
 	if pending and not ticking then

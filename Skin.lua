@@ -211,10 +211,15 @@ function Skin.Checkbox(parent, text, onChange)
 		self.mark:SetShown(self.checked)
 	end
 	function c:GetChecked() return self.checked or false end
+	function c:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		self:SetAlpha(self.disabled and 0.55 or 1)
+	end
 
-	c:SetScript("OnEnter", function(self) self.box:SetColorTexture(Skin.Color("accent")) end)
+	c:SetScript("OnEnter", function(self) if not self.disabled then self.box:SetColorTexture(Skin.Color("accent")) end end)
 	c:SetScript("OnLeave", function(self) self.box:SetColorTexture(Skin.Color("border")) end)
 	c:SetScript("OnClick", function(self)
+		if self.disabled then return end
 		self:SetChecked(not self.checked)
 		onChange(self.checked)
 	end)

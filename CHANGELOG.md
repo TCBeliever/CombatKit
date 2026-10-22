@@ -60,3 +60,10 @@ First public release.
 ## 1.1.2 (2026-10-14)
 
 - Marked for 12.1.5 as well (Interface 120105), so the game no longer lists the addon as out of date.
+
+## 1.2.0 (2026-10-22)
+
+- Loadout: PvP talents. On the PvP pages (PvP, and arena and battlegrounds when split) a row between the talent loadout and the equipment set takes three PvP talents for the spec, as octagonal slots drawn like the game's talent window: pick each slot, or *Use current* fills all three with the ones you have on. The game keeps PvP talents per spec, not per talent loadout, so until now a loadout switch left them as they were. They are applied with the rest, after the talent loadout; a talent that is on already stays in its slot, and an empty slot is left alone. The HUD has a *PvP talents* line where some are set, counting how many are on (*2/3*). They are picked while you are in that spec: the game lists no other spec's, so another spec's slots are greyed out.
+- Loadout: the tabs read *PvE* and *PvP* (were *PvE scenarios* and *PvP scenarios*); the talent loadout and equipment set fields are a third as long; the *Switch now* button is *Apply* (「套用」). Opening the settings, or another page, starts on the spec that page switches to, else on the one you are in, instead of the spec picked last.
+- Loadout: *Multiple setups* on the PvP pages: up to three setups (loadout, PvP talents, gear set) for a spec, say one per kind of team you meet. Pick 1, 2 or 3 next to the box: the fields show that setup and it is the one used, the first unless you pick another. The HUD tooltip names the setup in use.
+- Loadout: shorter labels: *Loadout*, *PvP*, *Gear set*; *Split into scenarios* reads *Use different settings per scenario*.

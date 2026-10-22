@@ -115,7 +115,7 @@ check(p.warmode:IsShown(), "war mode option lives on the PvP page")
 p.warmode:Click(); eq(C.warmodePvP, true, "war mode option on"); p.warmode:Click()
 eq(#W.log, 0, "editing settings never switches anything")
 
--- "Switch now": what the page shows, applied on request
+-- "Apply": what the page shows, applied on request
 check(not p.switch.disabled, "Havoc PvP shows gear 2 while set 1 is worn: the button is live")
 p.switch:Click(); flush()
 eq(W.log[1], "equip:2", "it equips the set shown")

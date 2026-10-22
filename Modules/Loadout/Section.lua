@@ -14,6 +14,8 @@ local Skin = ns.Skin
 -- under it, after an arrow, what will be applied, amber. Red no longer exists,
 -- grey is not set up. When the scenario wants another spec, the first line
 -- names it ("→ Vengeance"). A left click switches.
+-- PvP talents have a line only where some are set (the PvP setups): how many
+-- of them are on, "2/3", green when all are.
 -- ===========================================================================
 
 -- Returns text, colour name
@@ -82,6 +84,17 @@ ns.hudSection = {
 		local rows = { { icon = spec and spec.icon or 134400, value = name, right = Skin.Text(colour, text) } }
 		AddLines(rows, L["Talents"], st.hasTalents, st.talentsOK, st.talentsMissing, cell.configName,
 			st.hasTalents and not st.talentsOK and ns.GetActiveConfigName(st.specID) or nil)
+		if st.hasPvp then
+			local text = ("%d/%d"):format(st.pvpHave, st.pvpWant)
+			if st.pvpOK then
+				text = Skin.Text("ok", text)
+			elseif st.pvpMissing then
+				text = Skin.Text("bad", text .. " (" .. L["missing"] .. ")")
+			else
+				text = Skin.Text("warn", text)
+			end
+			rows[#rows + 1] = { label = L["PvP talents"], value = text }
+		end
 		AddLines(rows, L["Gear"], st.hasGear, st.gearOK, st.gearMissing, cell.setName,
 			st.hasGear and not st.gearOK and ns.GetEquippedSetName() or nil)
 		return rows, alert
@@ -96,6 +109,7 @@ ns.hudSection = {
 		local function Row(label, value) tooltip:AddDoubleLine(label, value, r, g, b, 1, 1, 1) end
 		Row(L["Scenario"], ns.ScenarioName(key))
 		Row(L["Settings from"], SourceName(st.source))
+		if st.setIndex then Row(L["Setup in use"], tostring(st.setIndex)) end
 		if st.autoSpec then
 			local spec = ns.GetSpecByID(st.autoSpec)
 			Row(L["Spec on entering"], spec and spec.name or "?")
