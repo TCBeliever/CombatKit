@@ -67,3 +67,13 @@ First public release.
 - Loadout: the tabs read *PvE* and *PvP* (were *PvE scenarios* and *PvP scenarios*); the talent loadout and equipment set fields are a third as long; the *Switch now* button is *Apply* (「套用」). Opening the settings, or another page, starts on the spec that page switches to, else on the one you are in, instead of the spec picked last.
 - Loadout: *Multiple setups* on the PvP pages: up to three setups (loadout, PvP talents, gear set) for a spec, say one per kind of team you meet. Pick 1, 2 or 3 next to the box: the fields show that setup and it is the one used, the first unless you pick another. The HUD tooltip names the setup in use.
 - Loadout: shorter labels: *Loadout*, *PvP*, *Gear set*; *Split into scenarios* reads *Use different settings per scenario*.
+
+## 1.2.1 (2026-10-26)
+
+- Party CD: Summon Darkglare and Summon Demonic Tyrant are no longer in the rows. They leave no aura on anyone, only a guardian, and in an arena nothing else the game lets an addon see tells a teammate's use of them, so their icons could only ever show "ready". Settings > Party CD > Spells lists them greyed out, marked *Undetectable*, their boxes out of reach.
+- Party CD: an ability only a PvP talent gives (Soul Rip, Blessing of Sanctuary, Grapple Weapon and the like) leaves a teammate's row once inspect has read their PvP talents and it is not among them; seeing it used still brings it back.
+- Party CD: hovering an ability in Settings > Party CD > Spells shows the game's own tooltip for it. Abilities of the same name share one box there (Feral's and Guardian's Berserk; the three Ascendances, Restoration's now filed under offensive cooldowns with the other two).
+- Party CD: different defaults, unticked unless you tick them: Obsidian Scales, Time Dilation, Zephyr, Ardent Defender, Guardian of Ancient Kings, Aura Mastery, Guardian of the Forgotten Queen, Avenging Crusader, Avenging Wrath, Execution Sentence, Blinding Light, Vampiric Embrace, Power Word: Barrier, Power Infusion and Holy Word: Chastise; Time Stop is ticked though its cooldown is short. A box you ticked or unticked yourself keeps your choice.
+- Party CD: *Show your own row* (the Debug page) works out in the world too: your row appears by your own frame and runs on the same estimates as in an arena, every ability ready when you tick it. Teammates' rows stay arena-only. Outside an arena, with your own row off, the module now does no work at all.
+- Party CD: `/ckpartycd log` notes which frame each row went to, for tracing a row seen on the wrong teammate.
+- Range: the distance box fits its text at any font size, instead of a fixed size.
