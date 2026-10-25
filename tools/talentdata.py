@@ -14,7 +14,10 @@ What it writes, per watched ability:
          (TraitDefinitionEffectPoints -> CurvePoint). At run time only the
          selected ones are applied;
   spec   which of those spells each specialization has as a passive
-         (SpecializationSpells).
+         (SpecializationSpells);
+  pvp    the watched abilities whose own spell is a PvP talent (PvpTalent) and
+         not a node of a live talent tree: inspect drops one from a teammate's
+         row when it read their PvP talents and this one is not among them.
 
 The mechanism in the data: a modifier aura (EffectAura 107 flat / 108 percent,
 or 379 / 380 which pick targets by spell label) carries the thing it changes
@@ -196,6 +199,7 @@ def main():
     for r in db.rows("SpecializationSpells"):
         spec_spells[int(r["SpellID"])].add(int(r["SpecID"]))
     pvp_talents = {int(r["SpellID"]) for r in db.rows("PvpTalent") if r["SpellID"] not in ("", "0")}
+    live = LiveTalents(db)
     def kind(source):
         if source in definitions: return "talent"
         if source in spec_spells: return "spec passive"
@@ -329,6 +333,25 @@ def main():
                 put(source, sid, "sec", value / 1000,
                     {d: [v / 1000 for v in vs] for d, vs in ranks_for(source, int(r["EffectIndex"]), value).items()})
 
+    # ---- the abilities only a PvP talent gives: its own spell is a PvP talent and no live
+    # tree node gives it (Blessing of Protection, a node, stays out though Spellwarding is a
+    # PvP talent that changes it). In game GetPvpTalentInfo gives the PvpTalent row's SpellID.
+    tree_spells = set()
+    for r in db.rows("TraitDefinition"):
+        if live.def_nodes.get(int(r["ID"])):
+            for v in (r["SpellID"], r["VisibleSpellID"]):
+                if v not in ("", "0"):
+                    tree_spells.add(int(v))
+    pvp = [sid for sid, _, _, _, _ in watched if sid in pvp_talents and sid not in tree_spells]
+    print("\nwatched abilities that are PvP talents:")
+    for sid, _, _, _, comment in watched:
+        if sid in pvp_talents:
+            print("  %d %s: %s" % (sid, comment, "a tree node as well, left to the tree" if sid in tree_spells else "PvP talent only"))
+    bar = {int(r["ActionBarSpellID"]): int(r["SpellID"]) for r in db.rows("PvpTalent") if r["ActionBarSpellID"] not in ("", "0")}
+    for sid, _, _, _, comment in watched:
+        if sid in bar and bar[sid] != sid and sid not in pvp_talents:
+            print("  !! %d %s: the action bar spell of PvP talent %d %s, not its own spell: not in `pvp`" % (sid, comment, bar[sid], name(bar[sid])))
+
     spec = defaultdict(list)
     for source in mods:
         for spec_id in spec_spells.get(source, ()):
@@ -341,7 +364,7 @@ def main():
         if data_specs and data_specs != (hand_specs or set()):
             print("  %d %s: data %s, Spells.lua %s" % (sid, comment, sorted(data_specs), sorted(hand_specs) if hand_specs else "every spec"))
     print("\nspecializations whose talent tree shows the ability (TraitCond by spec set) against `specs` in Spells.lua:")
-    for sid, (hand, tree), comment in tree_spec_audit(db, watched):
+    for sid, (hand, tree), comment in tree_spec_audit(db, watched, live):
         print("  %d %s: tree %s, Spells.lua %s" % (sid, comment, sorted(tree), sorted(hand) if hand else "every spec"))
     # an external that cannot land on its caster: SpellMisc.Attributes_1 0x80000 (Blessing of
     # Sacrifice, Intervene); Spells.lua says it with OtherAlly
@@ -365,7 +388,7 @@ def main():
             print("  %-7d %-32s -> %-26s %s%s  [%s]" % (source, name(source), base[sid]["name"], fields,
                   (" ranks=" + str(ranks)) if ranks else "", kind(source)))
 
-    if write(build, watched, base, mods, spec, name, kind):
+    if write(build, watched, base, mods, spec, pvp, name, kind):
         print("\nwrote %s" % os.path.relpath(OUT, ROOT))
 
 class LiveTalents:
@@ -421,12 +444,11 @@ class LiveTalents:
                     sets = [shown_by[c] for c in node_conds.get(n, ()) if c in shown_by]
                     self.node_specs[n] = set().union(*(spec_sets[ss] for ss in sets)) if sets else None
 
-def tree_spec_audit(db, watched):
+def tree_spec_audit(db, watched, live):
     """(spellID, (Spells.lua specs or None, tree specs), comment) for each watched talent whose
     nodes a spec-set condition limits to other specializations than Spells.lua says. A node
     with no such condition is in the class tree: every spec. Old trees (all loadout rows
     numbered under 500) are left out."""
-    live = LiveTalents(db)
     spell_nodes = defaultdict(set)
     for r in db.rows("TraitDefinition"):
         for v in (r["SpellID"], r["VisibleSpellID"]):
@@ -468,7 +490,7 @@ def lua_value(v):
         return "%s = %s" % v
     raise TypeError(v)
 
-def write(build, watched, base, mods, spec, name, kind):
+def write(build, watched, base, mods, spec, pvp, name, kind):
     out = io.StringIO()
     w = out.write
     w("local ADDON, ns = ...\n\n")
@@ -480,6 +502,7 @@ def write(build, watched, base, mods, spec, name, kind):
     w("-- for a shorter cooldown), pct (negative for a shorter cooldown) or charges; `ranks`\n")
     w("-- gives the value per rank by the talent's TraitDefinition when it has ranks. Only\n")
     w("-- what a teammate has selected is applied. spec: each specialization's passives.\n")
+    w("-- pvp: the watched abilities only a PvP talent gives (no talent tree node does).\n")
     w("ns.TalentData = {\n")
     w("\tbuild = %s,\n" % json.dumps(build))
     w("\tbase = {\n")
@@ -487,6 +510,9 @@ def write(build, watched, base, mods, spec, name, kind):
         b = base[sid]
         w("\t\t[%d] = { cd = %s, charges = %d%s },  -- %s\n" % (sid, lua_value(b["cd"]), b["charges"],
           ", underControl = true" if b["underControl"] else "", b["name"]))
+    w("\t},\n\tpvp = {\n")
+    for sid in pvp:
+        w("\t\t[%d] = true,  -- %s\n" % (sid, base[sid]["name"]))
     w("\t},\n\tmods = {\n")
     for source in sorted(mods):
         w("\t\t[%d] = {  -- %s (%s)\n" % (source, name(source), kind(source)))

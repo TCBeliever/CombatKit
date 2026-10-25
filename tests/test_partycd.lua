@@ -877,8 +877,9 @@ DATA.build = (GetBuildInfo()) .. "." .. select(2, GetBuildInfo())
 AR.UI.Refresh(5006)
 local row = AR.UI.Rows().party1
 -- the crowd control box was left ticked on above: Incapacitating Roar is watched though under a minute
-eq(table.concat(d.order, ","), "22812,740,473909,391528,5211,99,22570,29166,20549",
-	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility, Ancient of Lore (Tree of Life is off by default); Convoke the Spirits; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate; and the tauren's War Stomp, which inspect leaves alone")
+eq(table.concat(d.order, ","), "22812,740,391528,5211,99,22570,29166,20549",
+	"a restoration druid without Ironbark, by main tag: Barkskin, Tranquility (Tree of Life is off by default; Ancient of Lore out below); Convoke the Spirits; Mighty Bash, Incapacitating Roar, Maim (a class talent); Innervate; and the tauren's War Stomp, which inspect leaves alone")
+check(not inRow("party1", 473909) and d.spells[473909], "a PvP talent read and Ancient of Lore not among them: out of the row, still known")
 check(not inRow("party1", 61336) and d.spells[61336], "the spec (restoration) drops Survival Instincts, feral and guardian only")
 check(not inRow("player", 187827) and inRow("player", 198589), "the player's own spec (havoc): vengeance's Metamorphosis gone, Blur kept")
 check(not row.icons[#d.order + 2] or not row.icons[#d.order + 2]:IsShown(), "and no icon drawn for it")
@@ -890,6 +891,8 @@ shown("party1", 22812, 5010)
 check(inRow("party1", 22812), "Barkskin seen on the druid: back in the row")
 shown("party1", 102342, 5012)
 check(inRow("party1", 102342), "Ironbark seen on the only druid: back as well")
+shown("party1", 473909, 5013)
+check(inRow("party1", 473909), "Ancient of Lore seen: the PvP talent was there after all, back in the row")
 
 -- the player looking at someone: no request that would replace them
 W.units.party2 = { friendly = true, class = "PALADIN", guid = "Player-2-PALADIN", spec = 70 }
@@ -949,6 +952,28 @@ res = IN.Analyse(79, "DRUID", { 9002 }, 105)
 check(res and res[33891].missing and not res[473909].missing, "Ancient of Lore taken: Tree of Life is out of the row, Ancient of Lore stays")
 res = IN.Analyse(79, "DRUID", {}, 105)
 check(res and not res[33891].missing, "without it: Tree of Life stays")
+-- an ability only a PvP talent gives: out when their PvP talents were read without it
+check(DATA.pvp[410598] and DATA.pvp[210256] and DATA.pvp[233759] and DATA.pvp[228049],
+	"the data: Soul Rip, Blessing of Sanctuary, Grapple Weapon and Guardian of the Forgotten Queen are PvP talents only")
+check(not DATA.pvp[1022] and not DATA.pvp[6940], "Blessing of Protection and Blessing of Sacrifice are tree nodes: not in the list")
+W.traits[80] = { nodes = {} }
+W.pvpTalentInfo[9003] = { spellID = 410598 }   -- Soul Rip
+W.pvpTalentInfo[9004] = { spellID = 90011 }    -- some other PvP talent
+res = IN.Analyse(80, "WARLOCK", { 9004 }, 265)
+check(res and res[410598].missing, "a warlock whose PvP talents were read without Soul Rip: out of the row")
+res = IN.Analyse(80, "WARLOCK", { 9004, 9003 }, 265)
+check(res and not res[410598].missing, "with Soul Rip among them: it stays")
+res = IN.Analyse(80, "WARLOCK", {}, 265)
+check(res and not res[410598].missing, "no PvP talent read (outside an arena): it stays, as before")
+res = IN.Analyse(80, "WARLOCK", { 9999 }, 265)
+check(res and not res[410598].missing, "a PvP talent ID the game does not resolve counts as nothing read")
+W.pvpTalentInfo[9005] = { spellID = 204018 }   -- Spellwarding, which changes Blessing of Protection
+res = IN.Analyse(80, "PALADIN", { 9004 }, 70)
+check(res and res[210256].missing, "a retribution paladin without Blessing of Sanctuary: out of the row")
+check(not res[1022].missing and not res[6940].missing, "Blessing of Protection and Blessing of Sacrifice, tree nodes, stay without their PvP talents")
+W.traits[81] = { nodes = { { entries = { { spell = 6940 } } } } }
+res = IN.Analyse(81, "PALADIN", { 9005 }, 70)
+check(res and res[6940].missing and res[210256].missing, "Blessing of Sacrifice offered and not taken is still the tree's call")
 W.traits[78] = { nodes = { { entries = { { spell = 1246167 } } } } }
 res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
 check(res and res[370965].missing, "Devourer's The Hunt offered and not taken: The Hunt leaves the row")

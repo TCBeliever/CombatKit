@@ -7,8 +7,9 @@ local ADDON, ns = ...
 -- does to a watched ability comes from TalentData.lua, generated from the
 -- game's data files (tools/talentdata.py): seconds or a share off the
 -- cooldown, by rank, or a charge. A watched ability that the tree offers and
--- the teammate did not take is dropped from the row, and so is one no spell
--- list gives their specialization (`specs` in Spells.lua). When the game is
+-- the teammate did not take is dropped from the row, and so is one only a
+-- PvP talent gives when their PvP talents were read without it, and one no
+-- spell list gives their specialization (`specs` in Spells.lua). When the game is
 -- a newer build than the data, a selected talent the data does not know is
 -- read from its text (the game's own tooltip) as a stopgap.
 --
@@ -317,10 +318,12 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 			end
 		end
 	end
+	local pvpRead = false   -- at least one PvP talent read: the list is theirs, not an empty answer
 	for _, talentID in ipairs(pvpTalentIDs or {}) do
 		local ok, info = pcall(C_SpecializationInfo.GetPvpTalentInfo, talentID)
 		local sid = ok and type(info) == "table" and info.spellID
 		if sid then
+			pvpRead = true
 			if Of(sid) then Of(sid).taken = true end
 			if not ApplyData(sid) and useText then
 				local text = TalentText(nil, nil, sid, nil, state)
@@ -336,9 +339,14 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 	for _, def in ipairs(defs) do
 		if def.replaces and acc[def.id].taken and acc[def.replaces] then acc[def.replaces].replaced = true end
 	end
+	-- an ability only a PvP talent gives (TalentData's `pvp`: no tree node offers
+	-- it) is gone when their PvP talents were read and it is not among them;
+	-- with none read (an empty list outside an arena) it stays
+	local pvpOnly = data.pvp or {}
 	local results = {}
 	for _, def in ipairs(defs) do
 		local a = acc[def.id]
+		if pvpRead and pvpOnly[def.id] then a.offered = true end
 		local base = ns.BaseCooldown(def)
 		local cd = math.max(1, math.floor(((base + a.sec) * a.pct) * 2 + 0.5) / 2)
 		results[def.id] = { cd = cd, charges = ns.BaseCharges(def) + a.charges, missing = (a.offered and not a.taken) or a.replaced or false }
