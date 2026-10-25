@@ -11,6 +11,7 @@
 ## X-License: All Rights Reserved: you are free to fork and modify on GitHub, please ask about anything else.
 
 Locales.lua
+Common.lua
 Spells.lua
 TalentData.lua
 Tracker.lua

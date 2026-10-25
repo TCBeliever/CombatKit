@@ -22,6 +22,7 @@ check(AR.db.disabled == nil and AR.db.picked[49039] == false, "an older build's 
 local function def(id) return AR.SPELL_BY_ID[id] end
 check(AR.DefaultOn(def(22812)) and AR.Picked(def(22812), {}), "Barkskin, 60 s: on by default (a minute counts)")
 check(not AR.DefaultOn(def(99)) and not AR.Picked(def(99), {}), "Incapacitating Roar, 30 s: off by default")
+check(AR.DefaultOn(def(378441)) and not AR.DefaultOn(def(374227)), "Time Stop, 45 s, on by its entry; Zephyr, 120 s, off by its")
 check(AR.Picked(def(99), { [99] = true }) and not AR.Picked(def(22812), { [22812] = false }), "a tick either way wins")
 -- how an ability is seen and what it is for are two things (Spells.lua)
 check(def(198589).seen == "caster" and def(102342).seen == "ally" and def(6940).seen == "otherAlly"
@@ -68,7 +69,10 @@ local fake = { watches = {}, started = false }
 function fake.Start(cb) fake.cb = cb; fake.started = true end
 function fake.Stop() fake.started = false end
 function fake.SetWatch(unit, defs) fake.watches[unit] = defs end
+local detect = T.frames.CombatKitPartyCDDetect
 AR.UseBackend(fake)
+check(detect and not detect:IsShown(), "the real backend stopped: its root hidden, no per-frame work")
+check(AR.Backend.SetWatch("party4", {}) == false, "nothing to watch on a unit without a container: none is made")
 
 local function shown(unit, id, at, initial) W.now = at; fake.cb.Shown(unit, id, at, initial) end
 local function hidden(unit, id, at) W.now = at; fake.cb.Hidden(unit, id, at) end
@@ -81,9 +85,66 @@ local function state(unit, id, at)
 	return TR.State(e, W.now)
 end
 
--- ---------------------------------------------------------------- out in the world: nothing
-check(not fake.started, "outside an arena the backend is not started")
-check(next(AR.UI.Rows()) == nil or not AR.UI.Rows().player:IsShown(), "no row outside an arena")
+-- ---------------------------------------------------------------- out in the world: the player's own row alone
+-- the own row is ticked (this test's saved setting): watched out here too, the player alone
+check(fake.started and AR.WatchingSelf(), "outside an arena the backend runs for the player's own row")
+check(next(AR.UI.Rows()) == nil or not AR.UI.Rows().player:IsShown(), "nobody there yet: no row")
+W.units.player = { friendly = true }
+W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-1-DRUID" }
+W.now = 0
+fire("PLAYER_ENTERING_WORLD")
+check(fake.watches.player and #fake.watches.player == #AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true)), "the player's own buffs watched")
+check(TR.Get("party1") == nil and #fake.watches.party1 == 0, "a group member out here: no row, nothing watched")
+check(fake.watches.arena1 == nil, "no opponents out here")
+eq(state("player", 198589), "ready", "out here the own row starts ready, as at the gates")
+check(TR.Get("player").spells[198589].estimate, "and runs on the estimates, as in an arena")
+-- the player's own talents, read without a request
+W.traits = { [5] = { nodes = { { entries = { { spell = 90020 } }, taken = 1 } } } }
+W.activeTraitConfig = 5
+AR.TalentData.mods[90020] = { [198589] = { sec = -15 } }
+local blur = AR.BaseCooldown(def(198589))
+local logged = #W.log
+AR.Inspect.Tick(1)
+check(TR.Get("player").spells[198589].cd == blur - 15 and not TR.Get("player").spells[198589].estimate,
+	"the player's own talents at once: Blur 15 s shorter")
+local requests = 0
+for i = logged + 1, #W.log do if W.log[i]:find("^inspect:") then requests = requests + 1 end end
+eq(requests, 0, "and nobody inspected for it")
+W.traits[5].nodes[1].taken = nil
+fire("TRAIT_CONFIG_UPDATED", 5)
+AR.Inspect.Tick(2)
+eq(TR.Get("player").spells[198589].cd, blur, "a talent changed out here: read again")
+W.traits, W.activeTraitConfig, AR.TalentData.mods[90020] = nil, nil, nil
+-- the player's own cast: the buff lights the row, the self-test is satisfied
+W.now = 10; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-w1", 198589)
+shown("player", 198589, 10.02)
+TR.SelfTestCheck(11)
+eq(state("player", 198589, 10.02), "active", "Blur cast out here: the own row lights up")
+check(not TR.failed, "the self-test is satisfied out here too")
+hidden("player", 198589, 20)
+local ws, wReady = state("player", 198589, 20)
+check(ws == "cooling" and wReady == 10.02 + blur, "then cooling from the cast")
+-- hung under the player's own frame
+PlayerFrame = CreateFrame("Frame", "PlayerFrame")
+PlayerFrame:SetAttribute("unit", "player")
+AR.UI.Refresh(20)
+local mine = AR.UI.Rows().player
+check(mine:IsShown() and mine.__point[2] == PlayerFrame and mine.__point[1] == "TOPLEFT" and mine.__point[3] == "TOPRIGHT",
+	"the own row shows out here, hung on the player's frame")
+check(not AR.UI.Rows().party1:IsShown(), "no teammate's row")
+-- unticked: the row goes and the watching stops
+AR.db.showSelf = false; AR.Apply()
+check(not fake.started and not AR.WatchingSelf() and TR.Get("player") == nil, "unticked: the watching stops")
+check(not AR.Inspect.Pending("player"), "nothing asked for it either")
+AR.UI.Refresh(21)
+check(not mine:IsShown(), "and the row is gone")
+AR.db.showSelf = true; AR.Apply()
+check(fake.started and AR.WatchingSelf() and TR.Get("player") ~= nil, "ticked again: watched again")
+eq(state("player", 198589, 21), "ready", "afresh: Blur ready again, as at the gates")
+AR.UI.Refresh(22)
+check(mine:IsShown(), "and shown again")
+PlayerFrame:Hide(); PlayerFrame = nil
+W.units.party1 = nil
 
 -- ---------------------------------------------------------------- into an arena: a druid and a priest
 W.inInstance, W.instanceType = true, "arena"
@@ -93,6 +154,7 @@ W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-1-PRIEST" }
 W.now = 0
 fire("PLAYER_ENTERING_WORLD")
 check(fake.started, "entering an arena starts the backend")
+check(not AR.WatchingSelf() and AR.InArena(), "the arena's own watching takes the player's row over")
 check(fake.watches.party1 and #fake.watches.party1 == #AR.FriendlyDefs(AR.SpellsFor("DRUID", true)), "every druid buff is watched on party1")
 check(fake.watches.player and #fake.watches.player == #AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true)), "the player's own row is watched too")
 check(fake.watches.arena1 and #fake.watches.arena1 > 0, "the opponents are watched for the team's crowd control")
@@ -580,6 +642,25 @@ eq(rogue.spells[212182].cd, AR.BaseCooldown(def(212182)), "and the cooldown is n
 shown("party1", 1856, 2720)
 eq(state("party1", 1856), "active", "Vanish's buff on the rogue")
 hidden("party1", 1856, 2723)
+
+-- ---------------------------------------------------------------- an ability nothing shows: Summon Darkglare
+check(def(205180).undetectable, "Summon Darkglare is marked undetectable (no aura anywhere, measured in AuraLab)")
+check(not AR.Picked(def(205180), { [205180] = true }), "never picked, even ticked on before")
+check(def(265187).undetectable and not AR.Picked(def(265187), {}), "Summon Demonic Tyrant too")
+W.units.party1 = { friendly = true, class = "WARLOCK", guid = "Player-7-WARLOCK" }
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("party1").spells[205180] == nil and not watches("party1", 205180), "not in the warlock teammate's row, not watched")
+check(TR.Get("party1").spells[104773] and watches("party1", 104773), "the warlock's other abilities as before")
+-- the player's own row is the debug reference for a teammate's: not there either
+W.units.player = { friendly = true, class = "WARLOCK" }
+fire("GROUP_ROSTER_UPDATE")
+check(TR.Get("player").spells[205180] == nil, "not in the player's own row")
+W.now = 2740; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-dg1", 205180)
+W.now = 2741; TR.SelfTestCheck(2741)
+W.now = 2860; fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-dg2", 205180)
+W.now = 2861; TR.SelfTestCheck(2861)
+check(not TR.failed, "the player's own Darkglare twice: the self-test waits for nothing, no false alarm")
+W.units.player = { friendly = true }
 W.units.player.race = nil
 W.units.party1 = { friendly = true, class = "DRUID", guid = "Player-3-DRUID" }
 W.units.party2 = { friendly = true, class = "PRIEST", guid = "Player-3-PRIEST" }
@@ -615,6 +696,11 @@ member:SetAttribute("unit", "party1")
 AR.Apply()
 check(row.__point[1] == "TOPLEFT" and row.__point[2] == member and row.__point[3] == "TOPRIGHT" and row.__point[4] == 4,
 	"party1's row hangs on the right of its frame, 4 px away")
+local anchored = 0
+for _, line in ipairs(AR.db.log or {}) do
+	if line:find("anchor party1 -> CompactPartyFrameMember1 via Blizzard, unit attribute party1", 1, true) then anchored = anchored + 1 end
+end
+eq(anchored, 1, "the log says which frame the row went to, once")
 AR.db.side = "LEFT"; AR.Apply()
 check(row.__point[1] == "TOPRIGHT" and row.__point[3] == "TOPLEFT" and row.__point[4] == -4, "on the left when asked")
 local step = AR.db.iconSize + AR.db.spacing
@@ -725,6 +811,39 @@ spells.headers.control:Click()
 check(AR.db.picked[5211] == false and AR.db.picked[99] == nil, "unticked: every one off, the short ones back to their default")
 spells.headers.control:Click()
 check(spells.headers.other:IsShown(), "the other category for the druid (Innervate)")
+-- Feral's and Guardian's Berserk carry the same name: one row, one box for both
+local getName = C_Spell.GetSpellName
+C_Spell.GetSpellName = function(id)
+	if id == 106951 or id == 50334 then return "Berserk" end
+	return getName(id)
+end
+CK.Options.Refresh()
+eq(#shownRows(), #AR.SPELLS.DRUID - 1, "the two Berserks share a row")
+local berserk
+for _, c in ipairs(shownRows()) do if c.def.id == 106951 then berserk = c end end
+check(berserk and #berserk.row == 2 and berserk:GetChecked(), "both under it, watched")
+berserk:Click()
+check(AR.db.picked[106951] == false and AR.db.picked[50334] == false, "unticked: both off")
+berserk:Click()
+check(AR.db.picked[106951] == nil and AR.db.picked[50334] == nil, "ticked again: both back to the default")
+C_Spell.GetSpellName = getName
+CK.Options.Refresh()
+-- an ability nothing can detect: listed greyed out, marked in red, its box out of reach
+spells.class = "WARLOCK"; CK.Options.Refresh()
+local glare
+for _, c in ipairs(shownRows()) do if c.def.id == 205180 then glare = c end end
+check(glare and glare.disabled and not glare:GetChecked(), "Summon Darkglare: listed, unticked, its box disabled")
+check(glare.icon:IsDesaturated() and glare.note:GetText() == CK.L["Undetectable"], "greyed out, marked undetectable")
+glare:Click()
+check(AR.db.picked[205180] == nil, "a click does nothing")
+spells.headers.burst:Click()
+check(AR.db.picked[205180] == nil, "the category box leaves it alone")
+check(spells.headers.burst:GetChecked(), "and shows the rest of the category as ticked")
+spells.headers.burst:Click()
+for _, c in ipairs(shownRows()) do
+	if c.def.id == 104773 then check(not c.disabled and c.note:GetText() == "", "another ability: as before") end
+end
+spells.class = "DRUID"; CK.Options.Refresh()
 CK.Options.Select("PartyCD", "main")
 page.unlock:Click()
 check(not AR.IsLocked(), "unlocked from the page")
@@ -734,10 +853,13 @@ check(AR.IsLocked(), "closing the window locks the rows again")
 -- ---------------------------------------------------------------- leaving the arena
 W.inInstance, W.instanceType = false, "none"
 fire("PLAYER_ENTERING_WORLD")
-check(not fake.started, "leaving stops the backend")
-check(TR.Get("party1") == nil, "and clears the teammates")
+check(TR.Get("party1") == nil, "leaving clears the teammates")
+check(fake.started and AR.WatchingSelf() and TR.Get("player") ~= nil, "the own row ticked: watched on out here")
+eq(state("player", 198589), "ready", "afresh, as at the gates")
 AR.UI.Refresh()
-check(not AR.UI.Rows().party1:IsShown(), "no row outside")
+check(not AR.UI.Rows().party1:IsShown(), "no teammate's row outside")
+AR.db.showSelf = false; AR.Apply()
+check(not fake.started, "unticked: the backend stops")
 
 -- the test switch: sample rows out here, with one icon of each look
 SlashCmdList.COMBATKIT("")
@@ -810,6 +932,7 @@ check(#r == 1 and r[1].sec == -1.5, "a decimal survives the sentence cut")
 r = parsed("Reduces the cooldown of spell22812 by 1 min.")
 check(#r == 1 and r[1].sec == -60, "minutes")
 
+AR.db.showSelf = true; AR.Apply()   -- the own row again, for the player's own talents below
 -- into an arena again: a druid with talents, the player with their own; the
 -- talent spells are made up, and the data table below says what they do
 W.inInstance, W.instanceType = true, "arena"
@@ -982,11 +1105,13 @@ res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
 check(res and not res[370965].missing, "taken: it stays")
 W.inInstance, W.instanceType = false, nil
 fire("ZONE_CHANGED_NEW_AREA")
+check(AR.WatchingSelf() and TR.Get("party1") == nil and TR.Get("player") ~= nil, "out again: the own row alone")
 W.traits, W.inspectable = nil, nil
 DATA.build = dataBuild
 
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("PartyCD", false)
 check(not AR.IsRunning(), "switched off: stopped")
+check(not fake.started and not AR.WatchingSelf(), "and the own row's watching with it")
 
 return T.report("partycd " .. LOCALE)

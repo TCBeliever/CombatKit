@@ -6,6 +6,8 @@ Things set aside on purpose: not forgotten, not being worked on now. Take one ou
 
 Each one is in Spells.lua as the game's data suggests; a check in game settles it.
 
+An ability measured to leave no aura on anyone can stay in the list with `undetectable = true` (Spells.lua) instead of being taken out: no row shows it, and the spells page lists it greyed out, marked undetectable (Summon Darkglare, 2026-10-26; AuraLab `docs/findings.md`, section 8).
+
 AuraLab 0.8 learns these by itself while auras are not secret (open world, normal and heroic dungeons), from the player's casts and the party's: play with it loaded, `/reload` or log out, then `python tools/auralab_check.py` sorts every watched ability into confirmed / differs / no aura / more casts / not seen. `python tools/auralab_targets.py` rewrites AuraLab's list when Spells.lua changes (then deploy AuraLab).
 
 | Ability | Class, spec | What to check | If it fails |

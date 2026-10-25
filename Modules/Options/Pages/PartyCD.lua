@@ -192,7 +192,9 @@ end
 -- the box and the name. The categories sit in two columns, in their order
 -- down the first and on into the second (the order of the icons in a row),
 -- broken where the taller column is shortest, so a class with many abilities
--- still fits the window.
+-- still fits the window. An ability nothing can detect (Spells.lua
+-- `undetectable`) is listed greyed out, marked in red, its box out of reach.
+-- Hovering an ability shows the game's own tooltip for it.
 local ROW_H = 20
 local GAP = 6         -- under a category
 local COL_MIN = 290   -- the second column starts at half the page, never closer than this
@@ -258,9 +260,47 @@ local function SpellName(def)
 	return name
 end
 
--- a check box with the spell's icon between the box and the name
+-- a category's rows, in list order: abilities of the same name share one
+-- (Feral's and Guardian's Berserk), its box ticking every one of them
+local function Rows(list, role)
+	local rows, byName = {}, {}
+	for _, def in ipairs(list) do
+		if def.tag == role then
+			local name = SpellName(def)
+			local row = byName[name]
+			if not row then
+				row = { name = name }
+				byName[name] = row
+				rows[#rows + 1] = row
+			end
+			row[#row + 1] = def
+			if def.undetectable then row.undetectable = true end
+		end
+	end
+	return rows
+end
+
+local function AllPicked(row, picked)
+	for _, def in ipairs(row) do
+		if not AR.Picked(def, picked) then return false end
+	end
+	return true
+end
+
+-- a check box with the spell's icon between the box and the name; hovered,
+-- the game's own tooltip for the spell (a greyed-out row too)
 local function AbilityRow(parent, onChange)
-	return WithIcon(Skin.Checkbox(parent, "", onChange))
+	local c = WithIcon(Skin.Checkbox(parent, "", onChange))
+	c:HookScript("OnEnter", function(self)
+		if not self.def then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		if pcall(GameTooltip.SetSpellByID, GameTooltip, self.def.id) then GameTooltip:Show() end
+	end)
+	c:HookScript("OnLeave", GameTooltip_Hide)
+	-- the red mark of an ability nothing can detect: on the page, so the greyed-out row does not dim it
+	c.note = Skin.Label(parent, "", nil, "bad")
+	c.note:SetPoint("LEFT", c.label, "RIGHT", 8, 0)
+	return c
 end
 
 local function BuildSpells(p)
@@ -279,7 +319,7 @@ local function BuildSpells(p)
 		local role = cat[1]
 		local h = CK.Bind(Skin.Checkbox(p, "", function(checked)
 			for _, def in ipairs(ListFor(p.class)) do
-				if def.tag == role then Pick(def, checked) end
+				if def.tag == role and not def.undetectable then Pick(def, checked) end
 			end
 			Changed()
 			O.Refresh()
@@ -297,57 +337,58 @@ local function RefreshSpells(p)
 	local list = ListFor(p.class)
 	local tops, used = { -34, -34 }, 0
 	local colX = math.max(COL_MIN, math.floor((p:GetWidth() or 0) / 2))
-	local heights = {}
+	local heights, rowsOf = {}, {}
 	for i, cat in ipairs(CATEGORIES) do
-		local n = 0
-		for _, def in ipairs(list) do if def.tag == cat[1] then n = n + 1 end end
+		rowsOf[i] = Rows(list, cat[1])
+		local n = #rowsOf[i]
 		heights[i] = n > 0 and (n + 1) * ROW_H + GAP or 0
 	end
 	local first = FirstColumn(heights)
 	for i, cat in ipairs(CATEGORIES) do
-		local role = cat[1]
-		local header = p.headers[role]
-		local any, all = false, true
-		for _, def in ipairs(list) do
-			if def.tag == role then
-				any = true
-				if not AR.Picked(def, db.picked) then all = false end
-			end
+		local header = p.headers[cat[1]]
+		local rows, all = rowsOf[i], true
+		for _, row in ipairs(rows) do
+			if not row.undetectable and not AllPicked(row, db.picked) then all = false end
 		end
-		header:SetShown(any)
-		if any then
+		header:SetShown(#rows > 0)
+		if #rows > 0 then
 			local col = i <= first and 1 or 2
 			local x, y = (col - 1) * colX, tops[col]
 			header:ClearAllPoints()
 			header:SetPoint("TOPLEFT", x, y)
 			header:SetChecked(all)
 			y = y - ROW_H
-			for _, def in ipairs(list) do
-				if def.tag == role then
-					used = used + 1
-					local c = p.abilities[used]
-					if not c then
-						c = AbilityRow(p, function(checked)
-							Pick(c.def, checked)
-							Changed()
-							O.Refresh()
-						end)
-						p.abilities[used] = c
-					end
-					c.def = def
-					c.icon:SetTexture(C_Spell.GetSpellTexture(def.id) or 134400)
-					c:SetLabel(SpellName(def))
-					c:SetChecked(AR.Picked(def, db.picked))
-					c:ClearAllPoints()
-					c:SetPoint("TOPLEFT", x + 24, y)
-					c:Show()
-					y = y - ROW_H
+			for _, row in ipairs(rows) do
+				used = used + 1
+				local c = p.abilities[used]
+				if not c then
+					c = AbilityRow(p, function(checked)
+						for _, def in ipairs(c.row) do Pick(def, checked) end
+						Changed()
+						O.Refresh()
+					end)
+					p.abilities[used] = c
 				end
+				c.row, c.def = row, row[1]
+				c.icon:SetTexture(C_Spell.GetSpellTexture(row[1].id) or 134400)
+				c:SetLabel(row.name)
+				c:SetChecked(not row.undetectable and AllPicked(row, db.picked))
+				c:SetDisabled(row.undetectable)
+				c.icon:SetDesaturated(row.undetectable or false)
+				c.label:SetTextColor(Skin.Color(row.undetectable and "dim" or "text"))
+				c.note:SetText(row.undetectable and L["Undetectable"] or "")
+				c:ClearAllPoints()
+				c:SetPoint("TOPLEFT", x + 24, y)
+				c:Show()
+				y = y - ROW_H
 			end
 			tops[col] = y - GAP
 		end
 	end
-	for i = used + 1, #p.abilities do p.abilities[i]:Hide() end
+	for i = used + 1, #p.abilities do
+		p.abilities[i]:Hide()
+		p.abilities[i].note:SetText("")
+	end
 end
 
 -- ---------------------------------------------------------------- debug

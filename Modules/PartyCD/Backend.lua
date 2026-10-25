@@ -28,10 +28,11 @@ local ADDON, ns = ...
 -- unit's UNIT_AURA (the container redraws in its own OnUpdate, after the
 -- event), after our own filter changes, and once a second regardless; the
 -- Cooldown's own timer takes care of OnCooldownDone. The root sits under
--- WorldFrame so hiding the UI never stops the containers from updating. An
--- edge in the frames right after our own filter change, or right after a
--- roster change, is reported as `initial`: the buff was already there as we
--- began to look.
+-- WorldFrame so hiding the UI never stops the containers from updating; it is
+-- hidden only while nothing is watched (Stop), which stops its per-frame
+-- work too. An edge in the frames right after our own filter change, or
+-- right after a roster change, is reported as `initial`: the buff was
+-- already there as we began to look.
 -- ===========================================================================
 
 local Backend = {}
@@ -177,6 +178,7 @@ end
 -- Draw these spells for this unit, and nothing else. `roster` says the unit
 -- may have changed hands, so whatever is up now is the state we found.
 function Backend.SetWatch(unit, defs, roster)
+	if #defs == 0 and not containers[unit] then return false end   -- nothing to watch, nothing to stop: no container
 	local c = Container(unit)
 	local want = {}
 	for _, def in ipairs(defs) do want[def.id] = def end
@@ -222,6 +224,7 @@ end
 function Backend.Stop()
 	callbacks = nil
 	for unit in pairs(containers) do Backend.SetWatch(unit, {}) end
+	if root then root:Hide() end   -- no OnUpdate while nothing is watched
 end
 
 -- what is wrong, if anything: for the status line

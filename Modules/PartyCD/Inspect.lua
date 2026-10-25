@@ -31,14 +31,14 @@ local TIMEOUT = 3        -- an answer later than this is not waited for
 local PVP_SLOTS = 3
 
 local INSPECT_CONFIG = (Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID) or -1
-local ORDER = { "player", "party1", "party2" }
+local ORDER = ns.TEAM
 
 local pending = {}       -- [unit] = { unit, guid, class, tries, nextAt, sentAt }
 local inflight           -- the pending record whose request is out
 local onResult           -- fn(unit, specID, results, complete)
 local lastResult = {}    -- [unit] = a line for the status command
 
-local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
+local plain = ns.plain
 
 -- the player is looking at someone in the inspect window
 local function UserInspecting()

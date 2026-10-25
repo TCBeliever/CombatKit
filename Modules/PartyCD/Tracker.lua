@@ -36,7 +36,7 @@ local Tracker = {}
 ns.Tracker = Tracker
 
 local teammates = {}     -- unit token -> teammate
-local order = { "player", "party1", "party2" }
+local order = ns.TEAM
 local recentCasts = {}   -- spellID -> time of the player's last cast
 local listeners = {}
 local durations = {}     -- spellID -> shortest full buff duration seen (for refresh inference)

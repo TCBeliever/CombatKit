@@ -7,16 +7,19 @@ CK.NewModule("PartyCD", ns)
 -- ===========================================================================
 -- The module: when to look (an arena, from entering to leaving), who to look
 -- at (party1, party2, and the player as the reference), when a round starts,
--- and the glue between the backend, the tracker and the rows.
+-- and the glue between the backend, the tracker and the rows. Outside an
+-- arena only the player's own row is looked at, and only while it is asked
+-- for (showSelf, a debug setting).
 -- ===========================================================================
 
 local Tracker = ns.Tracker
 local Inspect = ns.Inspect
-local UNITS = { "player", "party1", "party2" }
+local UNITS = ns.TEAM
 local ENEMIES = { "arena1", "arena2", "arena3" }
 local backend
 local inArena = false
 local engaged = false   -- the gates are open: a teammate arriving now is unknown, before that ready
+local selfWatch = false -- outside an arena, the player's own row is watched (showSelf)
 local running = false
 
 -- ---------------------------------------------------------------------------
@@ -110,7 +113,7 @@ local callbacks = {
 	end,
 }
 
-local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
+local plain = ns.plain
 
 -- a unit's race as the game names it in files (UnitRace's second value:
 -- "Dwarf", "Tauren"; one "Pandaren" for all three), or nil
@@ -137,11 +140,13 @@ local function InspectAll()
 end
 
 -- who is here: the player, then party1 and party2 while they exist, with
--- their class and race (no inspect needed for either)
+-- their class and race (no inspect needed for either); outside an arena the
+-- player alone
 local function Roster()
 	local list = {}
 	for _, unit in ipairs(UNITS) do
-		if (unit ~= "player" or ns.db.showSelf) and UnitExists(unit) then
+		local wanted = (unit == "player" and ns.db.showSelf) or (unit ~= "player" and inArena)
+		if wanted and UnitExists(unit) then
 			local _, class = UnitClass(unit)
 			local guid = UnitGUID(unit)
 			if type(class) == "string" and plain(class) and ns.SPELLS[class] then
@@ -164,7 +169,9 @@ end
 local function ApplyRoster()
 	local list = Roster()
 	local sel = ns.Selection()
-	Tracker.SetRoster(list, sel, not engaged)
+	-- before the gates nothing can have been used; outside an arena the own row
+	-- starts as at the gates, so it tests the estimates as an arena would
+	Tracker.SetRoster(list, sel, not (inArena and engaged))
 	local watched = {}
 	local names = {}
 	for _, r in ipairs(list) do
@@ -198,7 +205,9 @@ local function ApplyRoster()
 			if not seen[def.id] then seen[def.id] = true; cc[#cc + 1] = def end
 		end
 	end
-	for _, unit in ipairs(ENEMIES) do backend.SetWatch(unit, cc, true) end
+	if inArena then
+		for _, unit in ipairs(ENEMIES) do backend.SetWatch(unit, cc, true) end
+	end
 	Log("roster %s", table.concat(names, " "))
 	local problems = backend.Problems and backend.Problems()
 	if problems and #problems > 0 then Log("backend: %s", table.concat(problems, "; ")) end
@@ -206,9 +215,32 @@ local function ApplyRoster()
 end
 ns.ApplyRoster = ApplyRoster
 
-local function InArena()
-	local inInstance, kind = IsInInstance()
-	return inInstance and kind == "arena"
+local InArena = ns.InArenaZone
+
+-- Outside an arena, the player's own row while it is asked for: the backend
+-- and the player's own talents for the player alone, from switching it on
+-- to switching it off or entering an arena. Its cooldowns are the tracker's
+-- estimates, as in an arena (that is what it is there to test); switched on,
+-- every ability starts ready, as at the gates, and switching it off and on
+-- again starts it afresh.
+local function SelfWatch()
+	local want = running and ns.db.showSelf and not inArena
+	if want and not selfWatch then
+		selfWatch = true
+		Tracker.Clear()
+		Log("watch own row")
+		backend.Start(callbacks)
+		Inspect.Start(Inspected)
+		ApplyRoster()
+	elseif not want and selfWatch then
+		selfWatch = false
+		Log("stop own row")
+		backend.Stop()
+		Inspect.Stop()
+		Tracker.Clear()
+	elseif want then
+		ApplyRoster()
+	end
 end
 
 -- Entering an arena, everything is ready: the gates reset every cooldown,
@@ -218,6 +250,7 @@ local function Scene()
 	if arena and not inArena then
 		inArena = true
 		engaged = false
+		selfWatch = false   -- the arena's own watching takes the player's row over
 		Tracker.Clear()
 		Log("enter arena")
 		backend.Start(callbacks)
@@ -231,14 +264,17 @@ local function Scene()
 		backend.Stop()
 		Inspect.Stop()
 		Tracker.Clear()
+		SelfWatch()
 	elseif arena then
 		ApplyRoster()
+	else
+		SelfWatch()
 	end
 	ns.UI.Dirty()
 end
 ns.Scene = Scene
 
-local ENGAGED = (Enum and Enum.PvPMatchState and Enum.PvPMatchState.Engaged) or 3
+local ENGAGED = ns.ENGAGED
 
 local function MatchState()
 	if not inArena then return end
@@ -310,6 +346,12 @@ driver:SetScript("OnEvent", function(_, event, a, b, c)
 		if inArena then CheckControl(GetTime()) end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		if a == "player" and type(c) == "number" then Tracker.OnPlayerCast(c) end
+	elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_PVP_TALENT_UPDATE" then
+		-- the player's own talents changed: read again (no request, Inspect.lua)
+		local me = Tracker.Get("player")
+		if me and (event ~= "PLAYER_SPECIALIZATION_CHANGED" or a == nil or a == "player") then
+			Inspect.Want("player", me.guid, me.class)
+		end
 	end
 end)
 
@@ -322,9 +364,11 @@ local function OnUpdate(_, elapsed)
 	if acc < 0.2 then return end
 	acc = 0
 	local at = GetTime()
-	if inArena then
+	if inArena or selfWatch then
 		Tracker.SelfTestCheck(at)
 		Inspect.Tick(at)
+	end
+	if inArena then
 		CheckControl(at)   -- the end of a control comes without an event of its own (its start does, exactly)
 	end
 	if sinceFull >= 1 or not ns.UI.IsLocked() or ns.UI.IsTesting() then
@@ -337,7 +381,8 @@ end
 
 local EVENTS = { "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED",
 	"PVP_MATCH_STATE_CHANGED", "PVP_MATCH_ACTIVE", "ARENA_COOLDOWNS_UPDATE", "ARENA_CROWD_CONTROL_SPELL_UPDATE", "INSPECT_READY",
-	"LOSS_OF_CONTROL_ADDED", "LOSS_OF_CONTROL_UPDATE" }
+	"LOSS_OF_CONTROL_ADDED", "LOSS_OF_CONTROL_UPDATE", "PLAYER_SPECIALIZATION_CHANGED", "TRAIT_CONFIG_UPDATED",
+	"PLAYER_PVP_TALENT_UPDATE" }
 
 Tracker.AddListener(function(what, a, b)
 	if what == "detection" then
@@ -365,7 +410,8 @@ SlashCmdList.CKPARTYCD = function(msg)
 		if ns.db then ns.db.log = {} end
 		CK.Msg("Party CD: log cleared")
 	else
-		CK.Msg("Party CD: %s, %s", inArena and "in arena" or "not in arena", Tracker.failed and "detection failed" or "detection fine")
+		CK.Msg("Party CD: %s, %s", inArena and "in arena" or (selfWatch and "not in arena, own row watched" or "not in arena"),
+			Tracker.failed and "detection failed" or "detection fine")
 		for _, line in ipairs(Tracker.Debug()) do print("  " .. line) end
 		for _, line in ipairs(Inspect.Debug()) do print("  " .. line) end
 		local problems = backend and backend.Problems and backend.Problems() or {}
@@ -379,9 +425,9 @@ end
 
 -- the tests swap the detection for a fake one that reports what they say
 function ns.UseBackend(b)
-	if backend and inArena then backend.Stop() end
+	if backend and (inArena or selfWatch) then backend.Stop() end
 	backend = b
-	if inArena then
+	if inArena or selfWatch then
 		backend.Start(callbacks)
 		ApplyRoster()
 	end
@@ -405,8 +451,8 @@ function ns.OnDisable()
 	running = false
 	driver:UnregisterAllEvents()
 	driver:SetScript("OnUpdate", nil)
-	if inArena then
-		inArena = false
+	if inArena or selfWatch then
+		inArena, selfWatch = false, false
 		backend.Stop()
 		Inspect.Stop()
 	end
@@ -418,10 +464,11 @@ end
 
 function ns.IsRunning() return running end
 function ns.InArena() return inArena end
+function ns.WatchingSelf() return selfWatch end
 
 -- settings changed: redraw, and watch or stop watching the player and the ticked spells
 function ns.Apply()
-	if inArena then ApplyRoster() end
+	if inArena then ApplyRoster() else SelfWatch() end
 	ns.UI.Refresh()
 end
 

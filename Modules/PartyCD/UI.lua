@@ -30,9 +30,9 @@ local rows = {}
 local locked = true
 local testing = false   -- sample rows on screen wherever you are, to see the look
 local dirty = true
-local UNITS = { "player", "party1", "party2" }
+local UNITS = ns.TEAM
 
-local function plain(v) return type(canaccessvalue) ~= "function" or canaccessvalue(v) end
+local plain = ns.plain
 
 -- ---------------------------------------------------------------------------
 -- Finding the frame that shows a unit. A frame counts when it is visible and
@@ -122,11 +122,33 @@ local PROVIDERS = {
 	end,
 }
 
+local PROVIDER_NAMES = { "FrameSort", "DandersFrames", "EllesmereUI", "Blizzard" }
+
+-- the frame, and which provider gave it
 local function FindFrame(unit)
-	for _, find in ipairs(PROVIDERS) do
+	for i, find in ipairs(PROVIDERS) do
 		local f = find(unit)
-		if f then return f end
+		if f then return f, PROVIDER_NAMES[i] end
 	end
+end
+
+-- a line in the log whenever a row moves to another frame, so that a row seen
+-- on the wrong teammate can be traced after the match: the frame, who gave it,
+-- the unit its attribute and its field name, and whether combat was on
+local function LogAnchor(row, frame, source)
+	local name = "loose"
+	if frame then
+		local okN, n = pcall(frame.GetName, frame)
+		name = (okN and type(n) == "string" and n) or tostring(frame)
+	end
+	if row.anchorName == name then return end
+	row.anchorName = name
+	if not ns.Log then return end
+	local okA, attr = pcall(frame and frame.GetAttribute or function() end, frame, "unit")
+	local field = frame and rawget(frame, "unit")
+	ns.Log("anchor %s -> %s via %s, unit attribute %s, field %s%s", row.unit, name, source or "-",
+		okA and plain(attr) and tostring(attr) or "?", plain(field) and tostring(field) or "?",
+		InCombatLockdown and InCombatLockdown() and " (in combat)" or "")
 end
 
 -- ---------------------------------------------------------------------------
@@ -528,12 +550,10 @@ end
 function UI.StandIns() return standIns end
 
 -- a round in progress: the samples must not cover the live icons
-local ENGAGED = (Enum and Enum.PvPMatchState and Enum.PvPMatchState.Engaged) or 3
 local function InRound()
-	local inInstance, kind = IsInInstance()
-	if not (inInstance and kind == "arena") then return false end
+	if not ns.InArenaZone() then return false end
 	local ok, state = pcall(C_PvP.GetActiveMatchState)
-	return ok and state == ENGAGED
+	return ok and state == ns.ENGAGED
 end
 
 -- hang the row on its unit's frame (or, among the samples, on a stand-in
@@ -543,10 +563,12 @@ local function Place(row)
 	local db = ns.db
 	local side = Side()
 	local spec = { side = side, grow = UI.GrowFor(side, db.grow) }
-	local frame = db.attach and FindFrame(row.unit) or nil
+	local frame, source
+	if db.attach then frame, source = FindFrame(row.unit) end
 	if not frame and testing and db.attach then
-		frame = PlaceStandIn(row.unit)
+		frame, source = PlaceStandIn(row.unit), "stand-in"
 	end
+	if locked and not testing then LogAnchor(row, frame, source) end
 	if not (frame and frame == standIns[row.unit]) and standIns[row.unit] then standIns[row.unit]:Hide() end
 	row.anchor = frame
 	if row.moving then return spec end

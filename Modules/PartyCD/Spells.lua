@@ -68,9 +68,17 @@ local ADDON, ns = ...
 -- than the cooldown can bring the ability back (a reset, a talent's shorter
 -- version), so two close uses prove nothing about the cooldown.
 --
+-- `undetectable` marks an ability that leaves nothing the module can see:
+-- no aura on anyone, measured in game (Summon Darkglare leaves only a guardian;
+-- AuraLab's docs/findings.md, section 8, has what else was tried). It is in no
+-- row at all, the player's own included (that row is the debug reference for
+-- what a teammate's shows); the spells page lists it greyed out, marked
+-- undetectable, with a box that cannot be ticked.
+--
 -- On by default is every ability with a base cooldown of a minute or more;
 -- the shorter ones are off until ticked on the spells page (Settings > Party
--- CD > Spells), which keeps the rows to what decides a fight.
+-- CD > Spells), which keeps the rows to what decides a fight. An entry may
+-- say otherwise: `defaultOff` keeps it off, `defaultOn` puts a short one on.
 --
 -- `specs` names the specializations that have the ability at all (spec IDs:
 -- Blood 250, Frost DK 251, Unholy 252, Havoc 577, Vengeance 581, Devourer
@@ -178,12 +186,12 @@ ns.SPELLS = {
 		Ally(29166, 180, "other"),              -- Innervate
 	},
 	EVOKER = {
-		Caster(363916, 90, "defense", { extraCharge = true }),  -- Obsidian Scales
+		Caster(363916, 90, "defense", { defaultOff = true, extraCharge = true }),  -- Obsidian Scales (off by default: the user's call)
 		Caster(370960, 180, "defense", { specs = set(1468) }),  -- Emerald Communion (PvP talent)
 		Caster(359816, 120, "defense", { specs = set(1468) }),  -- Dream Flight
-		Ally(357170, 60, "defense", { extraCharge = true, specs = set(1468) }),  -- Time Dilation
-		Ally(378441, 45, "defense"),            -- Time Stop (PvP talent)
-		Allies(374227, 120, 8, "defense"),      -- Zephyr
+		Ally(357170, 60, "defense", { defaultOff = true, extraCharge = true, specs = set(1468) }),  -- Time Dilation (off by default: the user's call)
+		Ally(378441, 45, "defense", { defaultOn = true }),  -- Time Stop (PvP talent; on by default though short: the user's call)
+		Allies(374227, 120, 8, "defense", { defaultOff = true }),  -- Zephyr (off by default: the user's call)
 		Allies(363534, 240, 1, "defense", { specs = set(1468) }),  -- Rewind
 		Caster(375087, 120, "burst", { specs = set(1467) }),  -- Dragonrage
 		Caster(357210, 120, "burst", { specs = set(1467, 1468) }),  -- Deep Breath (Augmentation's is replaced by Breath of Eons)
@@ -237,19 +245,19 @@ ns.SPELLS = {
 	PALADIN = {
 		Caster(642, 300, "defense", { big = true }),  -- Divine Shield
 		Caster(498, 60, "defense", { auras = { 498, 403876 }, casts = { 403876 }, specs = set(65, 70) }),  -- Divine Protection (Retribution's is 403876)
-		Caster(31850, 90, "defense", { specs = set(66) }),  -- Ardent Defender
-		Caster(86659, 180, "defense", { extraCharge = true, specs = set(66) }),  -- Guardian of Ancient Kings
-		Caster(31821, 180, "defense", { specs = set(65) }),  -- Aura Mastery: the aura on the paladin
+		Caster(31850, 90, "defense", { defaultOff = true, specs = set(66) }),  -- Ardent Defender (off by default: the user's call)
+		Caster(86659, 180, "defense", { defaultOff = true, extraCharge = true, specs = set(66) }),  -- Guardian of Ancient Kings (off by default: the user's call)
+		Caster(31821, 180, "defense", { defaultOff = true, specs = set(65) }),  -- Aura Mastery: the aura on the paladin (off by default: the user's call)
 		Caster(389539, 120, "defense", { specs = set(66) }),  -- Sentinel
-		Caster(228049, 240, "defense", { big = true, specs = set(66) }),  -- Guardian of the Forgotten Queen (PvP talent): the aura on the paladin; the ally's to confirm in game
-		Caster(216331, 60, "defense burst", { specs = set(65) }),  -- Avenging Crusader
+		Caster(228049, 240, "defense", { defaultOff = true, big = true, specs = set(66) }),  -- Guardian of the Forgotten Queen (PvP talent): the aura on the paladin; the ally's to confirm in game (off by default: the user's call)
+		Caster(216331, 60, "defense burst", { defaultOff = true, specs = set(65) }),  -- Avenging Crusader (off by default: the user's call)
 		Ally(1022, 300, "defense", { auras = { 1022, 204018 }, big = true }),  -- Blessing of Protection, or of Spellwarding
 		Ally(210256, 60, "defense", { specs = set(70) }),  -- Blessing of Sanctuary (PvP talent)
 		OtherAlly(6940, 120, "defense", { auras = { 6940, 199448 }, casts = { 199448 } }),  -- Blessing of Sacrifice; Ultimate Sacrifice (PvP talent) turns it into 199448
-		Caster(31884, 120, "burst"),            -- Avenging Wrath
-		Enemy(343527, 60, "burst", { specs = set(70) }),  -- Execution Sentence: the mark on the opponent
+		Caster(31884, 120, "burst", { defaultOff = true }),  -- Avenging Wrath (off by default: the user's call)
+		Enemy(343527, 60, "burst", { defaultOff = true, specs = set(70) }),  -- Execution Sentence: the mark on the opponent (off by default: the user's call)
 		Enemy(853, 45, "control"),              -- Hammer of Justice
-		Enemy(115750, 90, "control", { aura = 105421 }),  -- Blinding Light
+		Enemy(115750, 90, "control", { defaultOff = true, aura = 105421 }),  -- Blinding Light (off by default: the user's call)
 	},
 	PRIEST = {
 		Caster(47585, 120, "defense", { big = true, specs = set(258) }),  -- Dispersion
@@ -257,15 +265,15 @@ ns.SPELLS = {
 		Caster(64843, 180, "defense", { specs = set(257) }),  -- Divine Hymn: the channel on the priest
 		Caster(421453, 240, "defense", { specs = set(256) }),  -- Ultimate Penitence
 		Caster(200183, 120, "defense", { noLearn = true, specs = set(257) }),  -- Apotheosis
-		Caster(15286, 120, "defense", { specs = set(258) }),  -- Vampiric Embrace
+		Caster(15286, 120, "defense", { defaultOff = true, specs = set(258) }),  -- Vampiric Embrace (off by default: the user's call)
 		Ally(33206, 180, "defense", { big = true, extraCharge = true, specs = set(256) }),  -- Pain Suppression
 		Ally(47788, 180, "defense", { big = true, specs = set(257) }),  -- Guardian Spirit
-		Allies(62618, 180, 10, "defense", { aura = 81782, specs = set(256) }),  -- Power Word: Barrier
+		Allies(62618, 180, 10, "defense", { defaultOff = true, aura = 81782, specs = set(256) }),  -- Power Word: Barrier (off by default: the user's call)
 		Caster(228260, 120, "burst", { aura = 194249, specs = set(258) }),  -- Voidform
-		Ally(10060, 120, "burst"),              -- Power Infusion
+		Ally(10060, 120, "burst", { defaultOff = true }),  -- Power Infusion (off by default: the user's call)
 		Enemy(8122, 40, "control"),             -- Psychic Scream
 		Enemy(15487, 30, "control", { specs = set(258) }),  -- Silence
-		Enemy(88625, 60, "control", { auras = { 200196, 200200 }, specs = set(257) }),  -- Holy Word: Chastise: incapacitate, or stun with Censure
+		Enemy(88625, 60, "control", { defaultOff = true, auras = { 200196, 200200 }, specs = set(257) }),  -- Holy Word: Chastise: incapacitate, or stun with Censure (off by default: the user's call)
 	},
 	ROGUE = {
 		Caster(31224, 120, "defense", { big = true }),  -- Cloak of Shadows
@@ -284,8 +292,8 @@ ns.SPELLS = {
 		Caster(108271, 120, "defense"),         -- Astral Shift
 		Caster(108280, 180, "defense", { specs = set(264) }),  -- Healing Tide Totem
 		Caster(409293, 120, "defense"),         -- Burrow (PvP talent)
-		Caster(114052, 180, "defense", { noLearn = true, specs = set(264) }),  -- Ascendance (Restoration)
 		Allies(98008, 180, 6, "defense", { aura = 325174, specs = set(264) }),  -- Spirit Link Totem
+		Caster(114052, 180, "burst defense", { specs = set(264) }),  -- Ascendance (Restoration): a healing cooldown, filed under burst so the spells page gives the three Ascendances one box (the user's call)
 		Caster(114050, 180, "burst", { specs = set(262) }),  -- Ascendance (Elemental)
 		Caster(114051, 180, "burst", { specs = set(263) }),  -- Ascendance (Enhancement)
 		Caster(191634, 60, "burst", { specs = set(262) }),  -- Stormkeeper
@@ -300,8 +308,8 @@ ns.SPELLS = {
 		Caster(108416, 60, "defense"),          -- Dark Pact
 		Caster(212295, 45, "defense"),          -- Nether Ward (PvP talent)
 		Enemy(410598, 60, "defense"),           -- Soul Rip (PvP talent): opponents nearby deal less damage
-		Caster(205180, 120, "burst", { specs = set(265) }),  -- Summon Darkglare
-		Caster(265187, 60, "burst", { specs = set(266) }),  -- Summon Demonic Tyrant
+		Caster(205180, 120, "burst", { undetectable = true, specs = set(265) }),  -- Summon Darkglare: no aura anywhere, only a guardian (AuraLab docs/findings.md, section 8)
+		Caster(265187, 60, "burst", { undetectable = true, specs = set(266) }),  -- Summon Demonic Tyrant: a guardian like Darkglare (undetectable: the user's call, not measured)
 		Caster(442726, 60, "burst", { specs = set(265, 267) }),  -- Malevolence
 		Caster(1276672, 120, "burst", { defaultOff = true, specs = set(266) }),  -- Summon Doomguard: a Demonic Core cuts its cooldown, so off by default
 		EnemyLater(1122, 120, 2, "burst control", { aura = 22703, specs = set(267) }),  -- Summon Infernal: the stun where it lands
@@ -339,7 +347,7 @@ ns.SPELLS = {
 -- Stoneform and Fireblood share a cooldown category with the PvP trinket
 -- (1166); whether a trinket use puts them on cooldown is still to be measured
 -- in game (docs/park_lot.md), until then they count their own 120 s.
--- `defaultOff` keeps an ability off by default whatever its cooldown.
+-- `defaultOff` keeps an ability off by default whatever its cooldown, `defaultOn` on.
 ns.RACIALS = {
 	{ race = "Dwarf", raceID = 3, Caster(20594, 120, "defense", { aura = 65116 }) },  -- Stoneform: the buff is 65116
 	{ race = "DarkIronDwarf", raceID = 34, Caster(265221, 120, "defense", { aura = 265226 }) },  -- Fireblood: the buff is 265226
@@ -414,12 +422,14 @@ ns.DEFAULT_ON_COOLDOWN = 60
 
 function ns.DefaultOn(def)
 	if def.defaultOff then return false end
+	if def.defaultOn then return true end
 	return ns.BaseCooldown(def) >= ns.DEFAULT_ON_COOLDOWN
 end
 
 -- whether an ability is watched, under `picked` ([spellID] = true | false: the
 -- spells page's ticks; no entry: the default)
 function ns.Picked(def, picked)
+	if def.undetectable then return false end   -- whatever was ticked before
 	local v = picked and picked[def.id]
 	if v == nil then return ns.DefaultOn(def) end
 	return v
