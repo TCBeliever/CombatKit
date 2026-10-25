@@ -415,6 +415,7 @@ local function Mock(kind, name)
 		CreateAnimationGroup = function() return Mock("AnimationGroup") end,
 		CreateAnimation = function() return Mock("Animation") end,
 		GetStringWidth = function(self) if self.__secret then return T.SECRET end return 60 end,
+		GetStringHeight = function() return 20 end,
 		GetWidth = function() return 120 end,
 		GetHeight = function() return 40 end,
 		GetFrameLevel = function() return 1 end,

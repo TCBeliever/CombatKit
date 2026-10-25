@@ -179,6 +179,8 @@ ns.displays = displays
 local locked = true
 local running = false
 local SAMPLE_TEXT = "35"
+-- The box used to be a fixed 64x32; it now keeps a third of the margin that left around the text
+local OLD_W, OLD_H = 64, 32
 
 function ns.IsLocked() return locked end
 
@@ -246,6 +248,9 @@ function ns.Apply()
 		local f, u = displays[unit], ns.db.units[unit]
 		-- flags argument is mandatory since 10.0; "" = no outline
 		f.text:SetFont(STANDARD_TEXT_FONT, ns.db.fontSize, ns.db.fontOutline or "")
+		f.text:SetText(SAMPLE_TEXT)
+		local w, h = f.text:GetStringWidth(), f.text:GetStringHeight()
+		f:SetSize(w + math.max(0, OLD_W - w) / 3, h + math.max(0, OLD_H - h) / 3)
 		if unit ~= "mouseover" then
 			f:ClearAllPoints()
 			f:SetPoint(u.point, UIParent, u.relPoint, u.x, u.y)
