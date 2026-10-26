@@ -177,12 +177,14 @@ end
 local displays = {}
 ns.displays = displays
 local locked = true
+local testing = false   -- the boxes switched on show a sample number where they are, nothing can be dragged
 local running = false
 local SAMPLE_TEXT = "35"
 -- The box used to be a fixed 64x32; it now keeps a third of the margin that left around the text
 local OLD_W, OLD_H = 64, 32
 
 function ns.IsLocked() return locked end
+function ns.IsTesting() return testing end
 
 local function CreateDisplay(unit)
 	local f = CreateFrame("Frame", "CombatKitRange_" .. unit, UIParent)
@@ -227,10 +229,12 @@ local function ApplyLockState()
 		local f = displays[unit]
 		local movable = (not locked) and unit ~= "mouseover"
 		f:EnableMouse(movable)
+		-- unlocked: every box, to be dragged; in a test: the boxes switched on, as they will be
+		local sample = not locked or (testing and ns.db.units[unit].enabled)
 		f.bg:SetShown(not locked)
 		f.label:SetText(L["RANGE_" .. unit])
-		f.label:SetShown(not locked)
-		if not locked then
+		f.label:SetShown(sample)
+		if sample then
 			f.text:SetText(SAMPLE_TEXT)
 			f.text:SetTextColor(ns.GetRangeColor(35))
 			f:Show()
@@ -265,6 +269,12 @@ function ns.SetLocked(state)
 	if displays.target then ApplyLockState() end
 end
 
+-- A test: the boxes switched on show a sample number where they stand, without unlocking.
+function ns.SetTesting(on)
+	testing = on and true or false
+	if displays.target then ApplyLockState() end
+end
+
 function ns.ResetPositions()
 	for _, unit in ipairs(ns.UNITS) do
 		local d, u = ns.defaults.units[unit], ns.db.units[unit]
@@ -279,7 +289,7 @@ end
 
 local function UpdateUnit(unit)
 	local f = displays[unit]
-	if not f or not locked then return end
+	if not f or not locked or testing then return end   -- a sample number stays while it is shown
 	local u = ns.db.units[unit]
 	if not u.enabled then
 		f.text:SetText("")
@@ -299,7 +309,7 @@ local function FollowCursor()
 	local f = displays.mouseover
 	if not f then return end
 	local u = ns.db.units.mouseover
-	if locked and (not u.enabled or not UnitExists("mouseover")) then return end
+	if locked and not testing and (not u.enabled or not UnitExists("mouseover")) then return end
 	local scale = UIParent:GetEffectiveScale()
 	local x, y = GetCursorPosition()
 	f:ClearAllPoints()
@@ -353,6 +363,7 @@ end
 function ns.OnDisable()
 	running = false
 	locked = true
+	testing = false
 	driver:UnregisterAllEvents()
 	driver:SetScript("OnUpdate", nil)
 	for _, f in pairs(displays) do f:Hide() end

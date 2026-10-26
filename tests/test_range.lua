@@ -72,6 +72,26 @@ eq(RG.db.units.target.enabled, false, "unticked")
 check(not target:IsShown(), "its box is gone")
 page.units.target:Click()
 
+-- the test button by the page's title: the boxes switched on show a sample, nothing can be dragged
+local focus = T.frames.CombatKitRange_focus
+RG.db.units.focus.enabled = false
+eq(page.test:GetText(), CK.L["Test"], "a test button by the page's title")
+page.test:Click()
+check(RG.IsTesting() and RG.IsLocked(), "testing, still locked")
+check(target:IsShown() and target.text:GetText() == "35" and not target.bg:IsShown(), "the target box: a sample, no drag background")
+check(not focus:IsShown(), "a box switched off is not shown")
+RG.UpdateUnit("target")
+eq(target.text:GetText(), "35", "the sample stays while testing")
+eq(page.test:GetText(), CK.L["Stop test"], "the button now ends the test")
+page.test:Click()
+check(not RG.IsTesting() and target.text:GetText() == "", "test over: the sample is gone")
+RG.db.units.focus.enabled = true
+page.test:Click()
+main:Hide()
+check(not RG.IsTesting(), "closing the window ends the test")
+SlashCmdList.COMBATKIT("")
+main.tabs.Range:Click()
+
 page.unlock:Click()
 check(not RG.IsLocked(), "unlocked")
 eq(target.text:GetText(), "35", "every box shows a sample to drag")

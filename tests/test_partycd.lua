@@ -732,6 +732,16 @@ AR.db.side = "RIGHT"; AR.db.offsetAlong = 0
 AR.db.maxPerRow = 2; AR.Apply()
 check(row.icons[3].__point[4] == 0 and row.icons[3].__point[5] == -(AR.db.iconSize + AR.db.spacing), "more icons than fit a row: the next line")
 AR.db.maxPerRow = 8
+-- or evenly over a number of lines: 10 icons over 3 lines are 4, 4 and 2
+AR.db.perRow, AR.db.lines = "even", 3
+eq(AR.UI.PerLine(10), 4, "ten icons over three lines: four to a line")
+AR.db.lines = 2; AR.Apply()
+local icons = #TR.Get("party1").order + (AR.db.trinket and 1 or 0)
+local half = math.ceil(icons / 2)
+check(row.icons[half + 1].__point[4] == 0 and row.icons[half + 1].__point[5] == -step,
+	"over two lines: the second starts after half of them")
+AR.db.perRow = "max"; AR.Apply()
+check(row.icons[half + 1].__point[5] == 0 or half + 1 > AR.db.maxPerRow, "back to at most so many per line")
 member:Hide(); AR.Apply()
 eq(row.__point[2], UIParent, "a frame that is hidden: back to the loose position")
 member:Show()
@@ -844,6 +854,28 @@ for _, c in ipairs(shownRows()) do
 	if c.def.id == 104773 then check(not c.disabled and c.note:GetText() == "", "another ability: as before") end
 end
 spells.class = "DRUID"; CK.Options.Refresh()
+-- the profiles page: a new one, its text, the text taken back in, deleted again
+CK.Options.Select("PartyCD", "profiles")
+local pp = body.pages.profiles
+check(pp:IsShown() and pp.profile and pp.text, "the profiles page is built")
+local before = AR.Profiles.Current()
+pp.name:SetText("Page")
+pp.create:Click()
+eq(AR.Profiles.Current(), "Page", "Create: a new profile, in force")
+pp.create:Click()
+check(pp.status:GetText():find(CK.L["PROFILE_NAME"], 1, true), "no name typed: told to type one")
+pp.export:Click()
+check(pp.text:GetText():sub(1, #AR.Profiles.PREFIX) == AR.Profiles.PREFIX, "Export: the text in the box")
+pp.name:SetText("Page copy")
+pp.import:Click()
+eq(AR.Profiles.Current(), "Page copy", "Import: taken in under the name typed")
+pp.text:SetText("not a profile")
+pp.import:Click()
+check(pp.status:GetText():find(CK.L["PROFILE_BAD"], 1, true), "a text that is no profile: said so")
+pp.delete:Click()
+check(AR.Profiles.Current() ~= "Page copy", "Delete: the one in force gone, another takes over")
+AR.Profiles.Delete("Page")
+eq(AR.Profiles.Current(), before, "both deleted: back to the one before")
 CK.Options.Select("PartyCD", "main")
 page.unlock:Click()
 check(not AR.IsLocked(), "unlocked from the page")
@@ -864,8 +896,10 @@ check(not fake.started, "unticked: the backend stops")
 -- the test switch: sample rows out here, with one icon of each look
 SlashCmdList.COMBATKIT("")
 main.tabs.PartyCD:Click()
+check(page.test:GetText() == CK.L["Test"], "a test button by the page's title")
 page.test:Click()
 check(AR.IsTesting() and AR.UI.Rows().party1:IsShown() and AR.UI.Rows().player:IsShown(), "test: the rows show in the world")
+check(page.test:GetText() == CK.L["Stop test"], "the button now ends the test")
 check(AR.IsLocked() and not AR.UI.Rows().player.bg:IsShown(), "without the drag background: still locked")
 local sample = AR.UI.Rows().player
 check(not sample.icons[1].lit and not sample.icons[1].mark:IsShown(), "the trinket leads the samples, plain")
@@ -1108,6 +1142,37 @@ fire("ZONE_CHANGED_NEW_AREA")
 check(AR.WatchingSelf() and TR.Get("party1") == nil and TR.Get("player") ~= nil, "out again: the own row alone")
 W.traits, W.inspectable = nil, nil
 DATA.build = dataBuild
+
+-- ---------------------------------------------------------------- profiles
+local P = AR.Profiles
+eq(P.Current(), "Default", "a first profile, Default, holds the settings in force")
+AR.db.iconSize = 30
+check(P.New("Arena") and P.Current() == "Arena", "a new profile, in force")
+check(not P.New("Arena") and not P.New("  "), "not twice, not without a name")
+AR.db.iconSize = 40; AR.db.picked[22812] = false
+check(P.Use("Default") and AR.db.iconSize == 30 and AR.db.picked[22812] == nil, "back to Default: its own settings")
+check(P.Use("Arena") and AR.db.iconSize == 40 and AR.db.picked[22812] == false, "Arena kept what was set in it")
+local text = P.Export()
+check(text:sub(1, #P.PREFIX) == P.PREFIX, "the text says what it is")
+eq(P.Import(text, "Friend"), "Friend", "imported under the name given")
+check(AR.db.iconSize == 40 and AR.db.picked[22812] == false, "with the same settings")
+eq(P.Import(text, "Friend"), "Friend 2", "a name taken: a number added")
+eq(P.Import(text), "Imported", "no name: Imported")
+check(P.Import("hello") == nil and P.Import(P.PREFIX .. "{iconSize=") == nil and P.Import(P.PREFIX .. "os.exit()") == nil
+	and P.Import(P.PREFIX .. "{a={b={c={d={e=1}}}}}") == nil, "not a profile, cut short, code, too deep: refused")
+local odd = P.Import(P.PREFIX .. '{iconSize=999,side="NOWHERE",trinket=1,log={a=1},picked={[22812]=true,[1]=true,[99]="yes"},'
+	.. 'rows={player={point="CENTER",relPoint="CENTER",x=10,y=-20},party1={point="NOWHERE"}}}', "Odd")
+eq(odd, "Odd", "a text with odd values: taken, and cleaned")
+check(AR.db.iconSize == 48 and AR.db.side == AR.defaults.side and AR.db.trinket == AR.defaults.trinket,
+	"out of range clamped; an unknown word or a wrong type: the default")
+check(AR.db.picked[22812] == true and AR.db.picked[1] == nil and AR.db.picked[99] == nil, "known spells only, true or false only")
+check(AR.db.rows.player.x == 10 and AR.db.rows.player.y == -20 and AR.db.rows.party1.point == AR.defaults.rows.party1.point,
+	"a position taken, a broken one the default")
+check(type(AR.db.log) == "table", "nothing outside a profile is touched")
+eq(P.Read(P.Write({ a = 1, b = { [3] = true, c = "x" }, d = -2.5 })).b[3], true, "written and read back")
+check(P.Delete("Odd") and P.Current() ~= "Odd", "the one in force deleted: another takes over")
+for _, n in ipairs(P.Names()) do if n ~= "Default" then P.Delete(n) end end
+check(not P.Delete("Default") and P.Current() == "Default", "the last one stays")
 
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("PartyCD", false)

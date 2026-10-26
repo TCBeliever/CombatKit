@@ -1,8 +1,8 @@
 local CK = CombatKit
 local L, Skin, O = CK.L, CK.Skin, CK.Options
 
--- Settings of the Party CD module, three pages: the display, which spells
--- are watched (per class, in groups), and debug.
+-- Settings of the Party CD module, four pages: the display, which spells
+-- are watched (per class, in groups), profiles, and debug.
 
 local X = O.FIELD_X + 20
 local AR   -- the module, set whenever the section is used
@@ -29,6 +29,8 @@ end
 local SIDES = { { "RIGHT", "Side: right" }, { "LEFT", "Side: left" }, { "TOP", "Side: above" }, { "BOTTOM", "Side: below" } }
 -- the highlight while an aura is up: the game's own animated borders (UI.lua)
 local GLOWS = { { "ants", "Highlight: ants" }, { "thin", "Highlight: thin ants" }, { "proc", "Highlight: proc" } }
+-- how a row breaks into lines (UI.PerLine)
+local PER_ROW = { { "max", "Line break: max" }, { "even", "Line break: even" } }
 local CLASSES = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST",
 	"ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
 
@@ -131,6 +133,18 @@ local function BuildMain(p)
 		onChange = function(v) AR.db.spacing = v; Changed() end })
 	p.maxPerRow = Slider("Max icons per row", COL, row2, { min = 1, max = 12,
 		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
+	-- in its place while the icons are spread evenly over a number of lines
+	p.lines = Slider("Lines", COL, row2, { min = 1, max = 6,
+		onChange = function(v) AR.db.lines = v; Changed() end })
+	-- how a row breaks into lines: at most so many to a line, or evenly over so many lines
+	p.perRowLabel = CK.Bind(Skin.Label(p, "", nil, "dim"), "Line break")
+	p.perRowLabel:SetPoint("TOP", p.iconSize, "BOTTOM", 0, -6)
+	p.perRow = Skin.Dropdown(p, SW, Items(PER_ROW), function(_, item)
+		AR.db.perRow = item.value
+		Changed()
+		O.Refresh()
+	end)
+	p.perRow:SetPoint("TOP", p.perRowLabel, "BOTTOM", 0, -4)
 
 	-- a row without a frame to hang on: dragging it while unlocked
 	local y = row2 - Skin.SLIDER_H - 6
@@ -143,14 +157,13 @@ local function BuildMain(p)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() AR.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
 
-	-- sample rows on screen right here, to see the look by the party frames or at the loose positions
-	y = y - 24
-	Skin.Field(p, "Test", 0, y)
-	p.test = CK.Bind(Skin.Checkbox(p, "", function(checked)
-		AR.SetTest(checked)
+	-- sample rows on screen, to see the look by the party frames or at the loose
+	-- positions without unlocking: a button by the page's title
+	p.test = Skin.Button(p, "", 70, 20, function()
+		AR.SetTest(not AR.IsTesting())
 		O.Refresh()
-	end), "Show sample rows")
-	p.test:SetPoint("TOPLEFT", X, y - 1)
+	end)
+	p.test:SetPoint("LEFT", O.GetFrame().detail.title, "RIGHT", 12, 0)
 
 	-- the highlight while an aura is up
 	y = y - 24
@@ -171,6 +184,13 @@ local function RefreshMain(p)
 	p.iconSize:SetValue(db.iconSize)
 	p.spacing:SetValue(db.spacing)
 	p.maxPerRow:SetValue(db.maxPerRow)
+	p.lines:SetValue(db.lines)
+	local even = db.perRow == "even"
+	p.maxPerRow:SetShown(not even)
+	p.lines:SetShown(even)
+	for _, item in ipairs(PER_ROW) do
+		if item[1] == (even and "even" or "max") then p.perRow:SetValueText(L[item[2]]) end
+	end
 	for _, s in ipairs(SIDES) do
 		if s[1] == db.side then p.side:SetValueText(L[s[2]]) end
 	end
@@ -179,7 +199,9 @@ local function RefreshMain(p)
 		if g[1] == grow then p.grow:SetValueText(L[g[2]]) end
 	end
 	p.unlock:SetChecked(not AR.IsLocked())
-	p.test:SetChecked(AR.IsTesting())
+	local testing = AR.IsTesting()
+	p.test:SetLabel(L[testing and "Stop test" or "Test"])
+	p.test:SetSelected(testing)
 	for _, g in ipairs(GLOWS) do
 		if g[1] == db.glowStyle then p.glow:SetValueText(L[g[2]]) end
 	end
@@ -391,6 +413,81 @@ local function RefreshSpells(p)
 	end
 end
 
+-- ---------------------------------------------------------------- profiles
+-- The profile in force, picked from a list; a new one, as a copy of it; the
+-- text of the one in force to pass on, and a pasted text taken in as a new one.
+local function ProfileItems()
+	local items = {}
+	for _, name in ipairs(AR.Profiles.Names()) do items[#items + 1] = { label = name, value = name } end
+	return items
+end
+
+local function Status(p, colour, text) p.status:SetText(Skin.Text(colour, text)) end
+
+local function BuildProfiles(p)
+	Skin.Field(p, "Profile", 0, 0)
+	p.profile = Skin.Dropdown(p, 180, ProfileItems, function(_, item)
+		AR.Profiles.Use(item.value)
+		p.status:SetText("")
+		O.Changed()
+	end)
+	p.profile:SetPoint("TOPLEFT", X, 0)
+	p.delete = CK.Bind(Skin.Button(p, "", 70, 20, function()
+		AR.Profiles.Delete(AR.Profiles.Current())
+		p.status:SetText("")
+		O.Changed()
+	end), "Delete")
+	p.delete:SetPoint("LEFT", p.profile, "RIGHT", 10, 0)
+
+	Skin.Field(p, "New profile", 0, -30)
+	p.name = Skin.EditBox(p, 180, function() end)
+	p.name:SetPoint("TOPLEFT", X, -30)
+	p.create = CK.Bind(Skin.Button(p, "", 70, 20, function()
+		local name = strtrim(p.name:GetText() or "")
+		if AR.Profiles.New(name) then
+			p.name:SetText("")
+			Status(p, "ok", string.format(L["PROFILE_CREATED"], name))
+		else
+			Status(p, "bad", L["PROFILE_NAME"])
+		end
+		O.Changed()
+	end), "Create")
+	p.create:SetPoint("LEFT", p.name, "RIGHT", 10, 0)
+
+	-- one box for both ways: the export lands in it to be copied, an import is pasted into it
+	Skin.Field(p, "Profile text", 0, -60)
+	p.text = Skin.EditBox(p, 290, function() end)
+	p.text:SetMaxLetters(0)
+	p.text:SetPoint("TOPLEFT", X, -60)
+	p.export = CK.Bind(Skin.Button(p, "", 70, 20, function()
+		p.text:SetText(AR.Profiles.Export() or "")
+		p.text:SetFocus()
+		p.text:HighlightText()
+		Status(p, "ok", L["PROFILE_EXPORTED"])
+	end), "Export")
+	p.export:SetPoint("LEFT", p.text, "RIGHT", 10, 0)
+	p.import = CK.Bind(Skin.Button(p, "", 70, 20, function()
+		local name = AR.Profiles.Import(p.text:GetText(), p.name:GetText())
+		if name then
+			p.text:SetText("")
+			p.name:SetText("")
+			Status(p, "ok", string.format(L["PROFILE_IMPORTED"], name))
+		else
+			Status(p, "bad", L["PROFILE_BAD"])
+		end
+		O.Changed()
+	end), "Import")
+	p.import:SetPoint("LEFT", p.export, "RIGHT", 8, 0)
+
+	p.status = Skin.Label(p, "")
+	p.status:SetPoint("TOPLEFT", X, -90)
+end
+
+local function RefreshProfiles(p)
+	p.profile:SetValueText(AR.Profiles.Current())
+	p.delete:SetDisabled(#AR.Profiles.Names() < 2)
+end
+
 -- ---------------------------------------------------------------- debug
 local function BuildDebug(p)
 	p.showSelf = CK.Bind(Skin.Checkbox(p, "", function(checked)
@@ -419,18 +516,20 @@ O.AddSection({
 		return {
 			{ key = "main", label = L["MOD_PartyCD"] },
 			{ key = "spells", label = L["Spells"] },
+			{ key = "profiles", label = L["Profiles"] },
 			{ key = "debug", label = L["PAGE_debug"] },
 		}
 	end,
 	GetHeader = function(node)
 		if node == "spells" then return nil, nil end   -- the tab says it; the page starts at the top
 		if node == "debug" then return L["PAGE_debug"], L["PARTYCD_DEBUG_DESC"] end
+		if node == "profiles" then return L["Profiles"], L["PARTYCD_PROFILES_DESC"] end
 		return L["MOD_PartyCD"], L["MODDESC_PartyCD"]
 	end,
 	Build = function(body)
 		AR = CK.modules.PartyCD
 		pages = {}
-		for _, key in ipairs({ "main", "spells", "debug" }) do
+		for _, key in ipairs({ "main", "spells", "profiles", "debug" }) do
 			local page = CreateFrame("Frame", nil, body)
 			page:SetAllPoints()
 			pages[key] = page
@@ -438,6 +537,7 @@ O.AddSection({
 		body.pages = pages
 		BuildMain(pages.main)
 		BuildSpells(pages.spells)
+		BuildProfiles(pages.profiles)
 		BuildDebug(pages.debug)
 	end,
 	Refresh = function(node, body)
@@ -445,6 +545,7 @@ O.AddSection({
 		local which = body.pages[node] and node or "main"
 		for key, page in pairs(body.pages) do page:SetShown(key == which) end
 		if which == "spells" then RefreshSpells(body.pages.spells)
+		elseif which == "profiles" then RefreshProfiles(body.pages.profiles)
 		elseif which == "debug" then RefreshDebug(body.pages.debug)
 		else RefreshMain(body.pages.main) end
 	end,

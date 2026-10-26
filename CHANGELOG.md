@@ -77,3 +77,11 @@ First public release.
 - Party CD: *Show your own row* (the Debug page) works out in the world too: your row appears by your own frame and runs on the same estimates as in an arena, every ability ready when you tick it. Teammates' rows stay arena-only. Outside an arena, with your own row off, the module now does no work at all.
 - Party CD: `/ckpartycd log` notes which frame each row went to, for tracing a row seen on the wrong teammate.
 - Range: the distance box fits its text at any font size, instead of a fixed size.
+
+## 1.2.2 (2026-10-27)
+
+- Party CD: *Line break* in Settings > Party CD: at most so many icons per line, as before, or spread evenly over a number of lines (*Lines*): ten icons over three lines make lines of four, four and two.
+- Party CD: a *Test* button next to the page's title shows the sample rows, by the party frames or at the loose positions, without unlocking anything; it reads *Stop test* while they are up. It replaces the *Show sample rows* box.
+- Party CD: profiles, on a new *Profiles* page. A profile is a named set of the display settings, the row positions and the spells ticked; switch between them, make a new one from the settings in force, delete one. *Export* puts the profile in force into a box as text to copy and pass on; paste such a text into the box and *Import* takes it in as a new profile. An imported text can only set these settings, each to a value it allows.
+- Range: a *Test* button next to the page's title shows the boxes that are switched on, each with a sample number, where they stand, without unlocking them.
+- Party CD: the settings' wording reworked in both languages (lines within a row, side, growth, profiles).

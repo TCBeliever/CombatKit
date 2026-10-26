@@ -71,6 +71,13 @@ local function Build(p)
 	p.unlock:SetPoint("TOPLEFT", X, -225)
 	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() RG.ResetPositions() end), "Reset position")
 	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
+
+	-- the boxes switched on, with a sample number where they stand, without unlocking: a button by the page's title
+	p.test = Skin.Button(p, "", 70, 20, function()
+		RG.SetTesting(not RG.IsTesting())
+		O.Refresh()
+	end)
+	p.test:SetPoint("LEFT", O.GetFrame().detail.title, "RIGHT", 12, 0)
 end
 
 local function Refresh(p)
@@ -85,6 +92,9 @@ local function Refresh(p)
 		if o[1] == (db.fontOutline or "") then p.outline:SetValueText(L[o[2]]) end
 	end
 	p.unlock:SetChecked(not RG.IsLocked())
+	local testing = RG.IsTesting()
+	p.test:SetLabel(L[testing and "Stop test" or "Test"])
+	p.test:SetSelected(testing)
 end
 
 O.AddSection({
@@ -99,5 +109,6 @@ O.AddSection({
 	OnWindowHide = function()
 		local module = CK.modules.Range
 		if module and not module.IsLocked() then module.SetLocked(true) end
+		if module and module.IsTesting() then module.SetTesting(false) end
 	end,
 })

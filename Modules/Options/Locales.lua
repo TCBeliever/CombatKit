@@ -122,6 +122,7 @@ CK.AddLocale("zhTW", {
 	["Effect"]             = "效果",
 	["Float up"]           = "往上飄散",
 	["Test"]               = "測試",
+	["Stop test"]          = "結束測試",
 
 	["Status"]        = "狀態",
 

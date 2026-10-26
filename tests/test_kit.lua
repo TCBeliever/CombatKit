@@ -26,6 +26,8 @@ check(not loaded("CombatKit_Options"), "the settings window is not loaded until 
 for _, name in ipairs({ "CombatKit_Stats", "CombatKit_Range", "CombatKit_Misc" }) do
 	check(not loaded(name), name .. " is off by default, so it is never loaded")
 end
+check(not CK.IsFeatureEnabled("Misc", "CombatAlert") and not CK.IsFeatureEnabled("Misc", "RightClick"),
+	"a first install: the combat alert and the right click switch are unticked")
 eq(CK.GetModuleState("Loadout"), "on", "state: on")
 eq(CK.GetModuleState("Stats") == "off" or CK.GetModuleState("Stats") == "missing", true, "state: off (or not written yet)")
 check(CombatKitLoadoutDB ~= nil, "a loaded module has its saved variables")

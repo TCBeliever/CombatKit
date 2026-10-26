@@ -35,6 +35,9 @@ ns.defaults = {
 	iconSize    = 28,
 	spacing     = 2,
 	maxPerRow   = 8,
+	perRow      = "max",     -- how a row breaks into lines: "max" (at most maxPerRow to a line) |
+	                         -- "even" (`lines` lines, the icons spread evenly over them; UI.lua)
+	lines       = 2,
 	attach      = true,      -- hang the rows on the party frames when they can be found
 	side        = "RIGHT",   -- "RIGHT" | "LEFT" | "TOP" | "BOTTOM": which side of the frame
 	offset      = 4,         -- distance from the frame
@@ -80,6 +83,7 @@ local function InitDB()
 		end
 	end
 	ns.db.externals = nil
+	ns.Profiles.Init(ns.db)
 end
 
 -- ---------------------------------------------------------------------------

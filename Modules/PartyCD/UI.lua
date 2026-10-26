@@ -600,10 +600,18 @@ function UI.SaveRow(row)
 	row:SetPoint(r.point, UIParent, r.relPoint, r.x, r.y)
 end
 
--- the icons inside a row: lines of up to maxPerRow, laid out as Place says
+-- how many of a row's n icons go to a line: at most maxPerRow, or as many as
+-- spread them evenly over `lines` lines (10 over 3: 4, 4, 2)
+function UI.PerLine(n)
+	local db = ns.db
+	if db.perRow == "even" then return math.max(1, math.ceil(n / math.max(1, db.lines))) end
+	return math.max(1, db.maxPerRow)
+end
+
+-- the icons inside a row: lines as UI.PerLine says, laid out as Place says
 local function Layout(row, n, spec)
 	local db = ns.db
-	local size, gap, per = db.iconSize, db.spacing, math.max(1, db.maxPerRow)
+	local size, gap, per = db.iconSize, db.spacing, UI.PerLine(n)
 	local step = size + gap
 	local along = spec.side == "TOP" or spec.side == "BOTTOM"
 	local fromRight = spec.side == "LEFT" or (along and spec.grow == "left")
