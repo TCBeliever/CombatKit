@@ -176,23 +176,53 @@ local function ApplyRoster()
 	-- before the gates nothing can have been used; outside an arena the own row
 	-- starts as at the gates, so it tests the estimates as an arena would
 	Tracker.SetRoster(list, sel, not (inArena and engaged))
-	local watched = {}
+	-- the whole team, the player included whether or not their row is shown (a
+	-- use of the player's own is then never a teammate's)
+	local team = {}
+	for _, r in ipairs(list) do team[#team + 1] = r end
+	local _, own = UnitClass("player")
+	if type(own) == "string" and plain(own) and not (list[1] and list[1].unit == "player") then
+		team[#team + 1] = { class = own, race = RaceOf("player") }
+	end
+	-- an external lands on whoever it is put on, not on its caster: in an arena
+	-- every teammate, the player too, is watched for the externals anyone in the
+	-- team can cast (Time Dilation on a warrior is seen on the warrior)
+	local externals, isExternal = {}, {}
+	if inArena then
+		for _, r in ipairs(team) do
+			for _, def in ipairs(ns.FriendlyDefs(ns.SpellsFor(r.class, sel, r.race))) do
+				if def.seen ~= "caster" and not isExternal[def.id] then
+					isExternal[def.id] = true
+					externals[#externals + 1] = def
+				end
+			end
+		end
+	end
+	local function WithExternals(defs)
+		local out, has = {}, {}
+		for _, def in ipairs(defs) do out[#out + 1] = def; has[def.id] = true end
+		for _, def in ipairs(externals) do if not has[def.id] then out[#out + 1] = def end end
+		return out
+	end
+	local inList = {}
 	local names = {}
 	for _, r in ipairs(list) do
-		watched[r.unit] = true
+		inList[r.unit] = true
 		local t = Tracker.Get(r.unit)
 		if t and not t.inspectAsked then   -- a new teammate (or a new GUID in the seat)
 			t.inspectAsked = true
 			Inspect.Want(r.unit, r.guid, r.class)
 		end
-		backend.SetWatch(r.unit, ns.FriendlyDefs(ns.SpellsFor(r.class, sel, r.race)), true)
+		backend.SetWatch(r.unit, WithExternals(ns.FriendlyDefs(ns.SpellsFor(r.class, sel, r.race))), true)
 		names[#names + 1] = r.unit .. "=" .. r.class .. (r.race and ("/" .. r.race) or "")
 		-- the trinket: ask the server for the unit's crowd control cooldown data
 		if ns.db.trinket and C_PvP and C_PvP.RequestCrowdControlSpell then pcall(C_PvP.RequestCrowdControlSpell, r.unit) end
 	end
 	for _, unit in ipairs(UNITS) do
-		if not watched[unit] then
-			backend.SetWatch(unit, {})
+		if not inList[unit] then
+			-- the player without a row of their own: only what teammates put on them
+			local extra = unit == "player" and inArena and UnitExists(unit)
+			if extra then backend.SetWatch(unit, externals, true) else backend.SetWatch(unit, {}) end
 			Inspect.Forget(unit)
 		end
 	end
@@ -200,10 +230,6 @@ local function ApplyRoster()
 	-- races' included (the player's own as well, so that a use of theirs is
 	-- never a teammate's)
 	local cc, seen = {}, {}
-	local team = {}
-	for _, r in ipairs(list) do team[#team + 1] = r end
-	local _, own = UnitClass("player")
-	if type(own) == "string" and plain(own) then team[#team + 1] = { class = own, race = RaceOf("player") } end
 	for _, r in ipairs(team) do
 		for _, def in ipairs(ns.EnemyDefs(ns.SpellsFor(r.class, sel, r.race))) do
 			if not seen[def.id] then seen[def.id] = true; cc[#cc + 1] = def end

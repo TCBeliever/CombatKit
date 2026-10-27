@@ -85,3 +85,7 @@ First public release.
 - Party CD: profiles, on a new *Profiles* page. A profile is a named set of the display settings, the row positions and the spells ticked; switch between them, make a new one from the settings in force, delete one. *Export* puts the profile in force into a box as text to copy and pass on; paste such a text into the box and *Import* takes it in as a new profile. An imported text can only set these settings, each to a value it allows.
 - Range: a *Test* button next to the page's title shows the boxes that are switched on, each with a sample number, where they stand, without unlocking them.
 - Party CD: the settings' wording reworked in both languages (lines within a row, side, growth, profiles).
+
+## 1.2.3 (2026-10-28)
+
+- Party CD: externals cast on someone else now show. Time Dilation, Pain Suppression, Ironbark, Blessing of Protection, Blessing of Sacrifice and the like were only seen when the healer put them on themselves: each teammate was watched for their own class's abilities alone, and you were not watched at all without your own row. Now every teammate, you included, is watched for the externals anyone in the team can cast, and a use found on anyone goes to the teammate who could have cast it.

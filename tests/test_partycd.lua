@@ -155,8 +155,29 @@ W.now = 0
 fire("PLAYER_ENTERING_WORLD")
 check(fake.started, "entering an arena starts the backend")
 check(not AR.WatchingSelf() and AR.InArena(), "the arena's own watching takes the player's row over")
-check(fake.watches.party1 and #fake.watches.party1 == #AR.FriendlyDefs(AR.SpellsFor("DRUID", true)), "every druid buff is watched on party1")
-check(fake.watches.player and #fake.watches.player == #AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true)), "the player's own row is watched too")
+local function watching(unit, id)
+	for _, d in ipairs(fake.watches[unit] or {}) do if d.id == id then return true end end
+	return false
+end
+local function watchingAll(unit, defs)
+	for _, d in ipairs(defs) do if not watching(unit, d.id) then return false end end
+	return true
+end
+check(watchingAll("party1", AR.FriendlyDefs(AR.SpellsFor("DRUID", true))), "every druid buff is watched on party1")
+check(watchingAll("player", AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true))), "the player's own row is watched too")
+-- an external lands on whoever it is put on: every teammate is watched for the team's externals
+check(watching("party1", 33206) and watching("player", 33206) and watching("party2", 33206),
+	"the priest's Pain Suppression is looked for on everyone, not on the priest alone")
+check(watching("party2", 102342) and watching("player", 102342), "the druid's Ironbark likewise")
+check(not watching("party2", 22812) and not watching("party1", 47585),
+	"a buff a teammate puts on themselves only (Barkskin, Dispersion) is looked for on them alone")
+-- without the player's own row: the player is still watched, for what teammates put on them only
+AR.db.showSelf = false; AR.Apply()
+check(TR.Get("player") == nil and watching("player", 33206) and watching("player", 102342), "no own row: the teammates' externals still watched on the player")
+check(not watching("player", 198589), "but not the player's own buffs")
+check(not AR.Inspect.Pending("player"), "and the player is not inspected for a row they do not have")
+AR.db.showSelf = true; AR.Apply()
+check(watchingAll("player", AR.FriendlyDefs(AR.SpellsFor("DEMONHUNTER", true))), "the own row ticked again: the player's own buffs too")
 check(fake.watches.arena1 and #fake.watches.arena1 > 0, "the opponents are watched for the team's crowd control")
 eq(state("party1", 22812), "ready", "entering: everything is ready, the gates reset it anyway")
 -- a teammate who turns up in the roster a few seconds later, still before the gates: ready too
