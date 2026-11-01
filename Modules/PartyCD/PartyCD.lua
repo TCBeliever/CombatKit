@@ -92,10 +92,25 @@ end
 -- ---------------------------------------------------------------------------
 
 -- a log of what the backend reported and what the tracker made of it, kept
--- in the saved variables for a match's post-mortem (/ckpartycd log)
-local LOG_LINES = 300
+-- in the saved variables for a match's post-mortem (/ckpartycd log). It is a
+-- debugging aid: on in a copy run straight from the source (deploy.bat), off
+-- in the release, where the packager comments out the @debug@ block below.
+-- /ckpartycd debug on | off overrides that (ns.db.debugLog; no entry: the build's).
+local LOG_LINES = 3000   -- about 200 KB in the saved variables; trimming one line costs microseconds
+local DEBUG_BUILD = false
+--@debug@
+DEBUG_BUILD = true
+--@end-debug@
+
+local function Logging()
+	if not ns.db then return false end
+	if ns.db.debugLog ~= nil then return ns.db.debugLog end
+	return DEBUG_BUILD
+end
+ns.Logging = Logging
+
 local function Log(fmt, ...)
-	if not ns.db then return end
+	if not Logging() then return end
 	ns.db.log = ns.db.log or {}
 	local log = ns.db.log
 	log[#log + 1] = string.format("%.2f %s", GetTime(), string.format(fmt, ...))
@@ -497,18 +512,25 @@ local function TallyReport()
 	end
 end
 
--- /ckpartycd status | log | clear | tally [reset]: what the tracker holds,
--- what was logged, what was counted
+-- /ckpartycd status | log | clear | tally [reset] | debug [on | off]: what
+-- the tracker holds, what was logged, what was counted, whether to log
 SLASH_CKPARTYCD1 = "/ckpartycd"
 SlashCmdList.CKPARTYCD = function(msg)
 	msg = strtrim(msg or ""):lower()
 	if msg == "log" then
 		local log = ns.db and ns.db.log or {}
 		for i = math.max(1, #log - 40), #log do print("  " .. log[i]) end
-		CK.Msg("Party CD: %d log lines, the last %d shown", #log, math.min(#log, 41))
+		CK.Msg("Party CD: %d log lines, the last %d shown%s", #log, math.min(#log, 41),
+			Logging() and "" or "; logging is off (/ckpartycd debug on)")
 	elseif msg == "clear" then
 		if ns.db then ns.db.log = {} end
 		CK.Msg("Party CD: log cleared")
+	elseif msg == "debug" or msg == "debug on" or msg == "debug off" then
+		if ns.db then
+			if msg == "debug" then ns.db.debugLog = not Logging()
+			else ns.db.debugLog = msg == "debug on" end
+		end
+		CK.Msg("Party CD: log %s", Logging() and "on" or "off")
 	elseif msg == "tally" then
 		if ns.db then TallyReport() end
 	elseif msg == "tally reset" then

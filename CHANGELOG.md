@@ -94,4 +94,5 @@ First public release.
 
 - Party CD: a use seen while every charge was thought spent proves the ability was back, so its cooldown now counts from that use instead of queueing behind the earlier ones (Pain Suppression cut by Power Word: Shield, an ability reset).
 - Party CD: Pain Suppression can be cast while stunned (its tooltip says so, the game's data does not), so a stunned priest stays a candidate; with Protector of the Frail its cooldown is taken as about 138 s (a shield every 10 s or so, 3 s off each) instead of 180 s.
-- Party CD: `/ckpartycd tally` counts, across sessions, how often each ability lit up and in how many arena matches a teammate had it, and names those that never lit (`/ckpartycd tally reset` starts over). The log leaves out what repeated what it already said, so its 300 lines cover about twice as long.
+- Party CD: `/ckpartycd tally` counts, across sessions, how often each ability lit up and in how many arena matches a teammate had it, and names those that never lit (`/ckpartycd tally reset` starts over). The log leaves out what repeated what it already said, and now keeps 3000 lines.
+- Party CD: the log is a debugging aid and is now off in the release (`/ckpartycd debug on` turns it on). Talent data from the live build 12.1.5.70688 (no cooldown changed).

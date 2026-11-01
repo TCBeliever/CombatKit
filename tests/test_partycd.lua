@@ -973,6 +973,31 @@ check(T.said("log lines"), "/ckpartycd log counts the lines")
 check(#AR.db.log > 0, "the match left a log in the saved variables")
 SlashCmdList.CKPARTYCD("clear")
 eq(#AR.db.log, 0, "cleared")
+
+-- the log is a debugging aid: on when run from the source, off in the release
+check(AR.Logging(), "run from the source: logging")
+SlashCmdList.CKPARTYCD("debug off")
+AR.Log("nothing %d", 1)
+check(T.said("log off") and #AR.db.log == 0 and AR.db.debugLog == false, "/ckpartycd debug off: nothing logged")
+SlashCmdList.CKPARTYCD("log")
+check(T.said("logging is off"), "/ckpartycd log says logging is off")
+SlashCmdList.CKPARTYCD("debug")
+AR.Log("something %d", 1)
+check(T.said("log on") and #AR.db.log == 1, "/ckpartycd debug toggles it back on")
+AR.db.debugLog = nil
+SlashCmdList.CKPARTYCD("clear")
+do
+	-- what the packager does to a @debug@ block (BigWigs packager): comment it out
+	local f = assert(io.open(ROOT .. "/Modules/PartyCD/PartyCD.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	local block = "\n--@debug@\nDEBUG_BUILD = true\n--@end-debug@\n"
+	check(src:find(block, 1, true) ~= nil, "DEBUG_BUILD is set inside a @debug@ block")
+	local packed = src:gsub("%-%-@debug@", "--[===[@debug@"):gsub("%-%-@end%-debug@", "--@end-debug@]===]")
+	check(packed:find("--[===[@debug@\nDEBUG_BUILD = true\n--@end-debug@]===]", 1, true) ~= nil,
+		"packaged: the block is a comment, so the release does not log")
+	check(loadstring(packed) ~= nil, "packaged: still valid Lua")
+end
 main:Hide()
 check(not AR.IsTesting(), "closing the window ends the test")
 AR.UI.Refresh()
