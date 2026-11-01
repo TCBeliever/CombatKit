@@ -141,6 +141,7 @@ function ns.Check(trigger)
 		currentKey, currentWarmode = key, warmode
 		wantAuto, wantSpec = true, true
 		enteredAt = GetTime()
+		ns.DropHeldApply()
 	end
 	if trigger == "spec" then
 		wantAuto = true
@@ -180,6 +181,9 @@ end
 -- The HUD was clicked: apply what it shows, now, the spec it names included.
 function ns.ApplyNow()
 	if not running or not ns.char then return end
+	-- a loadout the game holds up is asked for again when it can be: the HUD
+	-- counts that down, and a click would only be refused again
+	if ns.IsHeldUp() then return end
 	local key = ns.GetEarlyScenario() or ns.DetectScenario()
 	local st = ns.GetStatus(key)
 	if st.state ~= "mismatch" then return end

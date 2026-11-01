@@ -393,6 +393,12 @@ end
 -- nothing to show for it, the player (or the game) interrupted it, and asking
 -- again would only have them interrupt it again: the apply ends there, with
 -- one message, and nothing stays owed. The HUD keeps showing what is missing.
+--
+-- A loadout the game refuses with a reason is held up, not wrong: a talent
+-- that changes an ability's charges cannot be taken out while that ability
+-- recharges (Tempered Soul and Soul Immolation, measured 2026-11-01). That
+-- refusal is not a try. The apply says it once, waits until the next of the
+-- player's abilities is back, and asks again, for up to a few minutes.
 -- ===========================================================================
 
 local TICK          = 0.75   -- seconds between looks while an apply is pending
@@ -401,9 +407,16 @@ local MAX_TRIES     = 4      -- per step
 local APPLY_TIMEOUT = 15     -- without any new request
 local CAST_WINDOW   = 8      -- an interruption this long after a request still counts as ours
 local CAST_GONE     = 0.5    -- a cast must be gone this long before it is called interrupted
+local LOAD_GAP      = 1.5    -- after a refused loadout request: one 0.2 s later was refused without a reason
+local HOLD_POLL     = 5      -- a held-up loadout is asked again this often when no ability's recovery says when
+local HOLD_MARGIN   = 0.3    -- asked this long after the ability is back
+local HOLD_LIMIT    = 180    -- seconds a loadout is waited for, from its first refusal
+local GCD           = 1.6    -- a cooldown this short is the global one
 
 local pending   -- { setup=, expires=, steps = { spec={}, talents={}, gear={}, pvp={} }, commitSpecID=, commitConfigID= }
 local ticking = false
+local refusedAt   -- GetTime() of the last refused loadout request, of any apply
+local committingAt   -- GetTime() of the last loadout request the game took and is casting
 
 local function IsCasting()
 	for _, fn in ipairs({ UnitCastingInfo, UnitChannelInfo }) do
@@ -427,6 +440,7 @@ end
 function ns.EquipSet(setID)
 	if not setID or InCombatLockdown() then return false end
 	local ok, equipped = pcall(C_EquipmentSet.UseEquipmentSet, setID)
+	ns.LogReturns("UseEquipmentSet(" .. tostring(setID) .. ")", ok, equipped)
 	return ok and equipped ~= false
 end
 
@@ -436,6 +450,7 @@ local function SwitchSpec(specID)
 	local fn = (SI and SI.SetSpecialization) or SetSpecialization
 	if not fn then return false end
 	local ok, accepted = pcall(fn, spec.index)
+	ns.LogReturns("SetSpecialization(" .. spec.index .. ")", ok, accepted)
 	return ok and accepted ~= false
 end
 
@@ -446,15 +461,235 @@ local function RememberConfig(specID, configID)
 	end
 end
 
--- Returns accepted, reason
+local function Plain(v)
+	return not (issecretvalue and issecretvalue(v)) and type(v) == "number"
+end
+
+-- The player's abilities that are recharging or cooling down (the global
+-- cooldown aside): the spell book's, base spells and what overrides them, and
+-- `extra` ({ [spellID] = anything }, the talents on now). { [spellID] = seconds
+-- until it is fully back }: an ability with charges holds a loadout up until
+-- every charge is back (Soul Immolation at 0/2 was still refused at 1/2,
+-- measured 2026-11-01), so its time runs to the last one.
+local function Recovering(extra)
+	local out = {}
+	if not C_Spell then return out end
+	local now, seen = GetTime(), {}
+	local function Left(start, duration)
+		if Plain(start) and Plain(duration) and duration > GCD then
+			local left = start + duration - now
+			if left > 0 then return left end
+		end
+	end
+	local function Look(spellID)
+		if not Plain(spellID) or seen[spellID] then return end
+		seen[spellID] = true
+		local ok, charges = pcall(C_Spell.GetSpellCharges, spellID)
+		if ok and type(charges) == "table" and Plain(charges.currentCharges) and Plain(charges.maxCharges) then
+			-- with charges the cooldown only shows while none is left: the charges tell it all
+			local cur, max = charges.currentCharges, charges.maxCharges
+			local left = cur < max and Left(charges.cooldownStartTime, charges.cooldownDuration)
+			if left then
+				out[spellID] = left + (max - cur - 1) * charges.cooldownDuration
+				return
+			end
+		end
+		local okCd, cd = pcall(C_Spell.GetSpellCooldown, spellID)
+		out[spellID] = okCd and type(cd) == "table" and Left(cd.startTime, cd.duration) or nil
+	end
+	for spellID in pairs(extra or {}) do Look(spellID) end
+	if not (C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines) then return out end
+	pcall(function()
+		local bank = Enum.SpellBookSpellBank.Player
+		for tab = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+			local line = C_SpellBook.GetSpellBookSkillLineInfo(tab)
+			if line and not line.offSpecID then
+				for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+					local _, _, spellID = C_SpellBook.GetSpellBookItemType(i, bank)
+					if spellID and not C_SpellBook.IsSpellBookItemPassive(i, bank) then
+						Look(spellID)
+						Look(C_Spell.GetOverrideSpell and C_Spell.GetOverrideSpell(spellID))
+					end
+				end
+			end
+		end
+	end)
+	return out
+end
+
+local function Soonest(recovering)
+	local soonest
+	for _, left in pairs(recovering) do
+		if not soonest or left < soonest then soonest = left end
+	end
+	return soonest
+end
+
+local function ActiveTraitConfig()
+	return C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID() or nil
+end
+
+local function SpellName(spellID)
+	local ok, name = pcall(C_Spell.GetSpellName, spellID)
+	if ok and not (issecretvalue and issecretvalue(name)) and type(name) == "string" and name ~= "" then return name end
+end
+
+-- Of the spells `ids` ({ [spellID] = anything }), the one whose name `text`
+-- contains; the longest name wins ("Darkness" is part of "Dark Matter").
+local function Named(text, ids)
+	local best, bestLen
+	for id in pairs(ids) do
+		local name = SpellName(id)
+		if name and text:find(name, 1, true)
+			and (not best or #name > bestLen or (#name == bestLen and id < best)) then
+			best, bestLen = id, #name
+		end
+	end
+	return best
+end
+
+-- The talents on now: { [spellID] = entryID }
+local function TalentSpells()
+	local out, active = {}, ActiveTraitConfig()
+	local ok, info = pcall(C_Traits.GetConfigInfo, active)
+	local treeID = ok and type(info) == "table" and type(info.treeIDs) == "table" and info.treeIDs[1]
+	local okNodes, nodes = pcall(C_Traits.GetTreeNodes, treeID)
+	if not treeID or not okNodes or type(nodes) ~= "table" then return out end
+	for _, nodeID in ipairs(nodes) do
+		local okNode, node = pcall(C_Traits.GetNodeInfo, active, nodeID)
+		local e = okNode and type(node) == "table" and node.activeEntry
+		if type(e) == "table" and e.entryID and (e.rank or 0) > 0 and not (node.subTreeID and node.subTreeActive == false) then
+			local okEntry, entry = pcall(C_Traits.GetEntryInfo, active, e.entryID)
+			local okDef, def = false, nil
+			if okEntry and type(entry) == "table" and entry.definitionID then
+				okDef, def = pcall(C_Traits.GetDefinitionInfo, entry.definitionID)
+			end
+			if okDef and type(def) == "table" and def.spellID then out[def.spellID] = e.entryID end
+		end
+	end
+	return out
+end
+
+-- A talent's text: its spell's description, else its tooltip
+local function TalentText(spellID, entryID)
+	local ok, desc = pcall(C_Spell.GetSpellDescription, spellID)
+	if ok and type(desc) == "string" and desc ~= "" then return desc end
+	if not (C_TooltipInfo and C_TooltipInfo.GetTraitEntry) then return nil end
+	local okTip, data = pcall(C_TooltipInfo.GetTraitEntry, entryID)
+	if not okTip or type(data) ~= "table" or type(data.lines) ~= "table" then return nil end
+	local parts = {}
+	for _, line in ipairs(data.lines) do
+		if type(line.leftText) == "string" then parts[#parts + 1] = line.leftText end
+	end
+	return table.concat(parts, "\n")
+end
+
+-- The recovering ability a refusal waits for, as far as its text tells: one it
+-- names (a talent's own ability), else one named in the text of the talent it
+-- names. "You can't change talents while Tempered Soul is on cooldown": Tempered
+-- Soul is passive, its text reads "The cooldown of Soul Immolation is reduced".
+-- Seconds left of a spell's cooldown however short, the global one included, or nil
+local function CooldownLeft(spellID)
+	local ok, cd = pcall(C_Spell.GetSpellCooldown, spellID)
+	if not ok or type(cd) ~= "table" or not Plain(cd.startTime) or not Plain(cd.duration) or cd.duration <= 0 then
+		return nil
+	end
+	local left = cd.startTime + cd.duration - GetTime()
+	return left > 0 and left or nil
+end
+
+-- `talents` is TalentSpells(). Returns the ability, and the talent the
+-- refusal names with the length of its text (for the log).
+local function Blocker(reason, recovering, talents)
+	local id = Named(reason, recovering)
+	if id then return id end
+	local talent = Named(reason, talents)
+	local text = talent and TalentText(talent, talents[talent])
+	return text and Named(text, recovering) or nil, talent, text and #text or 0
+end
+
+local function HasStagedChanges(configID)
+	if not configID or not C_Traits.ConfigHasStagedChanges then return false end
+	local ok, staged = pcall(C_Traits.ConfigHasStagedChanges, configID)
+	return ok and staged == true
+end
+
+-- A refused loadout stays staged in the talent tree, as if picked by hand and
+-- not applied, and the next request is judged with it. It is taken back out,
+-- so the tree shows what is on. (Whatever the player had staged by hand was
+-- already replaced by the request.)
+local function RollBack()
+	local active = ActiveTraitConfig()
+	if not HasStagedChanges(active) or not C_Traits.RollbackConfig then return end
+	local ok, rolled = pcall(C_Traits.RollbackConfig, active)
+	ns.LogReturns("RollbackConfig(" .. tostring(active) .. ")", ok, rolled)
+end
+
+-- The game's reason talents cannot change at all right now, asked before a
+-- request, or nil. With changes staged it judges those instead, so then it is
+-- not asked.
+local function CannotChange()
+	if not C_ClassTalents.CanChangeTalents or HasStagedChanges(ActiveTraitConfig()) then return nil end
+	local ok, canChange, _, changeError = pcall(C_ClassTalents.CanChangeTalents)
+	if not ok or canChange ~= false then return nil end
+	return (type(changeError) == "string" and changeError ~= "") and changeError or L["unknown reason"]
+end
+
+-- Returns accepted, reason, holdFor: when the game holds the change up, the
+-- seconds until it is worth asking again. Such a refusal is not a try.
 local function LoadTalents(specID, configID)
-	local ok, result, changeError = pcall(C_ClassTalents.LoadConfig, configID, true)
+	local cannot = CannotChange()
+	if cannot then return false, cannot end
+	local ok, result, changeError, learned = pcall(C_ClassTalents.LoadConfig, configID, true)
+	ns.LogReturns("LoadConfig(" .. tostring(configID) .. ", true)", ok, result, changeError, learned)
 	local R = Enum.LoadConfigResult
 	if not ok or result == nil or result == R.Error then
-		return false, (type(changeError) == "string" and changeError ~= "") and changeError or L["unknown reason"]
+		refusedAt = GetTime()
+		RollBack()
+		local step = pending.steps.talents
+		local reason = ok and type(changeError) == "string" and changeError ~= "" and changeError or nil
+		if reason then
+			-- the talents' own abilities count too, besides the spell book's
+			local talents = TalentSpells()
+			local recovering = Recovering(talents)
+			local blocker, talent, textLength = Blocker(reason, recovering, talents)
+			-- Right after a cast every talent ability is on the global cooldown, and the
+			-- game names the first one the loadout takes out (Darkness, measured
+			-- 2026-11-01). Asked again once that is over, when it names what really
+			-- holds the loadout up; nothing is said or shown for it.
+			local gcd = not blocker and talent and CooldownLeft(talent)
+			if gcd and gcd <= GCD then
+				ns.Debug("apply: %s is on the global cooldown", tostring(SpellName(talent)))
+				step.held, step.heldSpec = nil, specID
+				return false, reason, math.max(LOAD_GAP, gcd + HOLD_MARGIN)
+			end
+			if not step.told then
+				step.told = true
+				ns.Msg(L["Talent loadout postponed: %s It is tried again when the cooldown ends."], reason)
+			end
+			-- asked again when the ability it waits for is fully back, else when the first one is
+			local wait = blocker and recovering[blocker] or Soonest(recovering)
+			if blocker then
+				ns.Debug("apply: waits for %s %d", tostring(SpellName(blocker)), blocker)
+			else
+				ns.Debug("apply: waits for an ability not named (talent %s, text of %d bytes)",
+					talent and (tostring(SpellName(talent)) .. " " .. talent) or "none", textLength or 0)
+			end
+			step.heldSpec = specID
+			step.held = { spell = blocker, endsAt = wait and GetTime() + wait }
+			return false, reason, wait and math.max(LOAD_GAP, wait + HOLD_MARGIN) or HOLD_POLL
+		end
+		-- refused without a reason: too soon after another request, once per step
+		step.held = nil
+		if ok and not step.early then
+			step.early, step.heldSpec = true, specID
+			return false, L["unknown reason"], LOAD_GAP
+		end
+		return false, L["unknown reason"]
 	end
 	if result == R.LoadInProgress then
 		pending.commitSpecID, pending.commitConfigID = specID, configID   -- finished by TRAIT_CONFIG_UPDATED
+		committingAt = GetTime()
 	else
 		RememberConfig(specID, configID)
 	end
@@ -466,6 +701,7 @@ local function LearnPvp(plan)
 	if not LearnPvpTalent then return false, L["unknown reason"] end
 	for _, change in ipairs(plan) do
 		local ok, err = pcall(LearnPvpTalent, change.id, change.slot)
+		ns.LogReturns(string.format("LearnPvpTalent(%d, %d)", change.id, change.slot), ok, err)
 		if not ok then return false, tostring(err) end
 	end
 	return true
@@ -489,6 +725,7 @@ local function Waiting(reason)
 end
 
 local function Finish(message, ...)
+	ns.LogApplyEnd(message and string.format(message, ...) or nil)
 	pending = nil
 	if message then ns.Msg(message, ...) end
 	-- an automatic apply that came due meanwhile is settled now instead of
@@ -519,39 +756,68 @@ local function CastGone(step)
 	return GetTime() - step.castGoneAt >= CAST_GONE
 end
 
--- One step: ask (again) when allowed. Returns false when the step is out of tries.
+local function IsHeld(step)
+	return step.heldUntil ~= nil and GetTime() < step.heldUntil
+end
+
+-- held up for a reason the game gave (not just for asking too soon)
+local function IsHeldUp(step)
+	return IsHeld(step) and step.held ~= nil
+end
+
+-- One step: ask (again) when allowed. Returns false when the step is out of
+-- tries, or held up by the game for longer than it is worth waiting.
 local function Ask(name, request)
 	local step = pending.steps[name]
 	local now = GetTime()
 	if step.askedAt and now - step.askedAt < GRACE then return true end   -- give the last request a moment
+	if IsHeld(step) then return true end
 	if (step.tries or 0) >= MAX_TRIES then return false end
 	step.tries = (step.tries or 0) + 1
 	step.askedAt = now
 	pending.expires = now + APPLY_TIMEOUT
-	local accepted, reason = request()
+	ns.LogAsk(name, step.tries, pending.setup)
+	local accepted, reason, holdFor = request()
 	step.reason = reason
-	ns.Debug("apply: %s, try %d: %s", name, step.tries, accepted and "asked" or ("refused" .. (reason and (" (" .. reason .. ")") or "")))
+	ns.Debug("apply: %s, try %d: %s%s", name, step.tries, accepted and "asked" or ("refused" .. (reason and (" (" .. reason .. ")") or "")),
+		holdFor and string.format(", held up, again in %.1f s", holdFor) or "")
+	step.heldUntil = nil
+	if holdFor then
+		-- not a try: what it takes is time, then asking again
+		step.tries = step.tries - 1
+		step.heldSince = step.heldSince or now
+		if now + holdFor - step.heldSince > HOLD_LIMIT then return false end
+		step.heldUntil = now + holdFor
+		pending.expires = step.heldUntil + APPLY_TIMEOUT
+	end
 	return true
 end
 
 function ns.ContinueApply()
 	if not pending then return end
 	if InCombatLockdown() then
-		pending.expires = GetTime() + APPLY_TIMEOUT   -- the clock only runs while something can be done
+		-- the clock only runs while something can be done (a held-up loadout keeps its own wait)
+		pending.expires = math.max(pending.expires, GetTime() + APPLY_TIMEOUT)
 		return
 	end
 	local setup = pending.setup
 	local specID = ns.GetCurrentSpecID()
 	local needSpec = setup.specID and setup.specID ~= specID
 
+	-- a held-up loadout belongs to the spec it was asked for in: the player changed spec
+	if pending.steps.talents.heldSince and pending.steps.talents.heldSpec ~= specID then
+		ns.Debug("apply: held-up loadout dropped, the spec changed")
+		return Finish()
+	end
 	if GetTime() > pending.expires then
 		ns.Debug("apply: timed out")
 		-- only the spec step can wait that long without asking (the player kept moving)
 		return Finish(needSpec and L["Could not switch specialization."] or nil)
 	end
 	-- the previous request, or the player's own cast: wait it out. A cast seen
-	-- after a request of ours means the client took it.
-	if IsCasting() then
+	-- after a request of ours means the client took it. While the game holds a
+	-- loadout up nothing is asked, so the player's casts do not matter.
+	if IsCasting() and not IsHeld(pending.steps.talents) then
 		local step = CastingStep()
 		if step and step.askedAt then step.castSeen, step.castGoneAt = true, nil end
 		return Waiting("casting")
@@ -568,7 +834,16 @@ function ns.ContinueApply()
 		return   -- talents and gear belong to the new spec
 	end
 
-	Waiting(nil)
+	local talents = pending.steps.talents
+	Waiting(IsHeldUp(talents) and "held" or nil)
+	-- the HUD counts the wait down, a second at a time
+	if IsHeldUp(talents) and talents.held.endsAt then
+		local second = math.ceil(talents.held.endsAt - GetTime())
+		if second ~= talents.held.second then
+			talents.held.second = second
+			ns.UpdateHUD()
+		end
+	end
 	local done = true
 	-- a forced setup asks each step once even when it looks done already
 	local force = setup.force
@@ -580,13 +855,17 @@ function ns.ContinueApply()
 		end
 	end
 	local talentsDone = true
-	if setup.configID and (ns.GetActiveConfigID(specID) ~= setup.configID or (force and not pending.steps.talents.tries)) then
+	if setup.configID and (ns.GetActiveConfigID(specID) ~= setup.configID
+		or (force and (not talents.tries or talents.heldUntil))) then
 		done, talentsDone = false, false
-		local gone = CastGone(pending.steps.talents)
+		local gone = CastGone(talents)
 		if gone then return Interrupted("talents") elseif gone == false then return end
+		-- a loadout asked for too soon after a refused one is refused too, without a reason
+		if not IsHeld(talents) and refusedAt and GetTime() - refusedAt < LOAD_GAP then return end
 		if not Ask("talents", function() return LoadTalents(specID, setup.configID) end) then
-			return Finish(L["Could not load the talent loadout: %s"], pending.steps.talents.reason or L["unknown reason"])
+			return Finish(L["Could not load the talent loadout: %s"], talents.reason or L["unknown reason"])
 		end
+		if IsHeldUp(talents) then Waiting("held") end
 	end
 	-- PvP talents once the loadout is in, so the two changes never cross. What is
 	-- on already is not asked again, forced or not: there is nothing to drop.
@@ -620,8 +899,10 @@ function ns.ApplySetup(setup)
 		ns.Msg(L["DRYRUN_MSG"], DescribeSetup(setup))
 		return
 	end
-	ns.Debug("apply: spec %s, talents %s, gear %s, PvP talents %s", DescribeSetup(setup))
+	local description = string.format("spec %s, talents %s, gear %s, PvP talents %s", DescribeSetup(setup))
+	ns.Debug("apply: %s", description)
 	pending = { setup = setup, expires = GetTime() + APPLY_TIMEOUT, steps = { spec = {}, talents = {}, gear = {}, pvp = {} } }
+	ns.LogApplyStart(setup, description)
 	if InCombatLockdown() then ns.Msg(L["In combat. It will be applied when combat ends."]) end
 	ns.ContinueApply()
 	if pending and not ticking then
@@ -639,6 +920,7 @@ function ns.OnTalentsCommitted(configID)
 		if configID == nil or active == nil or configID == active then
 			RememberConfig(pending.commitSpecID, pending.commitConfigID)
 			pending.commitSpecID, pending.commitConfigID = nil, nil
+			committingAt = nil
 		end
 	end
 	ns.ContinueApply()
@@ -647,6 +929,13 @@ end
 -- CONFIG_COMMIT_FAILED: the commit we started did not go through (interrupted,
 -- or refused after all). Asking the same thing again would not change that.
 function ns.OnTalentsFailed()
+	-- a commit of ours that did not go through (its cast interrupted: the player
+	-- cast something) leaves the loadout staged, like a refusal. Only ours: one
+	-- the player started in the talent window is theirs to undo.
+	if committingAt and GetTime() - committingAt < CAST_WINDOW then
+		committingAt = nil
+		RollBack()
+	end
 	if pending and pending.commitConfigID then
 		pending.commitSpecID, pending.commitConfigID = nil, nil
 		Interrupted("talents")
@@ -667,12 +956,36 @@ function ns.IsApplying()
 	return pending ~= nil
 end
 
+-- A held-up loadout belongs to the scenario it was asked for: on entering
+-- another one it is dropped, so that scenario's own apply is not kept waiting.
+function ns.DropHeldApply()
+	if pending and pending.steps.talents.heldSince then
+		ns.Debug("apply: held-up loadout dropped, another scenario")
+		Finish()
+	end
+end
+
 -- the module was switched off: whatever was being applied is dropped
 function ns.CancelApply()
+	if pending then ns.LogApplyEnd("cancelled: the module was switched off") end
 	pending = nil
 end
 
--- "moving" while a spec change waits for the player to stand still
+-- "moving" while a spec change waits for the player to stand still, "held"
+-- while the game refuses the loadout for now
 function ns.GetApplyWait()
 	return pending and pending.waiting or nil
+end
+
+function ns.IsHeldUp()
+	return pending ~= nil and IsHeldUp(pending.steps.talents)
+end
+
+-- While the game holds a loadout up: the ability it waits for (nil when the
+-- refusal does not tell) and the seconds until that one is back (nil when
+-- nothing is recovering and it is just asked again now and then)
+function ns.GetHeldUp()
+	local step = pending and pending.steps.talents
+	if not step or not IsHeldUp(step) then return nil end
+	return step.held.spell, step.held.endsAt and math.max(0, step.held.endsAt - GetTime()) or nil
 end

@@ -263,10 +263,36 @@ C_SpecializationInfo = {
 C_ClassTalents = {
 	GetConfigIDsBySpecID = function(specID) return W.configs[specID] or {} end,
 	GetLastSelectedSavedConfigID = function(specID) return W.activeConfig[specID] end,
-	LoadConfig = function(id) log("talents:" .. id); return W.loadResult end,
+	-- W.loadError: the reason that comes with a refusal (W.loadResult 0), which leaves the loadout staged
+	LoadConfig = function(id)
+		log("talents:" .. id)
+		if W.loadResult == 0 then W.staged = true end
+		return W.loadResult, W.loadError
+	end,
 	UpdateLastSelectedSavedConfigID = function(specID, id) W.activeConfig[specID] = id end,
 	GetActiveConfigID = function() return W.activeTraitConfig end,
+	-- W.talentsBlocked: the game's reason talents cannot change right now
+	CanChangeTalents = function()
+		if W.talentsBlocked then return false, false, W.talentsBlocked end
+		return true, true, ""
+	end,
 }
+-- W.cooldowns[spellID] = { start, duration }; W.charges[spellID] = { current, max, start, duration };
+-- W.playerAuras[spellID] = an aura on the player
+C_Spell.GetSpellCooldown = function(id)
+	local c = W.cooldowns and W.cooldowns[id]
+	return { startTime = c and c[1] or 0, duration = c and c[2] or 0, isEnabled = true, modRate = 1 }
+end
+C_Spell.GetSpellCharges = function(id)
+	local c = W.charges and W.charges[id]
+	if not c then return nil end
+	return { currentCharges = c[1], maxCharges = c[2], cooldownStartTime = c[3], cooldownDuration = c[4], chargeModRate = 1 }
+end
+C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return W.playerAuras and W.playerAuras[id] end }
+-- W.gameMessages[messageType] = the global string's name, as GetGameMessageInfo answers
+function GetGameMessageInfo(messageType) return W.gameMessages and W.gameMessages[messageType] end
+function IsResting() return W.resting or false end
+function IsMounted() return W.mounted or false end
 -- Talents. W.traits[configID] = { nodes = { { entries = { { spell = id, desc = "..." or { [rank] = "..." } }, ... },
 -- taken = entryIndex or nil, rank = n, subTree = id or nil, subTreeActive = bool } } }; the tree's ID is the
 -- config's; node IDs are the indices, entry IDs (configID + 10) * 1000 + nodeIndex * 10 + entryIndex, unique
@@ -303,9 +329,13 @@ C_Traits = {
 			subTreeID = node.subTree, subTreeActive = node.subTreeActive }
 	end,
 	GetEntryInfo = function(configID, entryID) return traitEntry(entryID) and { definitionID = entryID } or nil end,
+	CanEditConfig = function() return true, "" end,
+	ConfigHasStagedChanges = function() return W.staged or false end,
+	RollbackConfig = function() log("rollback"); W.staged = false; return true end,
+	GenerateImportString = function(id) return "import" .. id end,
 	GetDefinitionInfo = function(definitionID)
 		local entry = traitEntry(definitionID)
-		return entry and { spellID = entry.spell, overrideDescription = entry.override } or nil
+		return entry and { spellID = entry.spell, overriddenSpellID = entry.replaces, overrideDescription = entry.override } or nil
 	end,
 }
 -- the talent's tooltip at a rank: its name, then the text for that rank

@@ -216,5 +216,224 @@ W.combat = false; fire("PLAYER_REGEN_ENABLED")
 eq(count("talents:"), 1, "asked when combat ends")
 W.casting = true; pass(1); talentsLand(); pass(1)
 
+-- ---------------------------------------------------------------- a loadout the game holds up (2026-11-01)
+-- Tempered Soul gives Soul Immolation a second charge, and the game will not take
+-- it out while Soul Immolation recharges. It says so in LoadConfig's answer only,
+-- and leaves the refused loadout staged in the tree.
+local HELD = "You can't change talents while Tempered Soul is on cooldown."
+local SOUL_IMMOLATION, TEMPERED_SOUL, LONG_CD, SHORT_CD = 1241937, 1246555, 357208, 333
+local function told(text) local n = 0 for _, l in ipairs(T.chat) do if l:find(text, 1, true) then n = n + 1 end end return n end
+local function hud(text) return ns.hudSection.GetRows(true)[1].right:find(text, 1, true) ~= nil end
+-- the line under the state: "" label, its text
+local function hudDetail()
+	local row = ns.hudSection.GetRows(true)[2]
+	return row and row.label == "" and row.value or nil
+end
+W.spells = { { SOUL_IMMOLATION, 8 }, { LONG_CD, 25 }, { SHORT_CD, 30 } }   -- the spell book
+-- Tempered Soul is a talent on now, and its text names Soul Immolation (the stubs call every spell "spell<ID>")
+W.traits = { [W.activeTraitConfig] = { nodes = { { entries = { { spell = TEMPERED_SOUL } }, taken = 1 } } } }
+W.descriptions = { [TEMPERED_SOUL] = "The cooldown of spell1241937 is reduced by 30 sec and it gains 1 additional charge." }
+local NAMED = "You can't change talents while spell1246555 is on cooldown."
+W.charges = { [SOUL_IMMOLATION] = { 1, 2, W.now - 1, 30 } }   -- 29 s until the charge is back
+W.cooldowns = { [SHORT_CD] = { W.now - 20, 30 } }             -- an ability that has nothing to do with it, back in 10 s
+W.loadResult, W.loadError = 0, NAMED
+W.log = {}; T.chat = {}
+ns.ApplySetup({ configID = 56674545 })
+eq(count("talents:"), 1, "held up: asked once")
+eq(count("rollback"), 1, "the refused loadout is taken back out of the tree")
+check(not W.staged, "nothing stays staged")
+eq(told(NAMED), 1, "the game's reason is said")
+eq(ns.GetApplyWait(), "held", "the apply waits")
+check(hud(ns.L["Waiting for cooldown"]) and not hud("("), "the HUD's state: waiting for a cooldown")
+check((hudDetail() or ""):find("spell1241937 (0:29)", 1, true) ~= nil,
+	"and under it the ability the talent's text names, with its time")
+pass(5); pass(5)
+eq(count("talents:"), 1, "the unrelated ability coming back first brings no request")
+check((hudDetail() or ""):find("spell1241937 (0:19)", 1, true) ~= nil, "the HUD counts down")
+W.casting = true; pass(1)
+eq(ns.GetApplyWait(), "held", "a cast of the player's own changes nothing while waiting")
+W.casting = false
+local redrawn, UpdateHUD = 0, ns.UpdateHUD
+ns.UpdateHUD = function() redrawn = redrawn + 1; UpdateHUD() end
+pass(1); pass(1)
+ns.UpdateHUD = UpdateHUD
+check(redrawn >= 2, "the HUD is redrawn as the seconds go")
+for _ = 1, 3 do pass(5) end
+eq(count("talents:"), 1, "not asked again while Soul Immolation recharges")
+check(ns.IsApplying(), "still pending, past the usual timeout")
+eq(told(NAMED), 1, "and said once")
+W.charges, W.cooldowns = nil, nil; W.loadResult, W.loadError = 2, nil
+pass(5)
+eq(count("talents:"), 2, "asked again once the charge is back")
+W.casting = true; pass(1); talentsLand(); pass(1)
+check(not ns.IsApplying(), "and the loadout went in")
+eq(W.activeConfig[PRES], 56674545, "recorded")
+
+-- combat in the middle of the wait does not time it out
+W.charges = { [SOUL_IMMOLATION] = { 1, 2, W.now - 1, 30 } }
+W.loadResult, W.loadError = 0, HELD
+W.log = {}
+ns.ApplySetup({ configID = 58128473 })
+check(hud(ns.L["Waiting for cooldown (%s)"]:format("0:29")) and not hudDetail(),
+	"a refusal that names nothing it knows: the first ability back, unnamed, on one line")
+pass(5); W.combat = true; pass(5); W.combat = false; fire("PLAYER_REGEN_ENABLED")
+pass(5); pass(5); pass(5)
+check(ns.IsApplying(), "a fight during the wait: still waiting")
+eq(count("talents:"), 1, "and nothing asked")
+W.charges = nil; W.loadResult, W.loadError = 2, nil
+pass(5)
+eq(count("talents:"), 2, "asked once the charge is back")
+W.casting = true; pass(1); talentsLand(); pass(1)
+check(not ns.IsApplying(), "and it went in")
+
+-- a request right after a refused one is refused too, without a reason and with
+-- a red error text (a second click 0.2 s later): the next apply waits a moment
+W.charges = { [SOUL_IMMOLATION] = { 1, 2, W.now - 1, 30 } }
+W.loadResult, W.loadError = 0, HELD
+W.log = {}
+ns.ApplySetup({ configID = 56674545 })
+eq(count("talents:"), 1, "held up")
+ns.ApplySetup({ configID = 56674545 })   -- clicked again at once
+eq(count("talents:"), 1, "a new apply does not ask right after the refusal")
+pass(1)
+eq(count("talents:"), 1, "nor a second later")
+pass(1)
+eq(count("talents:"), 2, "it asks once the gap is over")
+W.charges = nil
+
+-- refused without a reason: put down to timing once, then tries as before
+W.loadError = nil
+W.log = {}; T.chat = {}
+pass(2)
+ns.ApplySetup({ configID = 56674545 })
+for _ = 1, 8 do pass(2) end
+eq(count("talents:"), 5, "one free retry, then the four tries")
+check(not ns.IsApplying() and said(ns.L["Could not load the talent loadout: %s"]:format(ns.L["unknown reason"])), "then it gives up")
+eq(told(HELD), 0, "no held-up message without a reason")
+
+-- talents that cannot change at all right now: the game says so before any request
+W.talentsBlocked = "You can't change talents right now."
+W.log = {}; T.chat = {}
+ns.ApplySetup({ configID = 56674545 })
+for _ = 1, 8 do pass(2) end
+eq(count("talents:"), 0, "no loadout request while the game says talents cannot change")
+check(not ns.IsApplying() and said(W.talentsBlocked), "it gives up with the game's reason")
+W.talentsBlocked = nil
+
+-- held up with nothing recovering: asked every 5 s, for three minutes at most
+W.loadError = HELD
+W.log = {}; T.chat = {}
+ns.ApplySetup({ configID = 56674545 })
+check(hud(ns.L["Waiting for cooldown"]) and not hud("("), "nothing recovering: no name, no time")
+for _ = 1, 40 do pass(5) end
+check(not ns.IsApplying(), "given up after three minutes")
+check(said(ns.L["Could not load the talent loadout: %s"]:format(HELD)), "with the game's reason")
+eq(count("talents:"), 37, "asked every 5 s meanwhile")
+-- a long cooldown is waited for in one go
+W.cooldowns = { [LONG_CD] = { W.now - 30, 180 } }   -- 150 s to go
+W.log = {}
+ns.ApplySetup({ configID = 56674545 })   -- right after the last refusal: asked 5 s later
+for _ = 1, 30 do pass(5) end
+eq(count("talents:"), 1, "asked once, then nothing for 145 s")
+pass(5)
+eq(count("talents:"), 2, "and again when that ability is back")
+W.cooldowns = nil; W.loadResult, W.loadError = 2, nil
+pass(5); W.casting = true; pass(1); talentsLand(); pass(1)
+check(not ns.IsApplying(), "and it went in")
+
+-- a held-up loadout belongs to where it was asked for
+W.charges = { [SOUL_IMMOLATION] = { 1, 2, W.now - 1, 30 } }
+W.loadResult, W.loadError = 0, HELD
+W.log = {}
+ns.ApplyNow(); flush()   -- the delve's loadout
+eq(W.log[1], "talents:58128473", "the delve's loadout, held up")
+check(ns.IsApplying(), "waiting")
+pretend("world")
+eq(count("spec:"), 1, "entering the open world drops it: its own apply goes ahead at once")
+W.casting = true; pass(3); specLands(1); pass(1)
+check(not ns.IsApplying(), "and finishes")
+pass(60)
+eq(count("talents:"), 1, "the delve's loadout is not asked for again")
+-- the same when the player changes spec by hand
+W.log = {}
+ns.ApplySetup({ configID = 56310210 })   -- Devastation's pvp loadout, held up
+eq(count("talents:"), 1, "held up")
+W.specIndex = 2; pass(1)
+check(not ns.IsApplying(), "a spec changed by hand drops it")
+pass(60)
+eq(count("talents:"), 1, "and it is not asked for again")
+W.charges = nil; W.loadResult, W.loadError = 2, nil
+
+-- an ability with charges holds the loadout up until every charge is back (at 0/2
+-- the game still refused at 1/2), and a talent's own ability counts even when the
+-- spell book shows another spell in its place
+local IMMOLATION_AURA = 258920
+W.spells = { { IMMOLATION_AURA, 8 } }
+W.traits[W.activeTraitConfig].nodes[2] = { entries = { { spell = SOUL_IMMOLATION } }, taken = 1 }
+W.loadResult, W.loadError = 0, NAMED
+W.log = {}
+pass(2)
+W.charges = { [SOUL_IMMOLATION] = { 0, 2, W.now - 1, 30 } }   -- 29 s to the first charge, 59 s to the second
+ns.ApplySetup({ configID = 58128473 })
+eq(count("talents:"), 1, "both charges spent: held up")
+check((hudDetail() or ""):find("spell1241937 (0:59)", 1, true) ~= nil,
+	"counted to the last charge, the ability found among the talents")
+pass(30)
+eq(count("talents:"), 1, "not asked when the first charge is back")
+W.loadResult, W.loadError = 2, nil
+pass(30)
+eq(count("talents:"), 2, "asked when the second one is")
+W.casting = true; pass(1); talentsLand(); pass(1)
+check(not ns.IsApplying(), "and it went in")
+W.charges = nil
+
+-- a commit of ours whose cast the player interrupts leaves the loadout staged too
+W.log = {}
+ns.ApplySetup({ configID = 56674545 })
+eq(count("talents:"), 1, "asked")
+W.casting = true; pass(1)
+W.casting = false; W.staged = true
+fire("UNIT_SPELLCAST_INTERRUPTED", "player")
+fire("CONFIG_COMMIT_FAILED", W.activeTraitConfig)
+eq(count("rollback"), 1, "the interrupted loadout is taken back out of the tree")
+check(not W.staged, "nothing stays staged")
+-- one the player started in the talent window is theirs
+W.log = {}; W.staged = true
+pass(20)
+fire("CONFIG_COMMIT_FAILED", W.activeTraitConfig)
+eq(count("rollback"), 0, "a failed commit of the player's own is left alone")
+W.staged = false
+
+-- right after a cast the game names the first talent the loadout takes out whose
+-- ability is on the global cooldown (Darkness), not what really holds it up
+local DARKNESS = 196718
+local ON_GCD = "You can't change talents while spell196718 is on cooldown."
+W.traits[W.activeTraitConfig].nodes[3] = { entries = { { spell = DARKNESS } }, taken = 1 }
+W.spells = { { IMMOLATION_AURA, 8 }, { DARKNESS, 10 } }
+W.cooldowns = { [DARKNESS] = { W.now - 0.3, 1.2 } }             -- the global cooldown, 0.9 s left
+W.charges = { [SOUL_IMMOLATION] = { 0, 2, W.now - 1, 30 } }
+W.loadResult, W.loadError = 0, ON_GCD
+W.log = {}; T.chat = {}
+ns.ApplySetup({ configID = 56674545 })
+eq(count("talents:"), 1, "refused, naming Darkness")
+eq(told(ON_GCD), 0, "nothing said for the global cooldown")
+check(ns.GetApplyWait() ~= "held", "nor shown as a wait")
+W.cooldowns = nil; W.loadError = NAMED
+pass(1)
+eq(count("talents:"), 1, "not asked before a refusal's gap is over")
+pass(1)
+eq(count("talents:"), 2, "asked again once the global cooldown is over")
+eq(told(NAMED), 1, "now the game names what holds it up, and that is said")
+check((hudDetail() or ""):find("spell1241937 (0:57)", 1, true) ~= nil, "and shown, to the last charge")
+
+-- a click on the HUD while waiting asks nothing: it would only be refused again
+W.log = {}; T.chat = {}
+ns.ApplyNow(); flush(); ns.ApplyNow(); flush()
+eq(#W.log, 0, "clicks during the wait ask nothing")
+eq(told(NAMED), 0, "and say nothing again")
+check(ns.IsHeldUp(), "the wait goes on")
+ns.CancelApply()
+W.charges = nil; W.loadResult, W.loadError = 2, nil
+
 T.releaseChat()
 return T.report("apply [" .. (LOCALE or "enUS") .. "]")

@@ -18,11 +18,33 @@ local Skin = ns.Skin
 -- of them are on, "2/3", green when all are.
 -- ===========================================================================
 
--- Returns text, colour name
+-- A loadout the game refuses for now: "Waiting for cooldown", and the ability
+-- it waits for with its time on a line of its own, "Soul Immolation (0:15)",
+-- so the HUD stays narrow. Without a name the time fits the first line;
+-- without anything recovering there is no time. Returns text, detail
+local function HeldText()
+	local spellID, left = ns.GetHeldUp()
+	if not left then return L["Waiting for cooldown"] end
+	local seconds = math.ceil(left)
+	local clock = ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
+	local name = spellID and C_Spell.GetSpellName(spellID)
+	if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
+		return L["Waiting for cooldown"], name .. " (" .. clock .. ")"
+	end
+	return L["Waiting for cooldown (%s)"]:format(clock)
+end
+
+-- Returns text, colour name, and a detail for a line of its own (or nil)
 local function StateText(st, early)
 	if early then return L["Queue: %s"]:format(ns.ScenarioShortName(early)), "warn" end
 	if ns.IsApplying() then
-		return (ns.GetApplyWait() == "moving") and L["Stand still"] or L["Applying"], "warn"
+		local wait = ns.GetApplyWait()
+		if wait == "moving" then return L["Stand still"], "warn" end
+		if wait == "held" then
+			local text, detail = HeldText()
+			return text, "warn", detail
+		end
+		return L["Applying"], "warn"
 	end
 	if st.state == "mismatch" then
 		if InCombatLockdown() and ns.IsAutoPending() then return L["After combat"], "warn" end
@@ -79,9 +101,11 @@ ns.hudSection = {
 		local spec = st.specID and ns.GetSpecByID(st.specID)
 		local name = spec and spec.name or "-"
 		if ns.IsFaking() then name = name .. " " .. Skin.Text("dim", "(" .. L["faked"] .. ")") end
-		local text, colour = StateText(st, early)
+		local text, colour, detail = StateText(st, early)
 		local cell = st.cell or {}
 		local rows = { { icon = spec and spec.icon or 134400, value = name, right = Skin.Text(colour, text) } }
+		-- under the state, flush right like it
+		if detail then rows[#rows + 1] = { label = "", value = Skin.Text(colour, detail) } end
 		AddLines(rows, L["Talents"], st.hasTalents, st.talentsOK, st.talentsMissing, cell.configName,
 			st.hasTalents and not st.talentsOK and ns.GetActiveConfigName(st.specID) or nil)
 		if st.hasPvp then
