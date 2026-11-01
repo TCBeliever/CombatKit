@@ -50,6 +50,11 @@ local ADDON, ns = ...
 -- (Spellwarden, Diamond Ice): its own spell then has no effect naming the
 -- version it brings, which sits next to it among the spell IDs.
 --
+-- `cutBy` is for a talent that keeps cutting the cooldown by what the player
+-- does (no data can say how often): [talent spell] = the share of the
+-- cooldown assumed once it is taken, from how often the cutting spell is
+-- likely cast. Inspect applies it; a use seen early still corrects the row.
+--
 -- `replaces` names the ability a PvP talent's own entry takes the button of
 -- (Ancient of Lore, Tree of Life): with the PvP talent taken, inspect takes
 -- the other out of the row. `window` on a Caster entry makes every sighting
@@ -266,7 +271,7 @@ ns.SPELLS = {
 		Caster(421453, 240, "defense", { specs = set(256) }),  -- Ultimate Penitence
 		Caster(200183, 120, "defense", { noLearn = true, specs = set(257) }),  -- Apotheosis
 		Caster(15286, 120, "defense", { defaultOff = true, specs = set(258) }),  -- Vampiric Embrace (off by default: the user's call)
-		Ally(33206, 180, "defense", { big = true, extraCharge = true, specs = set(256) }),  -- Pain Suppression
+		Ally(33206, 180, "defense", { big = true, extraCharge = true, underControl = true, cutBy = { [373035] = 1 / 1.3 }, specs = set(256) }),  -- Pain Suppression: castable while stunned (its tooltip, confirmed in game; the data does not flag it). Protector of the Frail: every Power Word: Shield (7.5 s cooldown) takes 3 s off; shields at 75% of their cooldown make 180 s about 138 s
 		Ally(47788, 180, "defense", { big = true, specs = set(257) }),  -- Guardian Spirit
 		Allies(62618, 180, 10, "defense", { defaultOff = true, aura = 81782, specs = set(256) }),  -- Power Word: Barrier (off by default: the user's call)
 		Caster(228260, 120, "burst", { aura = 194249, specs = set(258) }),  -- Voidform
@@ -479,8 +484,10 @@ function ns.BaseCooldown(def)
 end
 
 -- whether a teammate under a stun, a fear or a disorient could still have cast
--- it (the game's data marks a few: Barkskin, Dispersion, Unending Resolve)
+-- it (the game's data marks a few: Barkskin, Dispersion, Unending Resolve; an entry
+-- says so by hand with `underControl` where the data does not: Pain Suppression)
 function ns.CastableUnderControl(def)
+	if def.underControl ~= nil then return def.underControl end   -- by hand, where the data says nothing
 	local b = Base(def)
 	return b and b.underControl or false
 end

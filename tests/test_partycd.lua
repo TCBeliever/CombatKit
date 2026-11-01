@@ -298,34 +298,52 @@ local function control(unit, priority, at)
 end
 W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
 control("party2", 5, 1020)
-shown("player", 33206, 1021)
-eq(state("party1", 33206, 1021), "active", "the priest who could act")
-eq(state("party2", 33206, 1021), "ready", "not the stunned one")
-check(not TR.Get("party1").spells[33206].ambiguous, "and no mark")
-hidden("player", 33206, 1029)
+shown("player", 47788, 1021)
+eq(state("party1", 47788, 1021), "active", "the priest who could act")
+eq(state("party2", 47788, 1021), "ready", "not the stunned one")
+check(not TR.Get("party1").spells[47788].ambiguous, "and no mark")
+hidden("player", 47788, 1029)
 control("party2", nil, 1030)
 check(not TR.Controlled("party2", 1030), "the stun is over")
 W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
 control("party2", 1, 1040)
-shown("player", 33206, 1041)
-check(TR.Get("party1").spells[33206].ambiguous and TR.Get("party2").spells[33206].ambiguous, "rooted: still a candidate")
-hidden("player", 33206, 1049)
+shown("player", 47788, 1041)
+check(TR.Get("party1").spells[47788].ambiguous and TR.Get("party2").spells[47788].ambiguous, "rooted: still a candidate")
+hidden("player", 47788, 1049)
 control("party2", nil, 1050)
 W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
 control("party2", 5, 1060)
-shown("player", 33206, 1060.1)
-check(TR.Get("party2").spells[33206].ambiguous, "stunned the same moment: may have cast it just before, still a candidate")
-hidden("player", 33206, 1068)
+shown("player", 47788, 1060.1)
+check(TR.Get("party2").spells[47788].ambiguous, "stunned the same moment: may have cast it just before, still a candidate")
+hidden("player", 47788, 1068)
 W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
 control("party1", 5, 1070)
-shown("player", 33206, 1071)
-check(TR.Get("party1").spells[33206].ambiguous and TR.Get("party2").spells[33206].ambiguous,
+shown("player", 47788, 1071)
+check(TR.Get("party1").spells[47788].ambiguous and TR.Get("party2").spells[47788].ambiguous,
 	"both under control: the reading is off somewhere, both stay the candidates")
-hidden("player", 33206, 1079)
+hidden("player", 47788, 1079)
 control("party1", nil, 1080); control("party2", nil, 1080)
-check(AR.CastableUnderControl(AR.SPELL_BY_ID[22812]) and not AR.CastableUnderControl(AR.SPELL_BY_ID[33206]),
-	"Barkskin can be cast stunned, Pain Suppression cannot (the game's data)")
+check(AR.CastableUnderControl(AR.SPELL_BY_ID[22812]) and not AR.CastableUnderControl(AR.SPELL_BY_ID[47788]),
+	"Barkskin can be cast stunned, Guardian Spirit cannot (the game's data)")
+check(AR.CastableUnderControl(AR.SPELL_BY_ID[33206]), "Pain Suppression can (its tooltip, marked by hand: the data does not flag it)")
 C_LossOfControl = nil
+
+-- a use seen while every charge was thought spent proves one was back: the
+-- oldest outstanding use is over (Pain Suppression, cut by Power Word: Shield
+-- through Protector of the Frail), the count goes on from the new one
+W.units.party1 = { friendly = true, class = "PRIEST", guid = "Player-1-PRIEST-PS" }
+W.units.party2 = { friendly = true, class = "DRUID", guid = "Player-1-DRUID-PS" }
+fire("GROUP_ROSTER_UPDATE")
+W.matchState = 3; fire("PVP_MATCH_STATE_CHANGED")
+TR.SetCooldown("party1", 33206, 180, 2)
+shown("party2", 33206, 1083); hidden("party2", 33206, 1084)
+shown("party2", 33206, 1086); hidden("party2", 33206, 1087)
+local ps, psReady = state("party1", 33206, 1088)
+check(ps == "cooling" and psReady == 1263, "both charges spent: cooling, the first back 180 s after the first use")
+shown("party2", 33206, 1089); hidden("party2", 33206, 1090)
+eq(#TR.Get("party1").spells[33206].uses, 2, "a third use: the oldest one was over, two outstanding")
+ps, psReady = state("party1", 33206, 1091)
+check(ps == "cooling" and psReady == 1266, "cooling from the second use, not queued behind the first")
 
 -- Blessing of Sacrifice cannot be on its caster: the holder is excluded
 W.units.party1 = { friendly = true, class = "PALADIN", guid = "Player-1-PAL" }
@@ -379,7 +397,8 @@ shown("player", 196718, 1706)
 eq(#TR.Get("party1").spells[196718].uses, 1, "allies walking in and out of an area buff: one use")
 eq(TR.Get("party1").spells[196718].cd, 300, "and the estimate untouched")
 shown("party2", 196718, 1720)
-eq(#TR.Get("party1").spells[196718].uses, 2, "a sighting after the effect has run: another use")
+local dark = TR.Get("party1").spells[196718]
+check(#dark.uses == 1 and dark.uses[1] == 1720, "a sighting after the effect has run: another use, the cooldown counts from it (not queued behind the first)")
 eq(TR.Get("party1").spells[196718].cd, 300, "which still corrects nothing")
 -- a talent may add a charge: two close uses are two charges, not a shorter cooldown
 shown("party1", 198589, 1800); hidden("party1", 198589, 1810)
@@ -1123,6 +1142,16 @@ check(T.said("inspect party1") and T.said("gave up"), "/ckpartycd tells what ins
 W.traits[77] = { nodes = { { entries = { { spell = 194223 }, { spell = 102560 } }, taken = 2 } } }
 local res = IN.Analyse(77, "DRUID", {}, nil)
 check(res and not res[194223].missing, "Incarnation taken on Celestial Alignment's node: the ability is there")
+-- a talent that keeps cutting a cooldown by what the player does: an assumed share
+-- (Protector of the Frail: Pain Suppression about 138 s), its charge from the data
+W.traits[80] = { nodes = { { entries = { { spell = 373035 } }, taken = 1 } } }
+res = IN.Analyse(80, "PRIEST", {}, 256)
+check(res and res[33206].cd == 138.5 and res[33206].charges == 2,
+	"Protector of the Frail: Pain Suppression assumed at 180 / 1.3 = 138.5 s, with its second charge")
+W.traits[80].nodes[1].taken = nil
+res = IN.Analyse(80, "PRIEST", {}, 256)
+check(res and res[33206].cd == 180, "without it: 180 s")
+
 -- a PvP talent that takes another ability's button: that ability leaves the row
 W.traits[79] = { nodes = { { entries = { { spell = 33891 } }, taken = 1 } } }
 W.pvpTalentInfo[9002] = { spellID = 473909 }
@@ -1160,6 +1189,27 @@ res = IN.Analyse(78, "DEMONHUNTER", {}, nil)
 check(res and not res[370965].missing, "taken: it stays")
 W.inInstance, W.instanceType = false, nil
 fire("ZONE_CHANGED_NEW_AREA")
+
+-- the tally: what lit up, and in how many matches a teammate had it once inspect answered
+local tally = AR.db.tally
+check(tally[22812] and tally[22812].seen >= 1, "Barkskin lit up: counted as seen")
+check(tally[22812].matches >= 1, "leaving the arena: the inspected druid had it, a match counted")
+check(not tally[61336] or tally[61336].matches == 0 or AR.db.tally[61336].matches < tally[22812].matches,
+	"Survival Instincts, out of the restoration druid's row: not counted for that match")
+local logText = table.concat(AR.db.log, "\n")
+check(not logText:find("uses=0 ready", 1, true), "inspect's cooldowns are not logged as uses (the inspect line says them)")
+check(not logText:find(": pending", 1, true), "no pending lines in the log")
+local lastR, repeats = nil, 0
+for _, line in ipairs(AR.db.log) do
+	local r = line:match("^[%d%.]+ roster (.*)$")
+	if r then if r == lastR then repeats = repeats + 1 end lastR = r end
+end
+eq(repeats, 0, "the same roster is not logged twice in a row")
+tally[999001] = { seen = 0, matches = 5 }
+SlashCmdList.CKPARTYCD("tally")
+check(T.said("never lit") and T.said("999001"), "/ckpartycd tally names an ability teammates had in 5 matches that never lit")
+SlashCmdList.CKPARTYCD("tally reset")
+check(next(AR.db.tally) == nil, "tally reset clears it")
 check(AR.WatchingSelf() and TR.Get("party1") == nil and TR.Get("player") ~= nil, "out again: the own row alone")
 W.traits, W.inspectable = nil, nil
 DATA.build = dataBuild

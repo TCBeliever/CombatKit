@@ -209,6 +209,13 @@ local function AddUse(e, at, trusted)
 	e.uses[#e.uses + 1] = at
 	-- more uses outstanding than charges: the talent for another charge is there
 	if e.def.extraCharge and #e.uses > e.charges then e.charges = ns.BaseCharges(e.def) + 1 end
+	-- still more uses than charges: the estimate ran long (a cooldown that what
+	-- the player does keeps cutting, a reset). A use surely theirs proves a
+	-- charge was there, so the oldest outstanding uses are over: the count goes
+	-- on from this one instead of queueing behind them
+	if trusted then
+		while #e.uses > e.charges do table.remove(e.uses, 1) end
+	end
 	e.unknown = false
 	return true
 end
@@ -418,7 +425,7 @@ function Tracker.SetCooldown(unit, spellID, seconds, charges)
 	if not e then return end
 	e.cd, e.estimate = seconds, false
 	if type(charges) == "number" and charges > e.charges then e.charges = charges end
-	Notify("use", teammates[unit], e)
+	Notify("cooldown", teammates[unit], e)   -- not a use: the inspect line in the log says it once
 end
 
 -- inspect's answer: the teammate has the ability or not (a buff seen later says yes again)

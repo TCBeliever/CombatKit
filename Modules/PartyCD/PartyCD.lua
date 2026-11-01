@@ -44,6 +44,7 @@ ns.defaults = {
 	offsetAlong = 0,         -- shift along the frame's edge
 	grow        = "down",    -- how the lines line up: "down" | "up" | "center" by the frame's side,
 	                         -- "right" | "left" | "center" above or below it (UI.lua)
+	tally       = {},        -- [spellID] = { seen = n, matches = n }: kept across sessions, no profile's (below)
 	rows = {
 		player = { point = "CENTER", relPoint = "CENTER", x = -260, y = -60 },
 		party1 = { point = "CENTER", relPoint = "CENTER", x = -260, y = -100 },
@@ -102,9 +103,44 @@ local function Log(fmt, ...)
 end
 ns.Log = Log
 
+-- How often each watched ability's aura was drawn (seen), and in how many
+-- arena matches a teammate had it in their row once inspect had answered
+-- (matches): kept across sessions in ns.db.tally[spellID]. An ability that
+-- teammates had in match after match and that never lit up has a wrong aura
+-- ID, or one the game does not draw (/ckpartycd tally).
+local SUSPECT_MATCHES = 3
+local matchHad = {}   -- "GUID:spellID" -> spellID: who had what in this arena
+
+local function Tally(id)
+	local all = ns.db.tally
+	local c = all[id]
+	if not c then
+		c = { seen = 0, matches = 0 }
+		all[id] = c
+	end
+	return c
+end
+
+-- a teammate's row as inspect left it: the abilities they have this match
+local function NoteRow(unit)
+	local t = inArena and Tracker.Get(unit)
+	if not t then return end
+	for _, id in ipairs(t.order) do matchHad[t.guid .. ":" .. id] = id end
+end
+
+local function CountMatch()
+	for _, id in pairs(matchHad) do
+		local c = Tally(id)
+		c.matches = c.matches + 1
+	end
+	matchHad = {}
+end
+
 local callbacks = {
 	Shown = function(unit, id, at, initial)
 		Log("shown %s %d%s", unit, id, initial and " (already up)" or "")
+		local c = Tally(id)
+		c.seen = c.seen + 1
 		Tracker.Shown(unit, id, at, initial)
 	end,
 	Hidden = function(unit, id, at)
@@ -134,8 +170,12 @@ local function Inspected(unit, results, complete)
 		Tracker.SetAvailable(unit, id, not r.missing)
 	end
 	for _, line in ipairs(Inspect.Debug()) do
-		if line:find("^inspect " .. unit .. ":") then Log("%s%s", line, complete and "" or " (retrying)") end
+		-- the answer only; "pending" says nothing a retry line does not
+		if line:find("^inspect " .. unit .. ":") and not line:find(": pending", 1, true) then
+			Log("%s%s", line, complete and "" or " (retrying)")
+		end
 	end
+	if complete then NoteRow(unit) end
 end
 
 -- every teammate's talents asked for, the ones already answered included
@@ -169,6 +209,8 @@ function ns.Selection()
 	table.sort(ids)
 	return { picked = ns.db.picked, sig = table.concat(ids, ",") }
 end
+
+local lastRoster, lastMatchState   -- what the log said last, so a repeat is not written again
 
 local function ApplyRoster()
 	local list = Roster()
@@ -238,7 +280,11 @@ local function ApplyRoster()
 	if inArena then
 		for _, unit in ipairs(ENEMIES) do backend.SetWatch(unit, cc, true) end
 	end
-	Log("roster %s", table.concat(names, " "))
+	local roster = table.concat(names, " ")
+	if roster ~= lastRoster then   -- the same roster again says nothing new
+		lastRoster = roster
+		Log("roster %s", roster)
+	end
 	local problems = backend.Problems and backend.Problems()
 	if problems and #problems > 0 then Log("backend: %s", table.concat(problems, "; ")) end
 	ns.UI.Dirty()
@@ -282,6 +328,7 @@ local function Scene()
 		engaged = false
 		selfWatch = false   -- the arena's own watching takes the player's row over
 		Tracker.Clear()
+		matchHad, lastRoster, lastMatchState = {}, nil, nil
 		Log("enter arena")
 		backend.Start(callbacks)
 		Inspect.Start(Inspected)
@@ -291,6 +338,7 @@ local function Scene()
 		inArena = false
 		engaged = false
 		Log("leave arena")
+		CountMatch()
 		backend.Stop()
 		Inspect.Stop()
 		Tracker.Clear()
@@ -309,7 +357,10 @@ local ENGAGED = ns.ENGAGED
 local function MatchState()
 	if not inArena then return end
 	local ok, state = pcall(C_PvP.GetActiveMatchState)
-	Log("match state %s", tostring(state))
+	if state ~= lastMatchState then
+		lastMatchState = state
+		Log("match state %s", tostring(state))
+	end
 	if ok and state == ENGAGED then
 		engaged = true
 		Tracker.RoundStart()
@@ -428,7 +479,26 @@ Tracker.AddListener(function(what, a, b)
 	ns.UI.Dirty()
 end)
 
--- /ckpartycd status | log | clear: what the tracker holds, what was logged
+-- the tally, for the slash command: what lit up, and what never did although
+-- teammates had it in SUSPECT_MATCHES matches or more
+local function TallyReport()
+	local seen, suspects, n = 0, {}, 0
+	for id, c in pairs(ns.db.tally or {}) do
+		n = n + 1
+		if c.seen > 0 then seen = seen + 1
+		elseif c.matches >= SUSPECT_MATCHES then suspects[#suspects + 1] = { id = id, c = c } end
+	end
+	table.sort(suspects, function(a, b) return a.c.matches > b.c.matches end)
+	CK.Msg("Party CD: %d abilities counted, %d seen lit; %d never lit though a teammate had them in %d+ matches",
+		n, seen, #suspects, SUSPECT_MATCHES)
+	for _, s in ipairs(suspects) do
+		local ok, name = pcall(C_Spell.GetSpellName, s.id)
+		print(string.format("  %s (%d): 0 of %d matches", ok and name or "?", s.id, s.c.matches))
+	end
+end
+
+-- /ckpartycd status | log | clear | tally [reset]: what the tracker holds,
+-- what was logged, what was counted
 SLASH_CKPARTYCD1 = "/ckpartycd"
 SlashCmdList.CKPARTYCD = function(msg)
 	msg = strtrim(msg or ""):lower()
@@ -439,6 +509,12 @@ SlashCmdList.CKPARTYCD = function(msg)
 	elseif msg == "clear" then
 		if ns.db then ns.db.log = {} end
 		CK.Msg("Party CD: log cleared")
+	elseif msg == "tally" then
+		if ns.db then TallyReport() end
+	elseif msg == "tally reset" then
+		if ns.db then ns.db.tally = {} end
+		matchHad = {}
+		CK.Msg("Party CD: tally cleared")
 	else
 		CK.Msg("Party CD: %s, %s", inArena and "in arena" or (selfWatch and "not in arena, own row watched" or "not in arena"),
 			Tracker.failed and "detection failed" or "detection fine")

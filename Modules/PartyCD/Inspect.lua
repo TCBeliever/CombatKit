@@ -260,6 +260,18 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 	end
 	local function Of(sid) return sid and (acc[sid] or castOf[sid]) end
 	local state = { complete = true }
+	-- talents that keep cutting a cooldown by what the player does (`cutBy` in
+	-- Spells.lua): the share of the cooldown assumed, applied when taken
+	local cutBy = {}
+	for _, def in ipairs(defs) do
+		for talent, share in pairs(def.cutBy or {}) do
+			cutBy[talent] = cutBy[talent] or {}
+			cutBy[talent][#cutBy[talent] + 1] = { acc = acc[def.id], share = share }
+		end
+	end
+	local function ApplyCut(sid)
+		for _, c in ipairs(sid and cutBy[sid] or {}) do c.acc.pct = c.acc.pct * c.share end
+	end
 
 	-- what the data says a selected spell does, at the rank of the definition taken
 	local function AtRank(values, rank)
@@ -310,6 +322,7 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 				if rank > 0 and active.entryID then
 					local sid, override, definitionID = DefinitionSpell(configID, active.entryID)
 					if Of(sid) then Of(sid).taken = true end
+					ApplyCut(sid)
 					if not ApplyData(sid, definitionID, rank) and useText then
 						local text = TalentText(active.entryID, rank, sid, override, state)
 						if text then ApplyText(text) end
@@ -325,6 +338,7 @@ function Inspect.Analyse(configID, class, pvpTalentIDs, spec)
 		if sid then
 			pvpRead = true
 			if Of(sid) then Of(sid).taken = true end
+			ApplyCut(sid)
 			if not ApplyData(sid) and useText then
 				local text = TalentText(nil, nil, sid, nil, state)
 				if text then ApplyText(text) end
