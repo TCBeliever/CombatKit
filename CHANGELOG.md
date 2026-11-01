@@ -90,7 +90,7 @@ First public release.
 
 - Party CD: externals cast on someone else now show. Time Dilation, Pain Suppression, Ironbark, Blessing of Protection, Blessing of Sacrifice and the like were only seen when the healer put them on themselves: each teammate was watched for their own class's abilities alone, and you were not watched at all without your own row. Now every teammate, you included, is watched for the externals anyone in the team can cast, and a use found on anyone goes to the teammate who could have cast it.
 
-## 1.2.4 (2026-11-01)
+## 1.2.5 (2026-11-01)
 
 - Party CD: a use seen while every charge was thought spent proves the ability was back, so its cooldown now counts from that use instead of queueing behind the earlier ones (Pain Suppression cut by Power Word: Shield, an ability reset).
 - Party CD: Pain Suppression can be cast while stunned (its tooltip says so, the game's data does not), so a stunned priest stays a candidate; with Protector of the Frail its cooldown is taken as about 138 s (a shield every 10 s or so, 3 s off each) instead of 180 s.
