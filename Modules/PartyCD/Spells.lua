@@ -80,6 +80,12 @@ local ADDON, ns = ...
 -- what a teammate's shows); the spells page lists it greyed out, marked
 -- undetectable, with a box that cannot be ticked.
 --
+-- `debuff` marks an ability seen on the team whose aura the game counts as a
+-- debuff (its data sets the aura-is-a-debuff attribute): a slot drawing only
+-- buffs never shows it, so the team's slot for it draws debuffs instead
+-- (Smoke Bomb's cloud, Death Pact's healing absorb). tools/auradata.py checks
+-- the flag against the data.
+--
 -- On by default is every ability with a base cooldown of a minute or more;
 -- the shorter ones are off until ticked on the spells page (Settings > Party
 -- CD > Spells), which keeps the rows to what decides a fight. An entry may
@@ -144,7 +150,7 @@ ns.SPELLS = {
 		Caster(48792, 120, "defense"),          -- Icebound Fortitude
 		Caster(49039, 120, "defense"),          -- Lichborne
 		Caster(55233, 90, "defense", { specs = set(250) }),  -- Vampiric Blood
-		Caster(48743, 120, "defense"),          -- Death Pact
+		Caster(48743, 120, "defense", { debuff = true }),  -- Death Pact: the healing absorb it leaves is a debuff
 		Ally(48707, 60, "defense", { auras = { 48707, 410358 }, external = false }),  -- Anti-Magic Shell; Spellwarden (PvP talent) puts it on an ally as 410358, but it stays the DK's own
 		Allies(51052, 240, 8, "defense", { aura = 145629 }),  -- Anti-Magic Zone
 		Caster(49028, 120, "burst defense", { aura = 81256, specs = set(250) }),  -- Dancing Rune Weapon
@@ -283,7 +289,7 @@ ns.SPELLS = {
 	ROGUE = {
 		Caster(31224, 120, "defense", { big = true }),  -- Cloak of Shadows
 		Caster(5277, 120, "defense"),           -- Evasion
-		Caster(212182, 180, "defense", { aura = 212183, window = 5 }),  -- Smoke Bomb (PvP talent): the cloud's aura, counted on the rogue only (an enemy rogue's cloud puts the same aura on whoever stands in it); one use for the cloud's 5 s
+		Caster(212182, 180, "defense", { aura = 212183, window = 5, debuff = true }),  -- Smoke Bomb (PvP talent): the cloud's aura, a debuff on everyone inside, counted on the rogue only (an enemy rogue's cloud puts the same aura on whoever stands in it); one use for the cloud's 5 s
 		Caster(13750, 180, "burst", { specs = set(260) }),  -- Adrenaline Rush
 		Caster(121471, 90, "burst", { specs = set(261) }),  -- Shadow Blades
 		Enemy(360194, 120, "burst", { specs = set(259) }),  -- Deathmark: the mark on the opponent

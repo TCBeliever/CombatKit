@@ -6,9 +6,10 @@ files (DB2, as exported by wago.tools), and look up abilities not watched yet.
     python tools/auradata.py 12.1.0.69933 370960 363534 @more.txt
 
 Extra arguments are spell IDs to look up as well (or @file: IDs anywhere in it).
-Five whole tables are downloaded once per build (SpellEffect, SpellName,
-SpellCooldowns, SpellCategories, SpellCategory; about 100 MB) into
-talentdata.py's cache (../wago-cache/<build>); everything else is local.
+Seven whole tables are downloaded once per build (SpellEffect, SpellName,
+SpellCooldowns, SpellCategories, SpellCategory, SpellClassOptions, SpellMisc;
+about 100 MB) into talentdata.py's cache (../wago-cache/<build>); everything
+else is local.
 
 For every spell, from SpellEffect:
   the auras it puts on someone itself (an apply-aura effect), and on whom;
@@ -22,7 +23,9 @@ For every spell, from SpellEffect:
   (Freezing Trap's trap is not the trap you cast).
 Then, for a watched ability: every aura ID in Spells.lua that the data does
 not show as one of these, and every aura the data shows that Spells.lua does
-not list. The report goes to stdout and to <cache>/auradata-report.md.
+not list; and, for one seen on the team, an aura the data marks as a debuff
+without `debuff = true` in Spells.lua (or the flag on a buff). The report goes
+to stdout and to <cache>/auradata-report.md.
 """
 import csv, os, re, sys
 from collections import defaultdict
@@ -35,6 +38,7 @@ APPLY_AURA = {6: "aura", 27: "area aura", 35: "party aura", 65: "raid aura", 119
               128: "friendly area aura", 129: "enemy area aura", 143: "owner aura", 174: "aura on pet",
               202: "summons aura"}
 TRIGGERS = {64: "triggers", 140: "forces", 141: "forces", 142: "triggers"}
+AURA_IS_DEBUFF = 0x4000000   # SpellMisc.Attributes_0
 # ImplicitTarget: whom
 SELF = {1}
 ENEMY = {6, 15, 16, 104, 108, 109, 112, 115}
@@ -48,7 +52,7 @@ def whom(t0, t1):
     return "target " + "/".join(str(x) for x in sorted(t))
 
 def watched():
-    """(spellID, kind, aura IDs, comment) per entry of Spells.lua, the racial abilities included"""
+    """(spellID, kind, aura IDs, debuff, comment) per entry of Spells.lua, the racial abilities included"""
     text = open(SPELLS, encoding="utf-8").read()
     out = []
     # a racial entry closes its race's braces too: ") },  -- name"
@@ -59,7 +63,8 @@ def watched():
         auras = [int(x) for x in many.group(1).split(",")] if many else [int(one.group(1))] if one else [sid]
         kind = {"Caster": "self", "Ally": "ally", "OtherAlly": "ally", "Allies": "ally",
                 "Enemy": "enemy", "Enemies": "enemy", "EnemyLater": "enemy"}[m.group(1)]
-        out.append((sid, kind, auras, m.group(5).strip()))
+        debuff = re.search(r"\bdebuff\s*=\s*true", extra) is not None
+        out.append((sid, kind, auras, debuff, m.group(5).strip()))
     return out
 
 def full_table(db, table):
@@ -84,7 +89,7 @@ def read(db, table, cols):
             yield tuple(row[i] for i in idx)
 
 class Data:
-    """Everything looked up locally, from five whole tables (five requests per build)."""
+    """Everything looked up locally, from seven whole tables (seven requests per build)."""
     def __init__(self, db):
         self.db = db
         self.family = {}      # spell -> its class's spell family (0 for a creature's spell)
@@ -111,6 +116,15 @@ class Data:
             if diff == "0" and cc != "0":
                 self._charge_cat[int(sid)] = int(cc)
         self._category = {int(i): (int(m), num(t)) for i, m, t in read(db, "SpellCategory", ("ID", "MaxCharges", "ChargeRecoveryTime"))}
+        # SpellMisc.Attributes_0 0x4000000: the aura is a debuff, wherever it lands (Forbearance,
+        # Smoke Bomb's cloud): a slot drawing buffs never shows it
+        self._debuff = set()
+        for sid, diff, a0 in read(db, "SpellMisc", ("SpellID", "DifficultyID", "Attributes_0")):
+            if diff == "0" and int(a0) & AURA_IS_DEBUFF:
+                self._debuff.add(int(sid))
+
+    def is_debuff(self, aura):
+        return aura in self._debuff
 
     def name(self, sid):
         return self.names.get(sid, "?")
@@ -169,7 +183,7 @@ class Data:
         return sorted((s for s in src if self.cooldown(s)[0] >= 1 and (not fam or self.family.get(s, 0) == fam)),
                       key=lambda s: (self.cooldown(s)[0], s))
 
-def look(d, sid, listed=None, kind=None):
+def look(d, sid, listed=None, kind=None, debuff=False):
     lines = []
     cd, charges = d.cooldown(sid)
     auras, via = d.auras_of(sid)
@@ -214,6 +228,13 @@ def look(d, sid, listed=None, kind=None):
             ws = {w for a, w in auras.items() if a in listed}
             if ws and kind not in ws and not (kind == "ally" and "self" in ws):
                 problems.append("watched as %s, the data puts it on %s" % (kind, "/".join(sorted(ws))))
+        if kind in ("self", "ally"):
+            debuffs = [a for a in listed if d.is_debuff(a)]
+            if debuffs and not debuff:
+                problems.append("aura %s is a debuff in the data: the team's slot needs debuff = true" % "/".join(map(str, debuffs)))
+            if debuff and len(debuffs) < len(listed):
+                problems.append("debuff = true, but the data has aura %s as a buff" %
+                                "/".join(str(a) for a in listed if a not in debuffs))
         if cd == 0:
             problems.append("no cooldown on this spell ID: it may not be the one that is cast")
     return lines, problems
@@ -234,8 +255,8 @@ def main():
     sys.stderr.write("build %s: %d watched, %d to look up\n" % (build, len(entries), len(extra)))
     report += ["## Watched (Spells.lua)", "", "```"]
     flagged = []
-    for sid, kind, auras, comment in entries:
-        lines, problems = look(d, sid, auras, kind)
+    for sid, kind, auras, debuff, comment in entries:
+        lines, problems = look(d, sid, auras, kind, debuff)
         report += lines
         if problems:
             report += ["    !! " + p for p in problems]

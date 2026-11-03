@@ -22,7 +22,8 @@ AuraLab 0.8 learns these by itself while auras are not secret (open world, norma
 | Master's Call 1241871 | Hunter (Command Pet, cunning pet) | which buff shows: 54216 or 1224810 on the ally, 62305 on the hunter (the data names all three, nothing links them) | keep the one seen, drop the others |
 | Tree of Life 33891 | Druid, Restoration | the form's aura (no duration of its own) shows in the aura container; shifting in and out during the 30 s counts as one use | watch the 30 s window 117679 instead (shared with other Incarnations? check) |
 | Shield Charge 385952 | Warrior, Protection | the stun on the opponent is 385954 (the data names it, nothing links it to the cast) | find the aura ID (AuraLab learn mode) |
-| Smoke Bomb 212182 | Rogue (PvP talent) | the cloud's aura 212183 shows on the rogue who dropped it; an enemy rogue's cloud over our rogue would count as a use (left as it is: rare) | if the rogue's own aura differs, watch that one |
+| Smoke Bomb 212182 | Rogue (PvP talent) | the cloud's aura 212183 shows on the rogue who dropped it, as a debuff (the data marks 212183 a debuff; until 2026-11-03 the team's slots drew buffs only, and the tally had it 0 lit in 6 matches); an enemy rogue's cloud over our rogue would count as a use (left as it is: rare) | if it still never lights, the rogue's own aura differs: watch that one |
+| Death Pact 48743 | Death Knight | the healing absorb it leaves on the DK lights the row (a debuff in the data, drawn as one since 2026-11-03) | none: it was never drawn before |
 | War Stomp 20549, Quaking Palm 107079, Haymaker 287712, Bull Rush 255723 | Tauren, Pandaren, Kul Tiran, Highmountain Tauren | the debuff shows on the opponent with these IDs | find the aura ID (AuraLab learn mode) |
 
 ## Party CD: the highlight, to look at in game

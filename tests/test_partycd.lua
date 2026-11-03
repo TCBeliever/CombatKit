@@ -73,6 +73,20 @@ local detect = T.frames.CombatKitPartyCDDetect
 AR.UseBackend(fake)
 check(detect and not detect:IsShown(), "the real backend stopped: its root hidden, no per-frame work")
 check(AR.Backend.SetWatch("party4", {}) == false, "nothing to watch on a unit without a container: none is made")
+-- an aura the game counts as a debuff is drawn as one on the team too
+check(def(212182).debuff and def(48743).debuff and not def(198589).debuff, "Smoke Bomb and Death Pact leave debuffs, Blur a buff")
+eq(AR.Backend.AuraFilter("party1", def(212182)), "HARMFUL", "Smoke Bomb's cloud on a teammate: the slot draws debuffs")
+eq(AR.Backend.AuraFilter("player", def(48743)), "HARMFUL", "Death Pact's absorb on the player: debuffs")
+eq(AR.Backend.AuraFilter("party2", def(198589)), "HELPFUL", "Blur on a teammate: buffs")
+eq(AR.Backend.AuraFilter("arena1", def(408)), "HARMFUL", "Kidney Shot on an opponent: debuffs")
+-- what a unit is watched for, for AuraLab: the aura IDs, buffs and debuffs apart
+AR.Backend.SetWatch("party2", { def(212182), def(198589), def(102342) })
+local help, harm = AR.Backend.Watched("party2")
+eq(table.concat(help, ","), "102342,198589,212800", "on a teammate: Ironbark, Blur's cast and buff, sorted")
+eq(table.concat(harm, ","), "212182,212183", "Smoke Bomb among the debuffs")
+AR.Backend.SetWatch("party2", {})
+help, harm = AR.Backend.Watched("party2")
+check(#help == 0 and #harm == 0 and #AR.Backend.Watched("arena2") == 0, "nothing asked: nothing to draw, no container either")
 
 local function shown(unit, id, at, initial) W.now = at; fake.cb.Shown(unit, id, at, initial) end
 local function hidden(unit, id, at) W.now = at; fake.cb.Hidden(unit, id, at) end

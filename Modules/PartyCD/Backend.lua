@@ -20,8 +20,9 @@ local ADDON, ns = ...
 -- detecting a secret aura through what the game draws of it was first used by
 -- AsIntendedCDs; this is an independent design of it.
 --
--- The team (player, party1, party2) is watched for buffs; the opponents
--- (arena1-3) for the debuffs of the team's crowd control.
+-- The team (player, party1, party2) is watched for buffs, and for the few
+-- auras of theirs that the game counts as debuffs (`debuff` in Spells.lua);
+-- the opponents (arena1-3) for the debuffs of the team's crowd control.
 --
 -- One slot per (unit, spell), kept for the session, filters changed only when
 -- the roster changes. The probes of a unit are fed on the frame after that
@@ -39,7 +40,7 @@ local Backend = {}
 ns.Backend = Backend
 
 local root
-local containers = {}   -- unit -> { unit, frame, slots = { [spellID] = slot }, failed, feedAt }
+local containers = {}   -- unit -> { unit, frame, slots = { [spellID] = slot }, wanted = { [spellID] = def }, failed, feedAt }
 local callbacks
 local frameNo = 0
 local sinceSweep = 0
@@ -102,10 +103,13 @@ local function Filter(def)
 	return { includeSpellIDs = ids, maxDuration = 600 }
 end
 
--- what a unit's container draws: buffs on the team, debuffs on an opponent
-local function AuraFilter(unit)
-	return unit:match("^arena%d$") and "HARMFUL" or "HELPFUL"
+-- what a slot draws: debuffs on an opponent; on the team buffs, or debuffs
+-- for an ability whose aura the game counts as one (Smoke Bomb's cloud)
+local function AuraFilter(unit, def)
+	if unit:match("^arena%d$") or def.debuff then return "HARMFUL" end
+	return "HELPFUL"
 end
+Backend.AuraFilter = AuraFilter
 
 local function Touch(c, slot)
 	slot.changedFrame, slot.changedAt = frameNo, GetTime()
@@ -158,7 +162,7 @@ local function Slot(c, def)
 	slot = { def = def }
 	c.slots[def.id] = slot
 	if not c.frame then slot.failed = c.failed return slot end
-	local ok, err = pcall(c.frame.AddAuraSlot, c.frame, tostring(def.id), AuraFilter(c.unit), {
+	local ok, err = pcall(c.frame.AddAuraSlot, c.frame, tostring(def.id), AuraFilter(c.unit, def), {
 		candidateFilters = Filter(def),
 		initializeFrame = function(button) Backend.InitSlot(c, slot, button) end,
 	})
@@ -182,6 +186,7 @@ function Backend.SetWatch(unit, defs, roster)
 	local c = Container(unit)
 	local want = {}
 	for _, def in ipairs(defs) do want[def.id] = def end
+	c.wanted = want
 	for id, slot in pairs(c.slots) do
 		if not want[id] and slot.watching then
 			slot.watching = false
@@ -225,6 +230,22 @@ function Backend.Stop()
 	callbacks = nil
 	for unit in pairs(containers) do Backend.SetWatch(unit, {}) end
 	if root then root:Hide() end   -- no OnUpdate while nothing is watched
+end
+
+-- What is asked of a unit now, as the aura IDs its slots are to draw: buffs
+-- and debuffs apart, sorted, a slot that failed included. AuraLab (a separate
+-- development addon) draws the same IDs on its own probe and compares its
+-- edges with the log's, so a slot that never lights shows there as a miss.
+function Backend.Watched(unit)
+	local help, harm = {}, {}
+	local c = containers[unit]
+	for _, def in pairs(c and c.wanted or {}) do
+		local list = AuraFilter(unit, def) == "HARMFUL" and harm or help
+		for id in pairs(Filter(def).includeSpellIDs) do list[#list + 1] = id end
+	end
+	table.sort(help)
+	table.sort(harm)
+	return help, harm
 end
 
 -- what is wrong, if anything: for the status line
