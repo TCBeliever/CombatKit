@@ -34,24 +34,11 @@ for _, s in ipairs(ns.SCENARIOS) do ns.SCENARIO_BY_KEY[s.key] = s end
 
 function ns.ScenarioName(key) return ns.L["SCN_" .. key] end
 -- for the HUD, where "Battlegrounds / rated" is too long; the full name unless a short one exists
-function ns.ScenarioShortName(key)
-	local short = ns.L["SCN_SHORT_" .. key]
-	if short == "SCN_SHORT_" .. key then return ns.ScenarioName(key) end
-	return short
-end
+ns.ScenarioShortName = CombatKit.ScenarioShortName
 function ns.GroupName(group) return ns.L["GROUP_" .. group] end
 
-local DIFFICULTY_DELVE = 208
-
--- 12.x can hand addons "secret" values inside instances; a secret boolean
--- cannot be tested. Anything we cannot read counts as false.
-local function Flag(fn, ...)
-	if type(fn) ~= "function" then return false end
-	local ok, v = pcall(fn, ...)
-	if not ok or v == nil then return false end
-	if issecretvalue and issecretvalue(v) then return false end
-	return v and true or false
-end
+-- the core reads secret values the way every module does
+local Flag = CombatKit.Flag
 ns.Flag = Flag
 
 function ns.IsWarMode()
@@ -70,26 +57,10 @@ function ns.GetAssignedRole()
 	return role
 end
 
--- Returns the scenario key for where the player is right now.
+-- Returns the scenario key for where the player is right now (the debug page may pretend another).
 function ns.DetectScenario()
 	if ns.debug.scenario then return ns.debug.scenario end
-	local inInstance, instanceType = IsInInstance()
-	if not inInstance then return "world" end
-
-	-- 12.1 world boss lairs are instanced and share the delve API family
-	if C_DelvesUI and Flag(C_DelvesUI.IsInLair) then return "raid" end
-
-	if instanceType == "arena" then return "arena" end
-	if instanceType == "pvp" then return "bg" end
-	if instanceType == "raid" then return "raid" end
-	if instanceType == "party" then return "dungeon" end
-	if instanceType == "scenario" then
-		local _, _, difficultyID = GetInstanceInfo()
-		if difficultyID == DIFFICULTY_DELVE then return "delve" end
-		if C_DelvesUI and Flag(C_DelvesUI.HasActiveDelve) then return "delve" end
-		if C_PartyInfo and Flag(C_PartyInfo.IsDelveInProgress) then return "delve" end
-	end
-	return "world"   -- story scenarios and the like play as open world
+	return CombatKit.DetectScenario()
 end
 
 -- Once the key is running or the match has started nothing can be changed

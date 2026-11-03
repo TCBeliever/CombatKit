@@ -30,6 +30,7 @@ ns.MODULES = {
 	{ name = "Stats",   default = false },
 	{ name = "Range",   default = false },
 	{ name = "PartyCD", default = false },
+	{ name = "Reminder", default = false },
 	{ name = "Misc",    features = { "RightClick", "CombatAlert" } },
 }
 ns.MODULE_BY_NAME = {}
@@ -144,6 +145,56 @@ function ns.SetFeatureEnabled(name, feature, on)
 		StopModule(def)
 	end
 	Changed()
+end
+
+-- ---------------------------------------------------------------------------
+-- Scenarios: the kinds of content the modules tell apart. Loadout switches on
+-- them, Reminder shows where the player asked. Content that plays the same
+-- shares one: Mythic+ with dungeons, Solo Shuffle with arena, Blitz with
+-- battlegrounds.
+-- ---------------------------------------------------------------------------
+
+ns.SCENARIO_KEYS = { "world", "delve", "dungeon", "raid", "arena", "bg" }
+
+local DIFFICULTY_DELVE = 208
+
+-- 12.x can hand addons "secret" values inside instances; a secret boolean
+-- cannot be tested. Anything we cannot read counts as false.
+function ns.Flag(fn, ...)
+	if type(fn) ~= "function" then return false end
+	local ok, v = pcall(fn, ...)
+	if not ok or v == nil then return false end
+	if issecretvalue and issecretvalue(v) then return false end
+	return v and true or false
+end
+local Flag = ns.Flag
+
+-- Returns the scenario key for where the player is right now.
+function ns.DetectScenario()
+	local inInstance, instanceType = IsInInstance()
+	if not inInstance then return "world" end
+
+	-- 12.1 world boss lairs are instanced and share the delve API family
+	if C_DelvesUI and Flag(C_DelvesUI.IsInLair) then return "raid" end
+
+	if instanceType == "arena" then return "arena" end
+	if instanceType == "pvp" then return "bg" end
+	if instanceType == "raid" then return "raid" end
+	if instanceType == "party" then return "dungeon" end
+	if instanceType == "scenario" then
+		local _, _, difficultyID = GetInstanceInfo()
+		if difficultyID == DIFFICULTY_DELVE then return "delve" end
+		if C_DelvesUI and Flag(C_DelvesUI.HasActiveDelve) then return "delve" end
+		if C_PartyInfo and Flag(C_PartyInfo.IsDelveInProgress) then return "delve" end
+	end
+	return "world"   -- story scenarios and the like play as open world
+end
+
+-- "Battlegrounds" where the settings have no room for "Battlegrounds / rated"
+function ns.ScenarioShortName(key)
+	local short = L["SCN_SHORT_" .. key]
+	if short == "SCN_SHORT_" .. key then return L["SCN_" .. key] end
+	return short
 end
 
 -- ---------------------------------------------------------------------------

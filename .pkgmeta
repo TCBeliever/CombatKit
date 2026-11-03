@@ -8,6 +8,7 @@ move-folders:
   CombatKit/Modules/Stats: CombatKit_Stats
   CombatKit/Modules/Range: CombatKit_Range
   CombatKit/Modules/PartyCD: CombatKit_PartyCD
+  CombatKit/Modules/Reminder: CombatKit_Reminder
   CombatKit/Modules/Misc: CombatKit_Misc
   CombatKit/Modules/Options: CombatKit_Options
 

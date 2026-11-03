@@ -7,14 +7,6 @@ CK.AddLocale("enUS", {
 	["GROUP_pve"] = "PvE",
 	["GROUP_pvp"] = "PvP",
 
-	["SCN_world"]   = "Open world",
-	["SCN_delve"]   = "Delves",
-	["SCN_dungeon"] = "Dungeons / M+",
-	["SCN_raid"]    = "Raids",
-	["SCN_arena"]   = "Arena",
-	["SCN_bg"]      = "Battlegrounds / rated",
-	["SCN_SHORT_bg"] = "Battlegrounds",
-
 	["ROLE_TANK"]    = "tank",
 	["ROLE_HEALER"]  = "healer",
 	["ROLE_DAMAGER"] = "damage",
@@ -25,14 +17,6 @@ CK.AddLocale("enUS", {
 })
 
 CK.AddLocale("zhTW", {
-	["SCN_world"]   = "開放世界",
-	["SCN_delve"]   = "探究",
-	["SCN_dungeon"] = "地城/M+",
-	["SCN_raid"]    = "Raid",
-	["SCN_arena"]   = "Arena",
-	["SCN_bg"]      = "戰場/積分戰場",
-	["SCN_SHORT_bg"] = "戰場",
-
 	["ROLE_TANK"]    = "坦克",
 	["ROLE_HEALER"]  = "治療",
 	["ROLE_DAMAGER"] = "傷害輸出",

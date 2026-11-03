@@ -23,7 +23,7 @@ local CK = T.boot()
 check(loaded("CombatKit"), "the core is loaded")
 check(loaded("CombatKit_Loadout"), "Loadout is on by default, so it is loaded at login")
 check(not loaded("CombatKit_Options"), "the settings window is not loaded until it is opened")
-for _, name in ipairs({ "CombatKit_Stats", "CombatKit_Range", "CombatKit_Misc" }) do
+for _, name in ipairs({ "CombatKit_Stats", "CombatKit_Range", "CombatKit_Reminder", "CombatKit_Misc" }) do
 	check(not loaded(name), name .. " is off by default, so it is never loaded")
 end
 check(not CK.IsFeatureEnabled("Misc", "CombatAlert") and not CK.IsFeatureEnabled("Misc", "RightClick"),
@@ -38,7 +38,7 @@ eq(CK.Skin.theme, "tide", "and so is the palette")
 local landing = CK.Landing.GetFrame()
 check(landing and landing:IsShown(), "a fresh install: the landing is up")
 check(not loaded("CombatKit_Options"), "without loading the settings window")
-eq(#landing.defs, 4, "the four modules that are switched as a whole")
+eq(#landing.defs, 5, "the five modules that are switched as a whole")
 check(landing.rows[1].check:GetChecked() and not landing.rows[2].check:GetChecked(), "ticked as they would be on: Loadout yes, Stats no")
 landing.rows[3].check:Click()   -- Range wanted
 CK.Landing.Apply()
@@ -56,8 +56,17 @@ check(landing.intro:GetText() == CK.L["LANDING_NEW"], "as new, not as a welcome"
 CK.Landing.Later()
 check(not landing:IsShown() and CK.db.settings.asked.Range == nil, "Later: closed, and asked again next time")
 SlashCmdList.COMBATKIT("landing")
-check(landing:IsShown() and #landing.defs == 4, "/ck landing shows it for every module")
+check(landing:IsShown() and #landing.defs == 5, "/ck landing shows it for every module")
 CK.Landing.Later()
+-- an update that brings Reminder: asked about alone, unticked; nothing starts until the player ticks it
+for _, def in ipairs(CK.MODULES) do CK.db.settings.asked[def.name] = true end
+CK.db.settings.asked.Reminder = nil
+fire("PLAYER_LOGIN")
+check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "Reminder"
+	and not landing.rows[1].check:GetChecked(), "an update with Reminder: shown alone, unticked")
+CK.Landing.Apply()
+check(not CK.IsModuleEnabled("Reminder") and not loaded("CombatKit_Reminder"), "applied as it stands: Reminder stays off and unloaded")
+CK.db.settings.asked.Range = nil   -- as the lines above left it
 
 -- ---------------------------------------------------------------- switching a module off and on
 local LO = CK.modules.Loadout

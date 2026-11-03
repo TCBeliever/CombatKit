@@ -289,6 +289,77 @@ C_Spell.GetSpellCharges = function(id)
 	return { currentCharges = c[1], maxCharges = c[2], cooldownStartTime = c[3], cooldownDuration = c[4], chargeModRate = 1 }
 end
 C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return W.playerAuras and W.playerAuras[id] end }
+-- ---------------------------------------------------------------------------
+-- The Reminder module. W.unitAuras[unit][spellID] = an aura on a group member;
+-- W.buffList = the player's buffs in order (C_UnitAuras.GetAuraDataByIndex);
+-- W.aurasSecret: the game hides auras; W.known[spellID]: a spell the player knows;
+-- W.equip[slot] = itemID, W.itemInfo[itemID] = { classID, equipLoc };
+-- W.tempEnchant[slot] = { enchantID, ms left }; W.permEnchant[slot] = enchantID;
+-- W.bags[itemID] = count; W.groupSize, W.inRaid; W.form; W.encounter.
+-- ---------------------------------------------------------------------------
+C_UnitAuras.GetUnitAuraBySpellID = function(unit, id)
+	if unit == "player" then return W.playerAuras and W.playerAuras[id] end
+	return W.unitAuras and W.unitAuras[unit] and W.unitAuras[unit][id]
+end
+-- W.buffScanError: looking through buffs one by one is refused (12.1 raids and keys)
+C_UnitAuras.GetAuraDataByIndex = function(unit, i)
+	if W.buffScanError then error("secret aura data") end
+	return W.buffList and W.buffList[i]
+end
+-- by name, "spell<id>" as C_Spell.GetSpellName gives it; "PLAYER" in the filter: cast by the player only
+C_UnitAuras.GetAuraDataBySpellName = function(unit, name, filter)
+	local id = tonumber((name or ""):match("^spell(%d+)$"))
+	local auras = unit == "player" and W.playerAuras or (W.unitAuras and W.unitAuras[unit])
+	local aura = id and auras and auras[id]
+	if aura and filter and filter:find("PLAYER", 1, true) and aura.sourceUnit ~= "player" then return nil end
+	return aura
+end
+-- W.secretSpells[id]: that spell's aura is hidden; without the table, W.aurasSecret answers for every spell
+C_Secrets = {
+	ShouldAurasBeSecret = function() return W.aurasSecret or false end,
+	ShouldSpellAuraBeSecret = function(id)
+		if W.secretSpells then return W.secretSpells[id] or false end
+		return W.aurasSecret or false
+	end,
+}
+function IsPlayerSpell(id) return W.known and W.known[id] or false end
+C_SpellBook.IsSpellKnown = function(id) return W.known and W.known[id] or false end
+-- W.form: the stance bar index the player is in, W.formSpell its spell
+function GetShapeshiftForm() return W.form or 0 end
+function GetShapeshiftFormInfo(i) if i == W.form then return 132349, true, true, W.formSpell end end
+function IsEncounterInProgress() return W.encounter or false end
+function UnitAffectingCombat() return W.combat end
+function UnitInVehicle() return false end
+function UnitOnTaxi() return false end
+function IsInRaid() return W.inRaid or false end
+function GetNumGroupMembers() return W.groupSize or 0 end
+function UnitIsConnected(unit) local u = W.units[unit]; return unit == "player" or (u ~= nil and not u.offline) end
+function UnitIsVisible(unit) local u = W.units[unit]; return unit == "player" or (u ~= nil and not u.far) end
+function GetInventoryItemID(_, slot) return W.equip and W.equip[slot] end
+function GetInventoryItemLink(_, slot)
+	local item = W.equip and W.equip[slot]
+	if not item then return nil end
+	return ("|cffa335ee|Hitem:%d:%s::::::::90:::::|h[item]|h|r"):format(item, tostring(W.permEnchant and W.permEnchant[slot] or ""))
+end
+function GetWeaponEnchantInfo()
+	local m, o = W.tempEnchant and W.tempEnchant[16], W.tempEnchant and W.tempEnchant[17]
+	return m ~= nil, m and m[2] or 0, 0, m and m[1], o ~= nil, o and o[2] or 0, 0, o and o[1]
+end
+-- W.itemInfo[itemID] = { classID, equipLoc, subclassID (7, a one-handed sword, if absent) }
+C_Item.GetItemInfoInstant = function(id)
+	local info = W.itemInfo and W.itemInfo[id] or { 2, "INVTYPE_WEAPON" }
+	return id, "Weapon", "Sword", info[2], 135274, info[1], info[3] or 7
+end
+C_PaperDollInfo = { GetTemporaryEnchantmentInfo = function(slot)
+	local t = W.tempEnchant and W.tempEnchant[slot]
+	if not t then return nil end
+	return { enchantID = t[1], remainingTimeMs = t[2], chargesRemaining = 0, hasExpirationTime = true }
+end }
+C_Item.GetItemCount = function(id) return W.bags and W.bags[id] or 0 end
+C_Item.GetItemIconByID = function(id) return "itemicon" .. id end
+C_Item.GetItemNameByID = function(id) return W.itemNames and W.itemNames[id] end
+SOUNDKIT = { RAID_WARNING = 8959, READY_CHECK = 8960 }
+function PlaySound(kit) log("sound:" .. tostring(kit)) end
 -- W.gameMessages[messageType] = the global string's name, as GetGameMessageInfo answers
 function GetGameMessageInfo(messageType) return W.gameMessages and W.gameMessages[messageType] end
 function IsResting() return W.resting or false end
@@ -542,6 +613,7 @@ T.ADDONS = {
 	CombatKit_Stats   = "Modules/Stats/",
 	CombatKit_Range   = "Modules/Range/",
 	CombatKit_PartyCD   = "Modules/PartyCD/",
+	CombatKit_Reminder = "Modules/Reminder/",
 	CombatKit_Misc    = "Modules/Misc/",
 	CombatKit_Options = "Modules/Options/",
 }
