@@ -82,9 +82,19 @@ fire("PLAYER_EQUIPMENT_CHANGED")
 RM.db.used = {}
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell53343"), "with Shattering Blade: Razorice")
-spec(3)
+W.known[207057], W.known[455993] = nil, true
+RM.db.used = {}
+fire("PLAYER_EQUIPMENT_CHANGED")
+check(find("spell53343") and find("spell53344"), "with Frostbane instead: Razorice and Fallen Crusader too")
+
+-- a two-hander: Fallen Crusader, Frostbane or not
 W.equip[17] = nil
 W.itemInfo[1001] = { 2, "INVTYPE_2HWEAPON", 8 }
+RM.db.used = {}
+fire("PLAYER_EQUIPMENT_CHANGED")
+check(find("spell53344") and not find("spell53343"), "a two-hander with Frostbane: Fallen Crusader")
+W.known[455993] = nil
+spec(3)
 RM.db.used = {}
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell327082"), "Unholy: Apocalypse")
