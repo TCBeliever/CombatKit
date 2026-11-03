@@ -114,6 +114,13 @@ function ns.FoodState()
 	return false, eating
 end
 
+-- The Refreshment the player is eating now: its spell, or nil
+function ns.EatingSpell()
+	for _, id in ipairs(ns.EATING) do
+		if PlayerAura(id) then return id end
+	end
+end
+
 -- Does `unit` (someone in the group) have one of `ids` with more than
 -- `atLeast` seconds left? One whose time is hidden counts. nil: cannot tell.
 local function UnitCovered(unit, ids, atLeast)
@@ -296,6 +303,13 @@ end
 
 function ns.HasPet()
 	return UnitExists("pet") and not UnitIsDeadOrGhost("pet")
+end
+
+-- The creature the pet is, from its GUID; nil when that cannot be read
+function ns.PetCreature()
+	local guid = UnitGUID("pet")
+	if type(guid) ~= "string" or Secret(guid) then return nil end
+	return tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
 end
 
 -- ---------------------------------------------------------------------------

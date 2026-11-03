@@ -7,15 +7,15 @@ local L, Skin = CK.L, CK.Skin
 -- drags, and if asked the same as rows on the HUD. Each icon shows the
 -- spell's or the item's icon, its name above it and, inside at the bottom,
 -- the time left when it is running out (a feast counts down) or how many in
--- the group lack a buff. A click on one casts its spell or uses its item, and
--- a sound can say that one appeared.
+-- the group lack a buff; and, if asked, the game's proc glow running round it.
+-- A click on one casts its spell or uses its item, and a sound can say that
+-- one appeared.
 --
 -- A reminder is { key=, icon=, label=, text=, warn= (the name in red:
 -- something to undo), expires= (GetTime() at which a countdown ends),
 -- action = { kind = "spell" | "item", id=, slot= (an item used on a weapon) } }.
 -- ===========================================================================
 
-local GAP       = 6    -- between two icons
 local LABEL_GAP = 3    -- between an icon and its name
 local WARN      = { 1, 0.3, 0.3 }
 local NAME      = { 1, 0.82, 0 }
@@ -31,12 +31,93 @@ local heard = {}         -- the keys of the reminders that were up at the last r
 local lastSound = -SOUND_GAP
 local locked, testing = true, false
 
+local sampleKind = "consumables"   -- which samples the test shows: the settings page open
+
 function ns.IsLocked() return locked end
 function ns.IsTesting() return testing end
+
+-- between two icons: room for a name of four or five characters above each
+local function Gap(size) return math.max(6, math.floor(size * 0.2)) end
+
+-- ---------------------------------------------------------------------------
+-- The glow: the game's own proc border (the band that runs round an action
+-- button), run by an animation of our own; nothing of the action bars' glow
+-- code is called. A client without that atlas gets the classic marching ants
+-- (a file cut into cells), and one without either no glow.
+-- ---------------------------------------------------------------------------
+
+local PROC = { atlas = "UI-HUD-ActionBar-Proc-Loop-Flipbook", rows = 6, columns = 5, frames = 30, duration = 1, scale = 1.4 }
+local ANTS = { file = "Interface\\SpellActivationOverlay\\IconAlertAnts", size = 256, cell = 48, columns = 5, frames = 22,
+	duration = 0.5, scale = 1.2 }
+
+local function HasAtlas(name)
+	if not (C_Texture and C_Texture.GetAtlasInfo) then return true end
+	local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+	return ok and info ~= nil
+end
+
+local function AntsFrame(tex, i)
+	local unit = ANTS.cell / ANTS.size
+	local col, line = i % ANTS.columns, math.floor(i / ANTS.columns)
+	tex:SetTexCoord(col * unit, (col + 1) * unit, line * unit, (line + 1) * unit)
+end
+
+-- the glow on an icon, made once: { tex=, anim=, scale= }, or false
+local function Glow(b)
+	if b.glow ~= nil then return b.glow end
+	local tex = b:CreateTexture(nil, "OVERLAY", nil, 7)
+	tex:SetPoint("CENTER")
+	tex:SetBlendMode("ADD")
+	tex:Hide()
+	local anim = tex:CreateAnimationGroup()
+	anim:SetLooping("REPEAT")
+	local style
+	if HasAtlas(PROC.atlas) and tex:SetAtlas(PROC.atlas) ~= false then
+		style = PROC
+		local flip = anim:CreateAnimation("FlipBook")
+		flip:SetFlipBookRows(PROC.rows)
+		flip:SetFlipBookColumns(PROC.columns)
+		flip:SetFlipBookFrames(PROC.frames)
+		flip:SetDuration(PROC.duration)
+	elseif tex:SetTexture(ANTS.file) ~= false and tex:GetTexture() ~= nil then
+		style = ANTS
+		AntsFrame(tex, 0)
+		local step = anim:CreateAnimation("Animation")
+		step:SetDuration(ANTS.duration)
+		step:SetScript("OnUpdate", function(self)
+			AntsFrame(tex, math.min(ANTS.frames - 1, math.floor((self:GetProgress() or 0) * ANTS.frames)))
+		end)
+	else
+		b.glow = false
+		return false
+	end
+	b.glow = { tex = tex, anim = anim, scale = style.scale }
+	return b.glow
+end
+
+local function SetGlow(b, on, size, warn)
+	local g = Glow(b)
+	if not g then return end
+	if on then
+		g.tex:SetSize(size * g.scale, size * g.scale)
+		g.tex:SetVertexColor(unpack(warn and { 1, 0.35, 0.35 } or { 1, 1, 1 }))
+		g.tex:Show()
+		if not g.anim:IsPlaying() then g.anim:Play() end
+	else
+		g.anim:Stop()
+		g.tex:Hide()
+	end
+end
 
 local function Countdown(seconds)
 	seconds = math.max(0, math.ceil(seconds))
 	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
+-- Where the row stands: where it was dragged, else the default near the top edge
+local function Anchor()
+	local db, d = ns.db, ns.defaults
+	return db.point or d.point, UIParent, db.relPoint or d.relPoint, db.x or d.x, db.y or d.y
 end
 
 local function SavePosition(self)
@@ -52,7 +133,7 @@ local function SavePosition(self)
 		db.point, db.relPoint, db.x, db.y = point, relPoint, math.floor(x + 0.5), math.floor(y + 0.5)
 	end
 	self:ClearAllPoints()
-	self:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
+	self:SetPoint(Anchor())
 end
 
 -- ---------------------------------------------------------------------------
@@ -127,7 +208,7 @@ local function PlaceClicks(list, width, size)
 			used = math.max(used, i)
 			b:ClearAllPoints()
 			b:SetSize(size, size)
-			b:SetPoint("LEFT", clicks, "LEFT", (i - 1) * (size + GAP), 0)
+			b:SetPoint("LEFT", clicks, "LEFT", (i - 1) * (size + Gap(size)), 0)
 			Point(b, r.action)
 			b:Show()
 		elseif buttons[i] then
@@ -137,7 +218,7 @@ local function PlaceClicks(list, width, size)
 	for i = #list + 1, #buttons do buttons[i]:Hide() end
 	if clicks then
 		clicks:ClearAllPoints()
-		clicks:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
+		clicks:SetPoint(Anchor())
 		clicks:SetSize(width, size)
 	end
 end
@@ -196,37 +277,62 @@ local function Icon(i)
 	return b
 end
 
--- What the unlocked or tested row shows: a few reminders, to see the size and place
+-- What the unlocked or tested row shows, to see the size and place: the
+-- consumables page's kind of reminder, the class page's (your class's own
+-- and your spell IDs, as they would look), or on the other pages both.
+local function ConsumableSamples(list)
+	list[#list + 1] = { icon = ns.ItemIcon(ns.FLASK.items[1]), label = L["Flask"] }
+	list[#list + 1] = { icon = ns.FOOD_ICON, label = L["Food"], text = "4m" }
+	list[#list + 1] = { icon = ns.ItemIcon(ns.OIL.items[1]), label = L["Weapon oil"] }
+	list[#list + 1] = { icon = ns.ItemIcon(ns.FEAST.items[2]), label = L["Feast"], text = Countdown(161) }
+end
+
+local function ClassSamples(list)
+	local items = ns.ClassItems and ns.ClassItems() or {}
+	local now = {}
+	for _, item in ipairs(items) do
+		if item.on and item.now then now[#now + 1] = item end
+	end
+	if #now == 0 then now = items end   -- nothing for this spec right now: the whole list, to see it anyway
+	for _, item in ipairs(now) do
+		list[#list + 1] = { icon = item.icon, label = item.label, warn = item.warn }
+	end
+	for _, c in ipairs(ns.CustomList and ns.CustomList() or {}) do
+		list[#list + 1] = { icon = ns.SpellIcon(c.id), label = ns.SpellName(c.id), warn = c.when == "present" }
+	end
+end
+
 local function Samples()
-	return {
-		{ icon = ns.ItemIcon(ns.FLASK.items[1]), label = L["Flask"] },
-		{ icon = ns.FOOD_ICON, label = L["Food"], text = "4m" },
-		{ icon = ns.ItemIcon(ns.OIL.items[1]), label = L["Weapon oil"] },
-		{ icon = ns.ItemIcon(ns.FEAST.items[2]), label = L["Feast"], text = Countdown(161) },
-	}
+	local list = {}
+	if sampleKind ~= "class" then ConsumableSamples(list) end
+	if sampleKind ~= "consumables" then ClassSamples(list) end
+	if #list == 0 then ConsumableSamples(list) end   -- a class with nothing of its own
+	return list
 end
 
 local function Layout(list)
 	local size = ns.db.size
+	local gap = Gap(size)
 	local n = #list
-	local width = math.max(size, n * size + (n - 1) * GAP)
+	local width = math.max(size, n * size + (n - 1) * gap)
 	frame:SetSize(width, size)
-	local nameSize, textSize = math.max(9, math.floor(size * 0.3)), math.max(9, math.floor(size * 0.32))
+	local nameSize, textSize = math.max(9, math.floor(size * 0.26)), math.max(9, math.floor(size * 0.3))
 	local counting = false
 	for i, r in ipairs(list) do
 		local b = Icon(i)
 		b:SetSize(size, size)
 		b:ClearAllPoints()
-		b:SetPoint("LEFT", frame, "LEFT", (i - 1) * (size + GAP), 0)
+		b:SetPoint("LEFT", frame, "LEFT", (i - 1) * (size + gap), 0)
 		b.icon:SetTexture(r.icon or 134400)   -- the question mark, should an icon not be in yet
 		b.label:SetFont(STANDARD_TEXT_FONT, nameSize, "OUTLINE")
-		b.label:SetWidth(size + GAP)
+		b.label:SetWidth(size + gap)
 		b.label:SetWordWrap(true)
 		b.label:SetMaxLines(2)
 		b.label:SetText(r.label or "")
 		b.label:SetTextColor(unpack(r.warn and WARN or NAME))
 		b.text:SetFont(STANDARD_TEXT_FONT, textSize, "OUTLINE")
 		b.text:SetText(r.expires and Countdown(r.expires - GetTime()) or r.text or "")
+		SetGlow(b, ns.db.glow, size, r.warn)
 		b:Show()
 		counting = counting or r.expires ~= nil
 	end
@@ -293,7 +399,7 @@ function ns.ApplyDisplay()
 	if not frame then return end
 	local db = ns.db
 	frame:ClearAllPoints()
-	frame:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
+	frame:SetPoint(Anchor())
 	Paint()
 end
 
@@ -303,6 +409,13 @@ function ns.SetLocked(state)
 	if not frame and (locked and not testing) then return end
 	if not frame then Create() end
 	ns.ApplyDisplay()
+end
+
+-- The samples to show: those of the settings page open ("consumables", "class", or anything else for both)
+function ns.SetSampleKind(kind)
+	if kind == sampleKind then return end
+	sampleKind = kind
+	if frame and (testing or not locked) then ns.ApplyDisplay() end
 end
 
 -- A test: the sample icons where the row stands, without unlocking

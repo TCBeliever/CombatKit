@@ -13,9 +13,12 @@ W.playerAuras = { [SHOUT] = { expirationTime = W.now + 3000 } }
 W.inInstance, W.instanceType, W.difficultyID = true, "party", 2
 IsPlayerSpell = nil   -- gone with 12.1's fallback setting off: the spell book API answers
 
+CombatKitReminderDB = { point = "CENTER", relPoint = "CENTER", x = 0, y = 210 }   -- dragged by the player
+
 local CK = T.boot()
 CK.SetModuleEnabled("Reminder", true)
 local RM = CK.modules.Reminder
+check(RM.db.relPoint == "CENTER" and RM.db.y == 210, "a place the player dragged to stays")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = false }
 fire("PLAYER_ENTERING_WORLD")
 

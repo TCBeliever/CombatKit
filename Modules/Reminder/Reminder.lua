@@ -30,18 +30,26 @@ CK.NewModule("Reminder", ns)
 --     need = n or function() -> n: how many of the auras (buff; 1),
 --     form = true: the stance bar counts as well as the aura (buff, avoid),
 --     cooldown = true: not while the spell cools down (ally), self = true: on yourself counts (ally),
+--     choose = true: several spells to pick from; a click casts one not on yet (buff),
+--     buffs = IDs: the imbue's own buff, which counts as well as its enchant (imbue),
+--     felguard = true: Demonology with Summon Felguard needs a Felguard out, in PvE (pet),
+--     guide = function(side) -> IDs: what the guides recommend for this spec on "pve" or "pvp": the
+--             spells a choose entry casts first, or the runes for the weapons (runeforge, with
+--             runeSpells = { [enchant] = the spell that puts it on }),
 --     slot = slot or function() -> slot, enchants = { [enchantID] = true } (imbue, runeforge),
 --     label = locale key, for a reminder that stands for several spells }
 -- "group": your buff on everyone near. "buff": on yourself. "ally": yours on
 -- someone else in the group. "avoid": a buff to drop (its name in red). "pet":
 -- a pet out. "imbue": a temporary enchant of yours on a weapon (the weapon oil
--- reminder leaves that slot alone). "runeforge": a permanent enchant.
+-- reminder leaves that slot alone). "runeforge": a permanent enchant (a rune
+-- another setup of yours had, still on, shows in red).
 -- ===========================================================================
 
 local SETTLE = 4     -- seconds after a loading screen before anything is judged
 local KEY_RUN = 35 * 60   -- at a Mythic entrance, a consumable that would not last a key run counts as running out
 local FOREVER = math.huge
 local MYTHIC = 23    -- the Mythic dungeon difficulty, where keys are run
+local DEMONOLOGY = 266
 ns.CUSTOM_MAX = 10   -- custom reminders per class
 
 -- ---------------------------------------------------------------------------
@@ -52,7 +60,9 @@ ns.defaults = {
 	where       = { dungeon = true, raid = true },              -- scenario keys your reminders show in
 	sharedWhere = { dungeon = true, raid = true, bg = true },   -- and the group's feasts and cauldrons
 	consumables = { flask = true, food = true, rune = true, oil = true, healthstone = true },
-	raidAgain   = true,   -- in a raid the consumables show again whenever combat ends
+	-- per setup (spec and PvE or PvP), what you used last: ["<specID>/pve"] = { flask = aura,
+	-- oil16 / oil17 = enchant, food = item, rune16 / rune17 = enchant, [a choose entry's key] = { spells } }
+	used        = {},
 	shared      = { feast = true, cauldron = true },
 	off         = {},     -- class reminders switched off: [key] = true
 	expiring    = 5,      -- minutes: a buff with less left counts as missing; 0 = only when gone
@@ -61,9 +71,12 @@ ns.defaults = {
 	icons       = true,   -- the row of icons on screen
 	hud         = false,  -- the same as rows on the HUD
 	click       = true,   -- a click on an icon casts its spell or uses its item
+	glow        = true,   -- the game's proc glow round each icon
 	sound       = "",     -- a SOUNDKIT key played when a reminder appears; "" = none
-	size        = 36,
-	point = "CENTER", relPoint = "CENTER", x = 0, y = 140,
+	size        = 54,
+	-- centred, 80 below the top edge: where the user put it on 2026-11-03 (480 above the middle of
+	-- their screen, 1113 high at UI scale 0.69), kept from the top so a shorter screen has it too
+	point = "CENTER", relPoint = "TOP", x = 0, y = -80,
 }
 
 -- Fill missing keys in `dst` from `defaults` (never overwrites existing values).
@@ -79,9 +92,30 @@ local function FillDefaults(dst, defaults)
 	return dst
 end
 
+-- of the saved data: 2 made the icons half as large again (36 was the first default), 3 moved the row's
+-- default place up from the middle of the screen (the centre, 140 up, was the first), 4 keeps what you
+-- used per spec and PvE or PvP (it was per spec, which became PvE)
+local VERSION = 4
+
 local function InitDB()
 	if type(CombatKitReminderDB) ~= "table" then CombatKitReminderDB = {} end
-	ns.db = FillDefaults(CombatKitReminderDB, ns.defaults)
+	local saved = CombatKitReminderDB
+	local fresh = next(saved) == nil
+	ns.db = FillDefaults(saved, ns.defaults)
+	local was = saved.version or 1
+	if not fresh and was < 2 and saved.size == 36 then saved.size = 54 end
+	if not fresh and was < 3 and saved.relPoint == "CENTER" and saved.x == 0 and saved.y == 140 then
+		saved.relPoint, saved.y = ns.defaults.relPoint, ns.defaults.y
+	end
+	if was < 4 then
+		for k, v in pairs(saved.used) do
+			if type(k) == "number" then
+				saved.used[k .. "/pve"] = saved.used[k .. "/pve"] or v
+				saved.used[k] = nil
+			end
+		end
+	end
+	saved.version = VERSION
 end
 
 -- ---------------------------------------------------------------------------
@@ -146,6 +180,52 @@ local function Applies(e)
 	return true, spell
 end
 
+-- PvE or PvP: arena and battlegrounds are PvP, everything else PvE. A spec
+-- often brings other things to each (poisons, runes, a demon).
+local function Side()
+	local key = ns.Scenario()
+	return (key == "arena" or key == "bg") and "pvp" or "pve"
+end
+
+-- Consumables are for PvE: in an arena or a battleground they are neither
+-- shown nor learned from. A healthstone is the exception: it is taken from a
+-- Soulwell in an arena too.
+local function ForHere(c, side)
+	return c.group ~= "consumable" or side == "pve" or c.key == "healthstone"
+end
+
+-- The setup in force: the spec and the side, "<specID>/pve"
+local function Setup() return (ns.SpecID() or 0) .. "/" .. Side() end
+
+-- What you used last in a setup (account-wide): learned from what is on you,
+-- so that a click takes the same kind again and a rune of another setup is
+-- told apart
+local function Used(setup)
+	setup = setup or Setup()
+	local used = ns.db.used
+	used[setup] = used[setup] or {}
+	return used[setup]
+end
+
+-- The one of a "choose" entry's spells to cast next: one not on you yet,
+-- those you had on last time in this setup first, then the guides', then the
+-- list's order
+local function Pick(e)
+	local order, seen = {}, {}
+	for _, id in ipairs(Used()[e.key] or {}) do order[#order + 1] = id end
+	for _, id in ipairs(e.guide and e.guide(Side()) or {}) do order[#order + 1] = id end
+	for _, id in ipairs(Value(e.auras)) do order[#order + 1] = id end
+	local first
+	for _, id in ipairs(order) do
+		if not seen[id] and ns.Known(id) then
+			seen[id] = true
+			first = first or id
+			if ns.PlayerAuras({ id }) == 0 then return id end
+		end
+	end
+	return first
+end
+
 local KINDS = {}
 
 function KINDS.group(e, soon)
@@ -158,7 +238,16 @@ function KINDS.buff(e, soon)
 	local auras = Value(e.auras)
 	local count, least = ns.PlayerAuras(auras)
 	if e.form and InForm(auras) then count = math.max(count or 0, 1) end
-	return Judge(count, Value(e.need) or 1, least, soon)
+	local need = Value(e.need) or 1
+	-- a choice made in full (every poison wanted is on): remembered for this spec
+	if e.choose and count and need > 0 and count >= need then
+		local on = {}
+		for _, id in ipairs(auras) do
+			if ns.PlayerAuras({ id }) == 1 then on[#on + 1] = id end
+		end
+		Used()[e.key] = on
+	end
+	return Judge(count, need, least, soon)
 end
 
 function KINDS.ally(e, soon, spell)
@@ -181,23 +270,73 @@ function KINDS.avoid(e)
 	if (count and count > 0) or (e.form and InForm(auras)) then return true, nil, true end
 end
 
-function KINDS.pet()
+function KINDS.pet(e)
 	if not ns.HasPet() then return true end
+	-- Demonology with Summon Felguard: the demon out has to be a Felguard, in PvE (in PvP
+	-- a warlock brings whichever demon the match wants)
+	if e.felguard and Side() == "pve" and ns.SpecID() == DEMONOLOGY and ns.Known(ns.FELGUARD.summon) then
+		local creature = ns.PetCreature()
+		if creature and not ns.FELGUARD.creatures[creature] then
+			return true, nil, true, ns.SpellName(ns.FELGUARD.summon)
+		end
+	end
 end
 
+-- On either hand: which hand an imbue goes on is the game's business. Its
+-- own buff counts as well, should the enchant not be read.
 function KINDS.imbue(e, soon)
-	local slot = Value(e.slot)
-	if not ns.Weapon(slot) then return nil end
-	local id, left = ns.TempEnchant(slot)
-	if id == nil or id == true then return nil end   -- unreadable, or there but which one is hidden
-	if not id or not e.enchants[id] then return true end
-	return Judge(1, 1, left, soon)
+	if not ns.Weapon(Value(e.slot)) then return nil end
+	local unknown, best = false, nil
+	for _, slot in ipairs({ ns.MAIN, ns.OFF }) do
+		if ns.Weapon(slot) then
+			local id, left = ns.TempEnchant(slot)
+			if id == nil or id == true then
+				unknown = true   -- unreadable, or there but which one is hidden
+			elseif id and e.enchants[id] then
+				best = math.max(best or 0, left or FOREVER)
+			end
+		end
+	end
+	if not best and e.buffs then
+		local count, least = ns.PlayerAuras(e.buffs)
+		if count == nil then unknown = true elseif count > 0 then best = least or FOREVER end
+	end
+	if best then return Judge(1, 1, best, soon) end
+	if not unknown then return true end
 end
 
+-- A rune, any rune; but one this setup did not have last time, which another
+-- setup had (your other spec, or this spec's PvP or PvE), is still that
+-- setup's: time to runeforge again
 function KINDS.runeforge(e)
 	if not ns.Weapon(e.slot) then return nil end
 	local id = ns.PermanentEnchant(e.slot)
-	if id ~= nil and not e.enchants[id] then return true end
+	if id == nil then return nil end
+	if not e.enchants[id] then
+		-- none: name the rune to put on, the one of last time, else the guides'
+		local rune = Used()["rune" .. e.slot]
+		if not rune and e.guide then
+			local guide = e.guide(Side()) or {}
+			local other = ns.PermanentEnchant(e.slot == ns.MAIN and ns.OFF or ns.MAIN)
+			rune = guide[1]
+			if #guide > 1 then
+				-- a pair: whichever the other hand does not have yet
+				if other == guide[1] then rune = guide[2]
+				elseif other ~= guide[2] and e.slot == ns.OFF then rune = guide[2] end
+			end
+		end
+		local spell = rune and e.runeSpells and e.runeSpells[rune]
+		if spell then return true, nil, nil, ns.SpellName(spell), ns.SpellIcon(spell) end
+		return true
+	end
+	local key, setup = "rune" .. e.slot, Setup()
+	local mine = Used(setup)[key]
+	if mine and id ~= mine then
+		for other, u in pairs(ns.db.used) do
+			if other ~= setup and u[key] == id then return true, nil, true, L["Rune of another setup"] end
+		end
+	end
+	Used(setup)[key] = id
 end
 
 -- a click casts the spell, except where that would not help: a stance to leave, the Runeforge
@@ -218,6 +357,7 @@ local function Oil(slot)
 		local id, left = ns.TempEnchant(slot)
 		if id == nil then return nil end
 		if not id then return true end
+		if ns.OIL.byEnchant[id] then Used()["oil" .. slot] = id end
 		return Judge(1, 1, left, soon)
 	end
 end
@@ -231,16 +371,31 @@ local function UseFromBags(list, slot)
 	end
 end
 
--- oil, stone or ammunition: the first in the bags that goes on that weapon
+-- oil, stone or ammunition that goes on that weapon: the kind you used last
+-- on that hand in this spec, else the first in the bags
 local function OilFor(slot)
 	local function Fits(item) return ns.Fits(item, slot) end
-	return function()
-		local item = ns.InBags(ns.OIL.items, Fits)
-		return ns.ItemIcon(item or ns.OIL.items[1])
-	end, function()
-		local item = ns.InBags(ns.OIL.items, Fits)
+	local function Item()
+		local mine = ns.OIL.byEnchant[Used()["oil" .. slot] or 0]
+		return (mine and ns.InBags(mine, Fits)) or ns.InBags(ns.OIL.items, Fits)
+	end
+	return function() return ns.ItemIcon(Item() or ns.OIL.items[1]) end, function()
+		local item = Item()
 		return item and { kind = "item", id = item, slot = slot } or nil
 	end
+end
+
+-- the flask you drank last in this spec (a fleeting one first), else the first in the bags
+local function FlaskItem()
+	local mine = ns.FLASK.byAura[Used().flask or 0]
+	return (mine and ns.InBags(mine)) or ns.InBags(ns.FLASK.items)
+end
+
+-- the food you ate last in this spec, else the best in the bags
+local function FoodItem()
+	local mine = Used().food
+	if mine and ns.InBags({ mine }) then return mine end
+	return ns.InBags(ns.FOOD.items)
 end
 
 local function BuildChecks()
@@ -248,18 +403,38 @@ local function BuildChecks()
 	local function Add(key, group, icon, label, Get, action, applies)
 		checks[#checks + 1] = { key = key, group = group, icon = icon, label = label, Get = Get, action = action,
 			Applies = applies }
+		return checks[#checks]
 	end
 
-	Add("flask", "consumable", FromBags(ns.FLASK), L["Flask"], function(soon)
+	Add("flask", "consumable", function() return ns.ItemIcon(FlaskItem() or ns.FLASK.items[1]) end, L["Flask"], function(soon)
 		if not ns.db.consumables.flask then return nil end
 		local count, least = ns.PlayerAuras(ns.FLASK.auras)
+		if count and count > 0 then
+			for _, aura in ipairs(ns.FLASK.auras) do
+				if ns.PlayerAuras({ aura }) == 1 then Used().flask = aura; break end
+			end
+		end
 		return Judge(count, 1, least, soon)
-	end, UseFromBags(ns.FLASK))
-	Add("food", "consumable", ns.FOOD_ICON, L["Food"], function(soon)
+	end, function()
+		local item = FlaskItem()
+		return item and { kind = "item", id = item } or nil
+	end)
+	Add("food", "consumable", function()
+		local item = FoodItem()
+		return item and ns.ItemIcon(item) or ns.FOOD_ICON
+	end, L["Food"], function(soon)
 		if not ns.db.consumables.food then return nil end
 		local left, eating = ns.FoodState()
-		if left == nil or eating then return nil end   -- eating: on its way
+		if eating then   -- on its way; and now it is known what you eat
+			local item = ns.FOOD.byEating[ns.EatingSpell() or 0]
+			if item then Used().food = item end
+			return nil
+		end
+		if left == nil then return nil end
 		return Judge(left and 1 or 0, 1, left or nil, soon)
+	end, function()
+		local item = FoodItem()
+		return item and { kind = "item", id = item } or nil
 	end)
 	Add("rune", "consumable", FromBags(ns.RUNE), L["Augment rune"], function(soon)
 		if not ns.db.consumables.rune or not ns.InBags(ns.RUNE.items) then return nil end
@@ -286,8 +461,9 @@ local function BuildChecks()
 	ns.classes = nil
 	for _, e in ipairs(classEntries) do
 		local function Spell() return Value(e.spell) end
-		Add(e.key, "class",
-			function() return ns.SpellIcon(Spell()) end,
+		local function Cast() return e.choose and Pick(e) or Spell() end
+		local check = Add(e.key, "class",
+			function() return ns.SpellIcon(Cast()) end,
 			e.label and L[e.label] or function() return ns.SpellName(Spell()) end,
 			function(soon)
 				if ns.db.off[e.key] then return nil end
@@ -296,11 +472,26 @@ local function BuildChecks()
 				return KINDS[e.kind](e, soon, spell)
 			end,
 			not NO_CLICK[e.kind] and function()
-				local spell = Spell()
+				local spell = Cast()
 				local slot = e.kind == "imbue" and Value(e.slot) or nil
 				return spell and { kind = "spell", id = spell, slot = slot } or nil
 			end or nil,
 			function() return (Applies(e)) end)
+		check.warn = e.kind == "avoid"
+		-- the guides' names for this setup, for the settings page
+		if e.guide then
+			check.Guide = function()
+				local names, want = {}, e.need and Value(e.need) or math.huge
+				for _, id in ipairs(e.guide(Side()) or {}) do
+					if e.runeSpells then
+						names[#names + 1] = ns.SpellName(e.runeSpells[id] or id)
+					elseif ns.Known(id) and #names < want then
+						names[#names + 1] = ns.SpellName(id)
+					end
+				end
+				return #names > 0 and table.concat(names, " + ") or nil
+			end
+		end
 	end
 end
 
@@ -310,7 +501,7 @@ function ns.ClassItems()
 	for _, c in ipairs(checks) do
 		if c.group == "class" then
 			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), now = c.Applies(),
-				on = not ns.db.off[c.key] }
+				on = not ns.db.off[c.key], warn = c.warn, guide = c.Guide and c.Guide() }
 		end
 	end
 	return items
@@ -473,9 +664,10 @@ local function Soon(key)
 	return soon, consumable
 end
 
-local function Entry(c, text, warn)
+local function Entry(c, text, warn, label, icon)
 	local action = c.action and ns.db.click and c.action() or nil
-	return { key = c.key, icon = Value(c.icon), label = Value(c.label), text = text, warn = warn, action = action }
+	return { key = c.key, icon = icon or Value(c.icon), label = label or Value(c.label), text = text, warn = warn,
+		action = action }
 end
 
 local function Evaluate()
@@ -497,13 +689,14 @@ local function Evaluate()
 	if shared then ns.SharedReminders(key, list, up) end
 	if reminders then
 		local soon, consumable = Soon(key)
-		local consumables = not pulled or readyCheck or (db.raidAgain and key == "raid")
+		local consumables = not pulled or readyCheck or key == "raid"   -- a raid: whenever combat ends
+		local side = Side()
 		for _, c in ipairs(checks) do
 			-- your own food or flask steps aside while the group's is down
 			local aside = (c.key == "food" and up.feast) or (c.key == "flask" and up.cauldron)
-			if (c.group == "class" or consumables) and not aside then
-				local show, text, warn = c.Get(c.group == "consumable" and consumable or soon)
-				if show then list[#list + 1] = Entry(c, text, warn) end
+			if (c.group == "class" or consumables) and ForHere(c, side) and not aside then
+				local show, text, warn, label, icon = c.Get(c.group == "consumable" and consumable or soon)
+				if show then list[#list + 1] = Entry(c, text, warn, label, icon) end
 			end
 		end
 		for _, c in ipairs(ns.CustomList()) do
@@ -554,14 +747,17 @@ function ns.Report()
 		tostring(instanceType), tostring(difficultyID), Yes(db.where[key]), Yes(db.sharedWhere[key]))
 	say("hidden by: %s; first combat seen: %s; ready check: %s; consumables now: %s; consumables running out within %d min",
 		Blocked() or "nothing", Yes(pulled), Yes(readyCheck),
-		Yes(not pulled or readyCheck or (db.raidAgain and key == "raid")), math.floor(select(2, Soon(key)) / 60))
+		Yes(not pulled or readyCheck or key == "raid"), math.floor(select(2, Soon(key)) / 60))
 	say("auras secret as a whole: %s; per spell (%s): flask %s, Well Fed %s", Yes(ns.AurasHidden()),
 		(C_Secrets and C_Secrets.ShouldSpellAuraBeSecret) and "asked" or "no such API",
 		Yes(ns.SpellHidden(ns.FLASK.auras[1])), Yes(ns.SpellHidden(ns.WELL_FED[1])))
 	local soon, consumable = Soon(key)
+	local side = Side()
 	for _, c in ipairs(checks) do
 		local state
-		if c.Applies and not c.Applies() then
+		if not ForHere(c, side) then
+			state = "PvE only"
+		elseif c.Applies and not c.Applies() then
 			state = "not for you now"
 		else
 			local show, text, warn = c.Get(c.group == "consumable" and consumable or soon)
@@ -583,6 +779,12 @@ function ns.Report()
 	for _, slot in ipairs({ ns.MAIN, ns.OFF }) do
 		if ns.Weapon(slot) then say("permanent enchant on slot %d: %s", slot, tostring(ns.PermanentEnchant(slot))) end
 	end
+	local parts = {}
+	for k, v in pairs(Used()) do
+		parts[#parts + 1] = k .. " " .. (type(v) == "table" and table.concat(v, "+") or tostring(v))
+	end
+	table.sort(parts)
+	say("remembered for this spec: %s", #parts > 0 and table.concat(parts, ", ") or "nothing yet")
 	local food, eating = ns.FoodState()
 	say("food buff: %s; eating: %s", food == nil and "cannot tell" or food == false and "none"
 		or food == FOREVER and "there (time hidden)" or (math.floor(food / 60) .. " min left"), Yes(eating))

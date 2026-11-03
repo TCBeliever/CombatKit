@@ -23,4 +23,5 @@ CK.AddLocale("zhTW", {
 	["Non-lethal poison"] = "非致命毒藥",
 	["Runeforge"]         = "符文熔鑄",
 	["Off-hand rune"]     = "副手符文",
+	["Rune of another setup"] = "另一套配置的符文",
 })

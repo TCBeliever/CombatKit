@@ -11,10 +11,19 @@ W.specs = { { 265, "Affliction" }, { 266, "Demonology" }, { 267, "Destruction" }
 W.known = { [IMP] = true, [SOULSTONE] = true, [CREATE] = true }
 W.inInstance, W.instanceType, W.difficultyID = true, "party", 23
 
+-- saved by the first version: its default size and place
+CombatKitReminderDB = { size = 36, sound = "", point = "CENTER", relPoint = "CENTER", x = 0, y = 140,
+	used = { [266] = { flask = 1235111 } } }   -- kept per spec, before PvE and PvP were told apart
+
 local CK = T.boot()
 CK.SetModuleEnabled("Reminder", true)
 local RM = CK.modules.Reminder
 local L = CK.L
+eq(RM.db.size, 54, "a save with the first default size takes the new one")
+check(RM.db.relPoint == "TOP" and RM.db.y == -80, "and the first default place the new one")
+eq(RM.db.used["266/pve"] and RM.db.used["266/pve"].flask, 1235111, "what was kept per spec is now PvE's")
+eq(RM.db.used[266], nil, "and no longer under the spec alone")
+eq(RM.db.version, 4, "and is marked as done")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = true }
 fire("PLAYER_ENTERING_WORLD")
 
@@ -104,6 +113,27 @@ fire("GROUP_ROSTER_UPDATE")
 hs = find(L["Healthstone"])
 check(hs, "a warlock in the group: take one")
 check(not (hs and hs.button and hs.button:IsShown()), "nothing to click: it is in the Soulwell")
+
+-- ---------------------------------------------------------------- Demonology: a Felguard
+W.known[SACRIFICE], W.known[30146] = nil, true
+W.playerAuras = nil
+W.specIndex = 2
+W.units.pet = { guid = "Pet-0-3299-0-12-416-0000ABCDEF" }   -- an imp
+fire("PLAYER_SPECIALIZATION_CHANGED", "player")
+check(find("spell30146"), "an imp out as Demonology with Summon Felguard: Summon Felguard, in red")
+W.units.pet.guid = "Pet-0-3299-0-12-17252-0000ABCDEF"
+fire("UNIT_PET", "player")
+check(not find("spell30146"), "a Felguard out: fine")
+W.units.pet.guid = "Pet-0-3299-0-12-416-0000ABCDEF"
+W.instanceType = "arena"
+RM.db.where.arena = true
+fire("PLAYER_ENTERING_WORLD")
+check(not find("spell30146"), "an imp as Demonology in an arena: fine, PvP brings whichever demon")
+W.instanceType = "party"
+fire("PLAYER_ENTERING_WORLD")
+W.specIndex = 1
+fire("PLAYER_SPECIALIZATION_CHANGED", "player")
+check(not find("spell30146"), "an imp as Affliction: fine")
 
 T.releaseChat()
 return T.report("reminder group [" .. (LOCALE or "enUS") .. "]")

@@ -6,7 +6,7 @@ ns.classes.WARLOCK = function()
 	return {
 		-- with Grimoire of Sacrifice the demon is there to be given up for the buff
 		{ key = "sacrifice", kind = "buff", spell = SACRIFICE, auras = { SACRIFICED } },
-		{ key = "demon", kind = "pet", spell = function() return ns.FirstKnown(DEMONS) end,
+		{ key = "demon", kind = "pet", felguard = true, spell = function() return ns.FirstKnown(DEMONS) end,
 			When = function() return not ns.Known(SACRIFICE) end },
 		-- Soulstone on someone in the group (yourself counts), unless it is cooling down after use
 		{ key = "soulstone", kind = "ally", spell = 20707, auras = { 20707 }, cooldown = true, self = true },

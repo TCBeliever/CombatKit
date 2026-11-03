@@ -15,10 +15,13 @@ ns.classes.SHAMAN = function()
 		{ key = "earthself", kind = "buff", spell = EARTH, auras = { EARTH_SELF, EARTH }, When = Orbit },
 		-- Restoration in a group: Earth Shield on someone else too (the tank, mostly)
 		{ key = "earthally", kind = "ally", spell = EARTH, auras = { EARTH }, spec = { [264] = true } },
-		-- weapon imbues; Flametongue goes in the off hand when that holds a weapon
-		{ key = "windfury", kind = "imbue", spell = 33757, slot = ns.MAIN, enchants = { [5401] = true } },    -- Windfury Weapon
-		{ key = "flametongue", kind = "imbue", spell = 318038, enchants = { [5400] = true },                      -- Flametongue Weapon
+		-- weapon imbues, on either hand, or their buff; the slot is the hand weapon oil leaves to
+		-- them (Flametongue the off hand when that holds a weapon)
+		{ key = "windfury", kind = "imbue", spell = 33757, slot = ns.MAIN, enchants = { [5401] = true },        -- Windfury Weapon
+			buffs = { 319773 } },
+		{ key = "flametongue", kind = "imbue", spell = 318038, enchants = { [5400] = true }, buffs = { 319778 },  -- Flametongue Weapon
 			slot = function() return ns.Weapon(ns.OFF) and ns.OFF or ns.MAIN end },
-		{ key = "earthliving", kind = "imbue", spell = 382021, slot = ns.MAIN, enchants = { [6498] = true } },   -- Earthliving Weapon
+		{ key = "earthliving", kind = "imbue", spell = 382021, slot = ns.MAIN, enchants = { [6498] = true },    -- Earthliving Weapon
+			buffs = { 382021, 382022 } },
 	}
 end

@@ -26,6 +26,7 @@ end
 local function Switch(p, key, labelKey)
 	return CK.Bind(Skin.Checkbox(p, "", function(checked)
 		RM.db[key] = checked
+		RM.ApplyDisplay()   -- the samples too, while they are up
 		Changed()
 	end), labelKey)
 end
@@ -55,11 +56,12 @@ local function BuildConsumables(p)
 			p.consumables[key] = box
 		end
 	end
-	p.raidAgain = Switch(p, "raidAgain", "In raids, again after every pull")
-	p.raidAgain:SetPoint("TOPLEFT", X, y - 1 - 2 * LINE)
-	Skin.Tooltip(p.raidAgain, "In raids, again after every pull", "RAIDAGAIN_TIP")
+	p.timing = CK.Bind(Skin.Label(p, "", nil, "dim"), "CONSUMABLE_TIMING")
+	p.timing:SetPoint("TOPLEFT", X, y - 4 - 2 * LINE)
+	p.timing:SetWidth(O.RIGHT_W - X)
+	p.timing:SetJustifyH("LEFT")
 
-	y = y - 3 * LINE - 12
+	y = y - 3 * LINE - 26
 	Skin.Field(p, "The group's", 0, y)
 	p.shared = {}
 	local previous
@@ -82,7 +84,6 @@ end
 local function RefreshConsumables(p)
 	local db = RM.db
 	for key, box in pairs(p.consumables) do box:SetChecked(db.consumables[key]) end
-	p.raidAgain:SetChecked(db.raidAgain)
 	for kind, box in pairs(p.shared) do box:SetChecked(db.shared[kind]) end
 end
 
@@ -185,8 +186,10 @@ local function RefreshClass(p)
 		c.key = item and item.key
 		c:SetShown(item ~= nil)
 		if item then
-			-- not for your spec or talents right now: greyed, still to be set
-			c:SetLabel(item.now and (item.label or "?") or Skin.Text("dim", item.label or "?"))
+			-- not for your spec or talents right now: greyed, still to be set; the guides' pick after it
+			local label = item.now and (item.label or "?") or Skin.Text("dim", item.label or "?")
+			if item.guide then label = label .. Skin.Text("dim", "  " .. string.format(L["GUIDE_PICK"], item.guide)) end
+			c:SetLabel(label)
 			c:SetChecked(item.on)
 		end
 	end
@@ -265,7 +268,7 @@ local function SoundItems()
 end
 
 local function BuildDisplay(p)
-	p.size = Skin.Slider(p, "Icon size", { min = 24, max = 64, step = 2,
+	p.size = Skin.Slider(p, "Icon size", { min = 24, max = 96, step = 2,
 		onChange = function(v) RM.db.size = v; RM.ApplyDisplay(); O.Changed() end })
 	p.size:SetPoint("TOPLEFT", 0, 0)
 	p.expiring = Skin.Slider(p, "Running out within", { min = 0, max = 15,
@@ -294,6 +297,8 @@ local function BuildDisplay(p)
 	p.click = Switch(p, "click", "Click to use")
 	p.click:SetPoint("TOPLEFT", X, y - 1 - LINE)
 	Skin.Tooltip(p.click, "Click to use", "CLICK_TIP")
+	p.glow = Switch(p, "glow", "Glow")
+	p.glow:SetPoint("LEFT", p.click, "RIGHT", 16, 0)
 
 	y = y - 2 * LINE - 6
 	Skin.Field(p, "Sound", 0, y)
@@ -314,6 +319,7 @@ local function RefreshDisplay(p)
 	p.icons:SetChecked(db.icons)
 	p.hud:SetChecked(db.hud)
 	p.click:SetChecked(db.click)
+	p.glow:SetChecked(db.glow)
 	p.sound:SetValueText(db.sound ~= "" and L["SOUND_" .. db.sound] or L["None"])
 end
 
@@ -360,6 +366,7 @@ O.AddSection({
 		RM = CK.modules.Reminder
 		local which = body.pages[node] and node or "consumables"
 		for key, frame in pairs(body.pages) do frame:SetShown(key == which) end
+		RM.SetSampleKind(which)   -- the test shows this page's kind of reminder
 		for _, page in ipairs(PAGES) do
 			if page.key == which then page.Refresh(body.pages[which]) end
 		end

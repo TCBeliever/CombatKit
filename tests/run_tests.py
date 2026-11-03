@@ -14,7 +14,7 @@ from lupa.lua51 import LuaRuntime
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 CORE = "CombatKit"
-TESTS = ["test_kit.lua", "test_logic.lua", "test_apply.lua", "test_applylog.lua", "test_ui.lua", "test_pvptalents.lua", "test_stats.lua", "test_range.lua", "test_misc.lua", "test_partycd.lua", "test_preview.lua", "test_reminder.lua", "test_reminder_group.lua", "test_reminder_warrior.lua"]
+TESTS = ["test_kit.lua", "test_logic.lua", "test_apply.lua", "test_applylog.lua", "test_ui.lua", "test_pvptalents.lua", "test_stats.lua", "test_range.lua", "test_misc.lua", "test_partycd.lua", "test_preview.lua", "test_reminder.lua", "test_reminder_group.lua", "test_reminder_warrior.lua", "test_reminder_rogue.lua", "test_reminder_shaman.lua", "test_reminder_dk.lua"]
 
 ok = True
 

@@ -21,6 +21,9 @@ local L = CK.L
 check(RM and RM.enabled and RM.IsRunning(), "switched on: loaded and running")
 eq(RM.classes, nil, "the class lists are dropped once the player's is made")
 check(RM.db.where.dungeon and RM.db.where.raid and not RM.db.where.world, "dungeons and raids by default")
+eq(RM.db.size, 54, "icons half as large again as the first default")
+eq(RM.db.glow, true, "the glow on by default")
+check(RM.db.relPoint == "TOP" and RM.db.x == 0 and RM.db.y == -80, "the row's place: centred, 80 below the top edge")
 
 local function shown()
 	local frame, icons = RM.GetDisplay()
@@ -57,6 +60,14 @@ check(find(L["Augment rune"]), "a rune in the bags: reminded")
 W.playerAuras = { [1235111] = { expirationTime = W.now + 3000 } }
 fire("UNIT_AURA", "player")
 check(not find(L["Flask"]), "flasked: gone")
+eq(RM.db.used["64/pve"] and RM.db.used["64/pve"].flask, 1235111, "the flask drunk is remembered for this spec (Frost)")
+W.bags[241327] = 1
+W.playerAuras[1235111] = nil
+fire("UNIT_AURA", "player")
+eq(find(L["Flask"]).icon, "itemicon241327", "run out: the same kind's icon, though another flask comes first")
+W.bags[241327] = nil
+W.playerAuras[1235111] = { expirationTime = W.now + 3000 }
+fire("UNIT_AURA", "player")
 W.playerAuras[1235111].expirationTime = W.now + 230
 fire("UNIT_AURA", "player")
 eq(find(L["Flask"]) and find(L["Flask"]).text, "4m", "under five minutes left: back, with the time")
@@ -104,6 +115,14 @@ W.equip[16] = 1003
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find(L["Weapon oil"]), "a bow takes oil or ammunition too")
 W.equip[16] = 1001
+W.tempEnchant = { [16] = { 8054, 3000000 } }
+fire("UNIT_INVENTORY_CHANGED", "player")
+eq(RM.db.used["64/pve"].oil16, 8054, "the main hand's oil is remembered (Oil of Dawn)")
+W.tempEnchant = nil
+W.bags[243734], W.bags[243735] = 1, 1
+fire("UNIT_INVENTORY_CHANGED", "player")
+eq(find(L["Weapon oil"]).icon, "itemicon243735", "the same kind again, though Phoenix Oil comes first")
+W.bags[243734], W.bags[243735] = nil, nil
 W.tempEnchant = { [16] = { 8052, 3000000 } }
 fire("UNIT_INVENTORY_CHANGED", "player")
 W.equip[17] = 1002
@@ -160,9 +179,6 @@ check(not find(L["Flask"]), "and takes them away when it ends")
 W.instanceType, W.difficultyID = "raid", 14
 fire("ZONE_CHANGED_NEW_AREA")
 check(find(L["Flask"]), "a raid: after a pull the consumables show again")
-RM.db.raidAgain = false; RM.Refresh()
-check(not find(L["Flask"]), "unless that is switched off")
-RM.db.raidAgain = true
 W.instanceType, W.difficultyID = "party", 2
 fire("ZONE_CHANGED_NEW_AREA")
 fire("PLAYER_ENTERING_WORLD")
@@ -171,6 +187,14 @@ local realInfo = GetInstanceInfo
 GetInstanceInfo = function() return "Elsewhere", W.instanceType, W.difficultyID end
 fire("PLAYER_ENTERING_WORLD")
 check(find(L["Flask"]), "another instance: a new visit")
+W.instanceType = "arena"
+RM.db.where.arena = true
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]) and find(ELEMENTAL), "an arena: no consumables, class reminders still")
+eq(RM.db.used["64/pvp"] and RM.db.used["64/pvp"].flask, nil, "and nothing learned there for flasks")
+RM.db.where.arena = nil
+W.instanceType = "party"
+fire("PLAYER_ENTERING_WORLD")
 GetInstanceInfo = realInfo
 W.aurasSecret = true
 fire("UNIT_AURA", "player")
@@ -191,6 +215,12 @@ W.playerAuras[1219182] = nil
 W.playerAuras[1219187] = { expirationTime = W.now + 10 }
 fire("UNIT_AURA", "player")
 check(not find(L["Food"]), "eating: no reminder meanwhile")
+eq(RM.db.used["64/pve"].food, 235919, "what is eaten is remembered")
+W.playerAuras[1219187] = nil
+W.bags[235919], W.bags[242274] = 1, 1
+fire("UNIT_AURA", "player")
+eq(find(L["Food"]) and find(L["Food"]).icon, "itemicon235919", "the same food again, though another one is better")
+W.bags[235919], W.bags[242274] = nil, nil
 W.playerAuras[1219187] = nil
 W.buffScanError = nil
 W.buffList[2] = foodBuff
@@ -319,10 +349,7 @@ check(not find(L["Flask"]), "after a pull in a dungeon: quiet")
 W.instanceType, W.difficultyID = "raid", 14
 RM.Refresh()
 check(find(L["Flask"]), "in a raid: back")
-page.raidAgain:Click()
-eq(RM.db.raidAgain, false, "raids again: off")
-check(not find(L["Flask"]), "then a raid keeps quiet too")
-page.raidAgain:Click()
+eq(page.timing:GetText(), L["CONSUMABLE_TIMING"], "the page says when they show, a raid included")
 page.consumables.flask:Click()
 check(not find(L["Flask"]), "the flask reminder switched off")
 page.consumables.flask:Click()
@@ -356,14 +383,26 @@ W.playerAuras[1459] = { expirationTime = W.now + 3000 }
 RM.Refresh()
 
 body.test:Click()
-check(RM.IsTesting() and #shown() == 4, "the test button: the sample row")
+check(RM.IsTesting() and #shown() == 2 and find(AI) and find(ELEMENTAL), "the test on the class page: your class's reminders")
+local _, testIcons = RM.GetDisplay()
+check(testIcons[1].glow and testIcons[1].glow.tex:IsShown(), "with the glow, by default")
+local row = RM.GetDisplay()
+local point, _, relPoint, x, y = unpack(row.__point)
+check(point == "CENTER" and relPoint == "TOP" and x == 0 and y == -80, "it stands there")
+go("consumables")
+check(#shown() == 4 and find(L["Flask"]) and find(L["Feast"]), "the consumables page: the consumables")
+go("class")
+check(#shown() == 2, "back on the class page: the class's again")
 eq(body.test:GetText(), L["Stop test"], "the button now ends the test")
 body.test:Click()
 check(not RM.IsTesting() and find(L["Flask"]) and #shown() == 1, "test over: the real row again")
 go("display")
 check(body.pages.display:IsShown(), "the display page")
 body.pages.display.unlock:Click()
-check(not RM.IsLocked() and #shown() == 4, "unlocked: the sample row, to drag")
+check(not RM.IsLocked() and #shown() == 6, "unlocked on the display page: both kinds, to drag")
+body.pages.display.glow:Click()
+check(not RM.db.glow and not testIcons[1].glow.tex:IsShown(), "the glow switched off")
+body.pages.display.glow:Click()
 main:Hide()
 check(RM.IsLocked() and not RM.IsTesting(), "closing the window locks it again")
 
