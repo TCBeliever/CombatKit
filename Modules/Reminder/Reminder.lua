@@ -344,7 +344,7 @@ function KINDS.runeforge(e)
 	local mine = Used(setup)[key]
 	if mine and id ~= mine then
 		for other, u in pairs(ns.db.used) do
-			if other ~= setup and u[key] == id then return true, nil, true, L["Rune of another setup"] end
+			if other ~= setup and u[key] == id then return true, nil, true, L["Rune to change"] end
 		end
 	end
 	Used(setup)[key] = id
@@ -493,13 +493,15 @@ local function BuildChecks()
 		-- the guides' names for this setup, for the settings page
 		if e.guide then
 			check.Guide = function()
+				local guide = e.guide(Side()) or {}
+				if e.runeSpells then
+					-- the rune for this hand: of a pair, the first for the main hand, the second for the off hand
+					local id = guide[e.slot == ns.OFF and 2 or 1] or guide[1]
+					return id and ns.SpellName(e.runeSpells[id] or id) or nil
+				end
 				local names, want = {}, e.need and Value(e.need) or math.huge
-				for _, id in ipairs(e.guide(Side()) or {}) do
-					if e.runeSpells then
-						names[#names + 1] = ns.SpellName(e.runeSpells[id] or id)
-					elseif ns.Known(id) and #names < want then
-						names[#names + 1] = ns.SpellName(id)
-					end
+				for _, id in ipairs(guide) do
+					if ns.Known(id) and #names < want then names[#names + 1] = ns.SpellName(id) end
 				end
 				return #names > 0 and table.concat(names, " + ") or nil
 			end
@@ -513,8 +515,10 @@ function ns.ClassItems()
 	local items = {}
 	for _, c in ipairs(checks) do
 		if c.group == "class" then
-			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = c.Applies(),
-				on = not ns.db.off[c.key], warn = c.warn, guide = c.Guide and c.Guide(), spec = c.spec }
+			local now = c.Applies()
+			-- the guides' pick only where it would be used now
+			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = now,
+				on = not ns.db.off[c.key], warn = c.warn, guide = now and c.Guide and c.Guide() or nil, spec = c.spec }
 		end
 	end
 	return items

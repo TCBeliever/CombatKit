@@ -21,7 +21,7 @@ CK.AddLocale("zhTW", {
 	["Flask cauldron"]    = "精煉藥劑大鍋",
 	["Lethal poison"]     = "致命毒藥",
 	["Non-lethal poison"] = "非致命毒藥",
-	["Runeforge"]         = "符文熔鑄",
+	["Main-hand rune"]    = "主手符文",
 	["Off-hand rune"]     = "副手符文",
-	["Rune of another setup"] = "另一套配置的符文",
+	["Rune to change"]    = "該換符文",
 })

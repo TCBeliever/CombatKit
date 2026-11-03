@@ -26,10 +26,11 @@ ns.classes.DEATHKNIGHT = function()
 	local LOOK = 53344   -- Rune of the Fallen Crusader: the icon until there is a rune to name
 	return {
 		-- every death knight has the Runeforge: nothing to be known first
-		{ key = "rune", kind = "runeforge", label = "Runeforge", spell = LOOK, known = false, slot = ns.MAIN, enchants = RUNES,
+		{ key = "rune", kind = "runeforge", label = "Main-hand rune", spell = LOOK, known = false, slot = ns.MAIN, enchants = RUNES,
 			guide = Guide, runeSpells = SPELLS },
+		-- only Frost dual wields (Dual Wield 674 is Frost's alone, DB2 SpecializationSpells)
 		{ key = "rune2", kind = "runeforge", label = "Off-hand rune", spell = LOOK, known = false, slot = ns.OFF, enchants = RUNES,
-			guide = Guide, runeSpells = SPELLS },
+			guide = Guide, runeSpells = SPELLS, spec = { [251] = true }, When = function() return ns.Weapon(ns.OFF) ~= nil end },
 		{ key = "ghoul", kind = "pet", spell = 46584, spec = { [252] = true } },   -- Unholy: Raise Dead, the ghoul that stays
 	}
 end

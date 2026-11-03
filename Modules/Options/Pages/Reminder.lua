@@ -136,6 +136,15 @@ local function BuildClass(p)
 			if c.key then RM.SetClassItem(c.key, checked) end
 			O.Changed()
 		end)
+		-- on hover, why it is greyed out, and where its recommendation comes from
+		c:HookScript("OnEnter", function(self)
+			if not self.tip then return end
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:SetText(self.tipTitle or "", 1, 1, 1, 1, true)
+			GameTooltip:AddLine(self.tip, nil, nil, nil, true)
+			GameTooltip:Show()
+		end)
+		c:HookScript("OnLeave", GameTooltip_Hide)
 		p.items[i] = c
 	end
 	p.none = CK.Bind(Skin.Label(p, "", nil, "dim"), "CLASS_NONE")
@@ -251,6 +260,8 @@ local function RefreshClass(p)
 					if item.guide then label = label .. Skin.Text("dim", "  " .. string.format(L["GUIDE_PICK"], item.guide)) end
 					c:SetLabel(label)
 					c:SetChecked(item.on)
+					c.tipTitle = item.label
+					c.tip = not item.now and L["NOT_NOW_TIP"] or item.guide and L["GUIDE_TIP"] or nil
 				end
 			end
 			y = y - math.ceil(#s.items / 2) * 24 - 8
@@ -258,7 +269,7 @@ local function RefreshClass(p)
 	end
 	for i = heads + 1, HEADS do p.heads[i]:Hide() end
 	for i = n + 1, CLASS_ROWS do
-		p.items[i].key = nil
+		p.items[i].key, p.items[i].tip = nil, nil
 		p.items[i]:Hide()
 	end
 	p.none:SetShown(#items == 0)
@@ -317,6 +328,11 @@ local function BuildWhere(p)
 			p.boxes[set .. key] = box
 		end
 	end
+	-- under the arena and battleground rows: what PvP leaves out
+	p.pvp = CK.Bind(Skin.Label(p, "", nil, "dim"), "WHERE_PVP")
+	p.pvp:SetPoint("TOPLEFT", 0, -24 - #ORDER * LINE - 6)
+	p.pvp:SetWidth(O.RIGHT_W - X)
+	p.pvp:SetJustifyH("LEFT")
 end
 
 local function RefreshWhere(p)

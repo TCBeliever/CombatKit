@@ -32,8 +32,8 @@ end
 
 local function spec(i) W.specIndex = i; fire("PLAYER_SPECIALIZATION_CHANGED", "player") end
 
-local OTHER = L["Rune of another setup"]
-check(not find(L["Runeforge"]) and not find(OTHER), "Frost with Razorice: fine")
+local OTHER = L["Rune to change"]
+check(not find(L["Main-hand rune"]) and not find(OTHER), "Frost with Razorice: fine")
 eq(RM.db.used["251/pve"].rune16, RAZORICE, "remembered for Frost in PvE")
 spec(3)
 check(not find(OTHER), "Unholy, never seen before: no judgement yet")
@@ -61,18 +61,29 @@ W.permEnchant[16] = RAZORICE
 fire("PLAYER_EQUIPMENT_CHANGED")
 W.permEnchant[16] = 0
 fire("PLAYER_EQUIPMENT_CHANGED")
-check(find(L["Runeforge"]) == nil and find("spell53343"), "Frost, two-hander, no rune: the rune of last time named (Razorice)")
+check(find(L["Main-hand rune"]) == nil and find("spell53343"), "Frost, two-hander, no rune: the rune of last time named (Razorice)")
 
 -- a new character's view: nothing remembered, the guides decide
 RM.db.used = {}
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell53344"), "Frost two-hander, nothing remembered: the guides' Fallen Crusader")
+local function items()
+	local by = {}
+	for _, item in ipairs(RM.ClassItems()) do by[item.key] = item end
+	return by
+end
+local page = items()
+check(page.rune.guide == "spell53344" and not page.rune2.now and page.rune2.guide == nil,
+	"the class page: the main hand's recommendation; with a two-hander the off hand is greyed, with none")
+check(page.rune2.spec and page.rune2.spec[251] and not page.rune2.spec[250], "the off-hand rune is Frost's: only Frost dual wields")
 W.equip[17] = 1002
 W.itemInfo[1002] = { 2, "INVTYPE_WEAPON", 7 }
 W.itemInfo[1001] = { 2, "INVTYPE_WEAPON", 7 }
 W.permEnchant[17] = 0
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell62158") and find("spell53344"), "two weapons: Stoneskin Gargoyle and Fallen Crusader")
+page = items()
+check(page.rune.guide == "spell62158" and page.rune2.guide == "spell53344", "the class page: each hand its own rune")
 W.permEnchant[16] = 3368
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell62158") and not find("spell53344"), "Fallen Crusader on the main hand: the off hand gets Stoneskin")
