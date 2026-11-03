@@ -20,7 +20,11 @@ local RM = CK.modules.Reminder
 local L = CK.L
 check(RM and RM.enabled and RM.IsRunning(), "switched on: loaded and running")
 eq(RM.classes, nil, "the class lists are dropped once the player's is made")
-check(RM.db.where.dungeon and RM.db.where.raid and not RM.db.where.world, "dungeons and raids by default")
+check(RM.db.consumablesWhere.dungeon and RM.db.consumablesWhere.raid and not RM.db.consumablesWhere.world,
+	"consumables: dungeons and raids by default")
+check(RM.db.classWhere.world and RM.db.classWhere.delve and RM.db.classWhere.arena and RM.db.classWhere.bg,
+	"class reminders: everywhere by default")
+check(RM.db.sharedWhere.bg and not RM.db.sharedWhere.arena, "feasts and cauldrons: battlegrounds too, no arena")
 eq(RM.db.size, 54, "icons half as large again as the first default")
 eq(RM.db.glow, true, "the glow on by default")
 check(RM.db.relPoint == "TOP" and RM.db.x == 0 and RM.db.y == -80, "the row's place: centred, 80 below the top edge")
@@ -40,10 +44,14 @@ end
 local AI, ELEMENTAL = "spell1459", "spell31687"
 
 -- ---------------------------------------------------------------- where and when
-eq(#shown(), 0, "open world: nothing")
+check(find(AI) and find(ELEMENTAL) and not find(L["Flask"]), "open world: the class reminders, no consumables")
+W.resting = true
+fire("PLAYER_UPDATE_RESTING")
+eq(#shown(), 0, "a capital city or an inn: nothing")
+W.resting = nil
 W.inInstance, W.instanceType, W.difficultyID = true, "party", 0
 fire("PLAYER_ENTERING_WORLD")
-eq(#shown(), 0, "a hub city reads as a dungeon of difficulty 0: nothing")
+check(find(AI) and not find(L["Flask"]), "a hub city reads as a dungeon of difficulty 0: the open world")
 W.difficultyID = 2
 fire("PLAYER_ENTERING_WORLD")
 check(find(L["Flask"]) and find(L["Food"]) and find(L["Weapon oil"]), "a dungeon: flask, food, weapon oil")
@@ -188,11 +196,11 @@ GetInstanceInfo = function() return "Elsewhere", W.instanceType, W.difficultyID 
 fire("PLAYER_ENTERING_WORLD")
 check(find(L["Flask"]), "another instance: a new visit")
 W.instanceType = "arena"
-RM.db.where.arena = true
+RM.db.consumablesWhere.arena = true
 fire("PLAYER_ENTERING_WORLD")
-check(not find(L["Flask"]) and find(ELEMENTAL), "an arena: no consumables, class reminders still")
+check(not find(L["Flask"]) and find(ELEMENTAL), "an arena, consumables ticked: still none, class reminders as usual")
 eq(RM.db.used["64/pvp"] and RM.db.used["64/pvp"].flask, nil, "and nothing learned there for flasks")
-RM.db.where.arena = nil
+RM.db.consumablesWhere.arena = nil
 W.instanceType = "party"
 fire("PLAYER_ENTERING_WORLD")
 GetInstanceInfo = realInfo
@@ -302,6 +310,17 @@ W.playerAuras[1235111] = { expirationTime = W.now + 3000 }
 W.now = W.now + 301
 T.runLongTimers()
 eq(#shown(), 0, "all gone again")
+W.instanceType = "pvp"
+fire("PLAYER_ENTERING_WORLD")
+fire("UNIT_SPELLCAST_SUCCEEDED", "party1", "Cast-4", 1240195)
+check(not find(L["Flask cauldron"]), "a battleground: no cauldron, its flasks are for PvE")
+fire("CHAT_MSG_EMOTE", "Someone prepares a Hearty Quel'dorei Medley.")
+check(find(L["Feast"]), "but a feast")
+W.instanceType = "party"
+fire("PLAYER_ENTERING_WORLD")
+W.now = W.now + 301
+T.runLongTimers()
+eq(#shown(), 0, "back in the dungeon, both run out")
 
 -- ---------------------------------------------------------------- the class lists themselves
 local fake = { classes = {} }
@@ -359,18 +378,30 @@ page.shared.cauldron:Click()
 
 go("where")
 local where = body.pages.where
-check(where:IsShown() and where.boxes.whereraid:GetChecked() and where.boxes.sharedWherebg:GetChecked()
-	and not where.boxes.wherebg:GetChecked(), "where: raids for yours, battlegrounds for the group's only")
-where.boxes.whereraid:Click()
-eq(RM.db.where.raid, false, "unticked is saved as false, not as a missing key")
-eq(#shown(), 0, "raids unticked: nothing")
-where.boxes.whereraid:Click()
+check(where:IsShown() and where.boxes.consumablesWhereraid:GetChecked() and not where.boxes.consumablesWherebg:GetChecked()
+	and where.boxes.classWhereworld:GetChecked() and where.boxes.sharedWherebg:GetChecked(),
+	"where: consumables in raids, class reminders everywhere, the group's in battlegrounds too")
+where.boxes.consumablesWhereraid:Click()
+eq(RM.db.consumablesWhere.raid, false, "unticked is saved as false, not as a missing key")
+check(not find(L["Flask"]), "consumables unticked for raids: no flask")
+W.units.pet = nil
+RM.Refresh()
+check(find(ELEMENTAL), "class reminders still")
+where.boxes.classWhereraid:Click()
+check(not find(ELEMENTAL), "class unticked for raids too: gone")
+where.boxes.classWhereraid:Click()
+where.boxes.consumablesWhereraid:Click()
+W.units.pet = {}
 
 go("class")
 local class = body.pages.class
 local first = class.items[1]
 check(class:IsShown() and first:IsShown() and first.key == "intellect", "your class: its reminders, the group buff first")
 check(class.items[2]:IsShown() and not class.items[3]:IsShown(), "two for a mage")
+eq(class.heads[1].text:GetText(), L["All specs"], "the group buff under every spec")
+eq(class.items[2].key, "elemental", "the Water Elemental")
+eq(class.heads[2].text:GetText(), "Frost", "under Frost, the one spec with a reminder of its own")
+check(not class.heads[3]:IsShown(), "Arcane and Fire have none: no heads for them")
 W.playerAuras[1459] = nil
 RM.Refresh()
 check(find(AI), "Arcane Intellect missing")

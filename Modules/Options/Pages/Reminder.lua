@@ -13,7 +13,8 @@ local CONSUMABLES = {   -- two lines
 	{ { "oil", "Weapon oil" }, { "healthstone", "Healthstone" } },
 }
 local SHARED = { { "feast", "Feast" }, { "cauldron", "Flask cauldron" } }
-local CLASS_ROWS = 10   -- check boxes for the class list, two columns
+local CLASS_ROWS = 16   -- check boxes for the class list, two columns; one for several specs stands under each
+local HEADS = 5         -- section heads over the class list: every spec, then each spec with reminders of its own
 local CUSTOM_ROWS = 10  -- custom reminders, two columns, as many as a class can have
 local RM   -- the module, set whenever the section is used
 
@@ -113,39 +114,53 @@ local function Cell(i, top)
 	return column * COL_W, top - row * 24
 end
 
+-- A section head: the class's or a spec's icon, and its name
+local function Head(p)
+	local h = CreateFrame("Frame", nil, p)
+	h:SetSize(2 * COL_W, 20)
+	h.icon = h:CreateTexture(nil, "ARTWORK")
+	h.icon:SetSize(18, 18)
+	h.icon:SetPoint("LEFT", 0, 0)
+	h.text = Skin.Label(h, "")
+	h.text:SetPoint("LEFT", h.icon, "RIGHT", 6, 0)
+	return h
+end
+
 local function BuildClass(p)
-	-- the class list: filled by Refresh, the class's own entries in their own order
-	p.items = {}
+	-- the class list by spec: laid out by Refresh, the class's own entries in their own order
+	p.heads, p.items = {}, {}
+	for i = 1, HEADS do p.heads[i] = Head(p) end
 	for i = 1, CLASS_ROWS do
 		local c
 		c = Skin.Checkbox(p, "", function(checked)
 			if c.key then RM.SetClassItem(c.key, checked) end
 			O.Changed()
 		end)
-		c:SetPoint("TOPLEFT", Cell(i, 0))
 		p.items[i] = c
 	end
 	p.none = CK.Bind(Skin.Label(p, "", nil, "dim"), "CLASS_NONE")
 	p.none:SetPoint("TOPLEFT", 0, -2)
 
-	-- custom: a line to add one, then the list
-	local y = -(CLASS_ROWS / 2) * 24 - 14
-	p.customTop = y
+	-- custom: a line to add one, then the list; Refresh puts the block below the class list
+	local b = CreateFrame("Frame", nil, p)
+	b:SetSize(O.RIGHT_W, 20)
+	p.customBlock = b
+	local y = 0
 	p.draftWhen, p.draftWho = "missing", "me"
-	Skin.Field(p, "Spell ID", 0, y)
-	p.id = Skin.EditBox(p, 90, function() end)
+	Skin.Field(b, "Spell ID", 0, y)
+	p.id = Skin.EditBox(b, 90, function() end)
 	p.id:SetPoint("TOPLEFT", X, y)
-	p.when = Skin.Dropdown(p, 120, Items(WHEN), function(_, item)
+	p.when = Skin.Dropdown(b, 120, Items(WHEN), function(_, item)
 		p.draftWhen = item.value
 		O.Refresh()
 	end)
 	p.when:SetPoint("LEFT", p.id, "RIGHT", 10, 0)
-	p.who = Skin.Dropdown(p, 120, Items(WHO), function(_, item)
+	p.who = Skin.Dropdown(b, 120, Items(WHO), function(_, item)
 		p.draftWho = item.value
 		O.Refresh()
 	end)
 	p.who:SetPoint("LEFT", p.when, "RIGHT", 10, 0)
-	p.add = CK.Bind(Skin.Button(p, "", 60, 20, function()
+	p.add = CK.Bind(Skin.Button(b, "", 60, 20, function()
 		local why = RM.AddCustom(p.id:GetText(), p.draftWhen, p.draftWho)
 		p.why = why
 		if not why then p.id:SetText("") end
@@ -153,12 +168,12 @@ local function BuildClass(p)
 	end), "Add")
 	p.add:SetPoint("LEFT", p.who, "RIGHT", 10, 0)
 	Skin.Tooltip(p.add, "Add", "CUSTOM_TIP")
-	p.status = Skin.Label(p, "", nil, "dim")
+	p.status = Skin.Label(b, "", nil, "dim")
 	p.status:SetPoint("TOPLEFT", X, y - 26)
 
 	p.rows = {}
 	for i = 1, CUSTOM_ROWS do
-		local row = CreateFrame("Frame", nil, p)
+		local row = CreateFrame("Frame", nil, b)
 		row:SetSize(COL_W - 10, 22)
 		row:SetPoint("TOPLEFT", Cell(i, y - 50))
 		row.icon = row:CreateTexture(nil, "ARTWORK")
@@ -179,21 +194,76 @@ local function BuildClass(p)
 	end
 end
 
-local function RefreshClass(p)
-	local items = RM.ClassItems()
-	for i, c in ipairs(p.items) do
-		local item = items[i]
-		c.key = item and item.key
-		c:SetShown(item ~= nil)
-		if item then
-			-- not for your spec or talents right now: greyed, still to be set; the guides' pick after it
-			local label = item.now and (item.label or "?") or Skin.Text("dim", item.label or "?")
-			if item.guide then label = label .. Skin.Text("dim", "  " .. string.format(L["GUIDE_PICK"], item.guide)) end
-			c:SetLabel(label)
-			c:SetChecked(item.on)
+-- The class list in sections: what every spec has (an item for every spec, or for none in
+-- particular), then each spec with reminders of its own; one for several specs stands under each
+local function Sections(items)
+	local specs = RM.ClassSpecs()
+	local _, class = UnitClass("player")
+	local sections = { { name = L["All specs"], atlas = class and ("classicon-" .. class:lower()), items = {} } }
+	local mine = RM.SpecID()
+	for _, s in ipairs(specs) do
+		sections[#sections + 1] = { name = s.name, icon = s.icon, current = s.id == mine, items = {} }
+	end
+	for _, item in ipairs(items) do
+		local of = {}
+		for i, s in ipairs(specs) do
+			if item.spec and item.spec[s.id] then of[#of + 1] = i + 1 end
+		end
+		if #of == 0 or #of == #specs then
+			table.insert(sections[1].items, item)
+		else
+			for _, i in ipairs(of) do table.insert(sections[i].items, item) end
 		end
 	end
+	return sections
+end
+
+local function RefreshClass(p)
+	local items = RM.ClassItems()
+	local y, heads, n = 0, 0, 0
+	for _, s in ipairs(Sections(items)) do
+		if #s.items > 0 and heads < HEADS then
+			heads = heads + 1
+			local head = p.heads[heads]
+			head:ClearAllPoints()
+			head:SetPoint("TOPLEFT", 0, y)
+			head:Show()
+			if s.atlas then
+				head.icon:SetAtlas(s.atlas)
+			else
+				head.icon:SetTexture(s.icon)
+				head.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+			end
+			-- another spec than yours: its name dim, like its reminders
+			head.text:SetText(s.current == false and Skin.Text("dim", s.name) or s.name)
+			y = y - 24
+			for i, item in ipairs(s.items) do
+				local c = p.items[n + 1]
+				if c then
+					n = n + 1
+					local column, row = (i - 1) % 2, math.floor((i - 1) / 2)
+					c:ClearAllPoints()
+					c:SetPoint("TOPLEFT", 24 + column * COL_W, y - row * 24)
+					c:Show()
+					c.key = item.key
+					-- not for your spec or talents right now: greyed, still to be set; the guides' pick after it
+					local label = item.now and (item.label or "?") or Skin.Text("dim", item.label or "?")
+					if item.guide then label = label .. Skin.Text("dim", "  " .. string.format(L["GUIDE_PICK"], item.guide)) end
+					c:SetLabel(label)
+					c:SetChecked(item.on)
+				end
+			end
+			y = y - math.ceil(#s.items / 2) * 24 - 8
+		end
+	end
+	for i = heads + 1, HEADS do p.heads[i]:Hide() end
+	for i = n + 1, CLASS_ROWS do
+		p.items[i].key = nil
+		p.items[i]:Hide()
+	end
 	p.none:SetShown(#items == 0)
+	p.customBlock:ClearAllPoints()
+	p.customBlock:SetPoint("TOPLEFT", 0, math.min(y, -24) - 14)
 
 	p.when:SetValueText(Named(WHEN, p.draftWhen))
 	p.who:SetValueText(Named(WHO, p.draftWho))
@@ -221,8 +291,9 @@ end
 -- ---------------------------------------------------------------------------
 
 local ORDER = { "dungeon", "raid", "delve", "world", "arena", "bg" }
-local COLUMNS = { { "where", "Your reminders" }, { "sharedWhere", "Feasts and cauldrons" } }
-local COL_X = { 200, 360 }
+-- a column for each kind, named as its page is
+local COLUMNS = { { "consumablesWhere", "Consumables" }, { "classWhere", "Your class" }, { "sharedWhere", "Feasts and cauldrons" } }
+local COL_X = { 200, 330, 460 }
 
 local function BuildWhere(p)
 	p.boxes = {}

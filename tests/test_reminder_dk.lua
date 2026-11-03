@@ -48,7 +48,7 @@ check(not find(OTHER), "runeforged again: fine")
 
 -- PvP is a setup of its own: the same spec may bring another rune there
 W.instanceType = "arena"
-RM.db.where.arena = true
+RM.db.consumablesWhere.arena = true   -- ticked, and still no weapon oil there
 W.permEnchant[16] = APOCALYPSE
 fire("PLAYER_ENTERING_WORLD")
 check(not find(OTHER), "Frost in an arena, first time: Apocalypse learned for PvP")

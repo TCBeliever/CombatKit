@@ -127,13 +127,15 @@ end
 -- set for each one shown
 function ns.SharedReminders(key, list, up)
 	local db = ns.db
+	-- a cauldron hands out flasks, and flasks are for PvE: never in an arena or a battleground
+	local pvp = key == "arena" or key == "bg"
 	for _, kind in ipairs(ns.SHARED_ORDER) do
 		local a = active[kind]
 		if a and GetTime() >= a.expires then
 			active[kind] = nil
 			a = nil
 		end
-		if a and db.shared[kind] and db.sharedWhere[key] and not TAKEN[kind]() then
+		if a and db.shared[kind] and db.sharedWhere[key] and not (pvp and kind == "cauldron") and not TAKEN[kind]() then
 			list[#list + 1] = { key = kind, icon = ns.ItemIcon(a.item), label = L[ns.SHARED[kind].label], expires = a.expires }
 			up[kind] = true
 		end

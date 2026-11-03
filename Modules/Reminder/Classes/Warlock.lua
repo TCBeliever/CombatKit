@@ -5,9 +5,11 @@ ns.classes.WARLOCK = function()
 	local DEMONS = { 30146, 691, 697, 688, 366222 }   -- Felguard, Felhunter, Voidwalker, Imp, Sayaad
 	return {
 		-- with Grimoire of Sacrifice the demon is there to be given up for the buff
-		{ key = "sacrifice", kind = "buff", spell = SACRIFICE, auras = { SACRIFICED } },
+		{ key = "sacrifice", kind = "buff", spell = SACRIFICE, auras = { SACRIFICED }, spec = { [265] = true, [267] = true } },   -- Affliction, Destruction
 		{ key = "demon", kind = "pet", felguard = true, spell = function() return ns.FirstKnown(DEMONS) end,
 			When = function() return not ns.Known(SACRIFICE) end },
+		-- Create Healthstone while there is none in the bags; anywhere, as the other class reminders
+		{ key = "createstone", kind = "make", spell = ns.HEALTHSTONE.create, items = ns.HEALTHSTONE.items },
 		-- Soulstone on someone in the group (yourself counts), unless it is cooling down after use
 		{ key = "soulstone", kind = "ally", spell = 20707, auras = { 20707 }, cooldown = true, self = true },
 	}

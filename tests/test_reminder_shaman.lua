@@ -42,5 +42,14 @@ W.playerAuras[319773] = { expirationTime = W.now + 3000 }
 fire("UNIT_INVENTORY_CHANGED", "player")
 check(not find(WF) and find(FT), "Windfury's buff counts as Windfury")
 
+local spec = {}
+for _, item in ipairs(RM.ClassItems()) do spec[item.key] = item.spec or "all" end
+check(spec.skyfury == "all" and spec.windfury[263] and not spec.windfury[262] and spec.flametongue[262] and spec.flametongue[263]
+	and spec.earthliving[264], "the class page's specs: Skyfury every spec's, Windfury Enhancement's, Flametongue two specs'")
+W.playerAuras[319773] = nil
+W.specIndex = 3
+fire("PLAYER_SPECIALIZATION_CHANGED", "player")
+check(not find(WF), "Restoration: no Windfury, known or not")
+
 T.releaseChat()
 return T.report("reminder shaman [" .. (LOCALE or "enUS") .. "]")

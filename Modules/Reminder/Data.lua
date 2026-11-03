@@ -135,9 +135,9 @@ ns.OIL = {
 -- Felguard, or its Wrathguard look
 ns.FELGUARD = { summon = 30146, creatures = { [17252] = true, [58965] = true } }
 
--- Healthstones: a warlock makes them (Create Healthstone) and puts a Soulwell
--- down for the group; a player without one, in a group with a warlock, is
--- reminded to take one.
+-- Healthstones: a warlock makes them (Create Healthstone, a class reminder of
+-- theirs) and puts a Soulwell down for the group; a player without one, in a
+-- group with a warlock, is reminded to take one (a consumable).
 ns.HEALTHSTONE = {
 	items = { 5512, 224464 },   -- Healthstone, Demonic Healthstone
 	create = 6201,

@@ -16,12 +16,13 @@ ns.classes.SHAMAN = function()
 		-- Restoration in a group: Earth Shield on someone else too (the tank, mostly)
 		{ key = "earthally", kind = "ally", spell = EARTH, auras = { EARTH }, spec = { [264] = true } },
 		-- weapon imbues, on either hand, or their buff; the slot is the hand weapon oil leaves to
-		-- them (Flametongue the off hand when that holds a weapon)
+		-- them (Flametongue the off hand when that holds a weapon). Each is a talent of the specs
+		-- named (DB2 TraitCond).
 		{ key = "windfury", kind = "imbue", spell = 33757, slot = ns.MAIN, enchants = { [5401] = true },        -- Windfury Weapon
-			buffs = { 319773 } },
+			buffs = { 319773 }, spec = { [263] = true } },
 		{ key = "flametongue", kind = "imbue", spell = 318038, enchants = { [5400] = true }, buffs = { 319778 },  -- Flametongue Weapon
-			slot = function() return ns.Weapon(ns.OFF) and ns.OFF or ns.MAIN end },
+			slot = function() return ns.Weapon(ns.OFF) and ns.OFF or ns.MAIN end, spec = { [262] = true, [263] = true } },
 		{ key = "earthliving", kind = "imbue", spell = 382021, slot = ns.MAIN, enchants = { [6498] = true },    -- Earthliving Weapon
-			buffs = { 382021, 382022 } },
+			buffs = { 382021, 382022 }, spec = { [264] = true } },
 	}
 end

@@ -13,7 +13,8 @@ W.inInstance, W.instanceType, W.difficultyID = true, "party", 23
 
 -- saved by the first version: its default size and place
 CombatKitReminderDB = { size = 36, sound = "", point = "CENTER", relPoint = "CENTER", x = 0, y = 140,
-	used = { [266] = { flask = 1235111 } } }   -- kept per spec, before PvE and PvP were told apart
+	used = { [266] = { flask = 1235111 } },   -- kept per spec, before PvE and PvP were told apart
+	where = { dungeon = true, raid = true, world = true } }   -- one list for consumables and class reminders
 
 local CK = T.boot()
 CK.SetModuleEnabled("Reminder", true)
@@ -23,7 +24,9 @@ eq(RM.db.size, 54, "a save with the first default size takes the new one")
 check(RM.db.relPoint == "TOP" and RM.db.y == -80, "and the first default place the new one")
 eq(RM.db.used["266/pve"] and RM.db.used["266/pve"].flask, 1235111, "what was kept per spec is now PvE's")
 eq(RM.db.used[266], nil, "and no longer under the spec alone")
-eq(RM.db.version, 4, "and is marked as done")
+eq(RM.db.where, nil, "the one scenario list is dropped")
+check(not RM.db.consumablesWhere.world and RM.db.classWhere.world, "the new lists start from their defaults")
+eq(RM.db.version, 5, "and is marked as done")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = true }
 fire("PLAYER_ENTERING_WORLD")
 
@@ -46,12 +49,19 @@ local PET, STONE = "spell" .. IMP, "spell" .. SOULSTONE
 -- ---------------------------------------------------------------- solo
 check(find(PET), "no demon out: Summon Imp")
 check(not find(STONE), "solo: no Soulstone to put on anyone")
-local hs = find(L["Healthstone"])
-check(hs, "no healthstone in the bags: make one")
-eq(hs and hs.button and hs.button:GetAttribute("spell"), CREATE, "a click casts Create Healthstone")
+local MAKE = "spell" .. CREATE
+local hs = find(MAKE)
+check(hs, "no healthstone in the bags: Create Healthstone, a class reminder")
+eq(hs and hs.button and hs.button:GetAttribute("spell"), CREATE, "a click casts it")
+check(not find(L["Healthstone"]), "not the consumable: that one is for taking a healthstone from a warlock")
+W.inInstance, W.instanceType = false, "none"
+fire("PLAYER_ENTERING_WORLD")
+check(find(MAKE), "in the open world too, where consumables are not reminded")
+W.inInstance, W.instanceType = true, "party"
+fire("PLAYER_ENTERING_WORLD")
 W.bags = { [5512] = 1 }
 fire("BAG_UPDATE_DELAYED")
-check(not find(L["Healthstone"]), "one in the bags: fine")
+check(not find(MAKE), "one in the bags: fine")
 W.units.pet = {}
 fire("UNIT_PET", "player")
 check(not find(PET), "the imp is out")
@@ -126,7 +136,6 @@ fire("UNIT_PET", "player")
 check(not find("spell30146"), "a Felguard out: fine")
 W.units.pet.guid = "Pet-0-3299-0-12-416-0000ABCDEF"
 W.instanceType = "arena"
-RM.db.where.arena = true
 fire("PLAYER_ENTERING_WORLD")
 check(not find("spell30146"), "an imp as Demonology in an arena: fine, PvP brings whichever demon")
 W.instanceType = "party"

@@ -21,7 +21,7 @@ CK.NewModule("Reminder", ns)
 --
 -- A class list (Classes/*.lua) holds entries:
 --   { key = what its switch is saved under,
---     kind = "group" | "buff" | "ally" | "avoid" | "pet" | "imbue" | "runeforge",
+--     kind = "group" | "buff" | "ally" | "avoid" | "pet" | "imbue" | "runeforge" | "make",
 --     spell = ID or function() -> ID: the icon, the name, what has to be known
 --             and what a click casts,
 --     known = false: nothing to be known first,
@@ -33,6 +33,7 @@ CK.NewModule("Reminder", ns)
 --     choose = true: several spells to pick from; a click casts one not on yet (buff),
 --     buffs = IDs: the imbue's own buff, which counts as well as its enchant (imbue),
 --     felguard = true: Demonology with Summon Felguard needs a Felguard out, in PvE (pet),
+--     items = IDs: what the spell makes, one of which is to be in the bags (make),
 --     guide = function(side) -> IDs: what the guides recommend for this spec on "pve" or "pvp": the
 --             spells a choose entry casts first, or the runes for the weapons (runeforge, with
 --             runeSpells = { [enchant] = the spell that puts it on }),
@@ -57,8 +58,11 @@ ns.CUSTOM_MAX = 10   -- custom reminders per class
 -- ---------------------------------------------------------------------------
 
 ns.defaults = {
-	where       = { dungeon = true, raid = true },              -- scenario keys your reminders show in
-	sharedWhere = { dungeon = true, raid = true, bg = true },   -- and the group's feasts and cauldrons
+	-- the scenario keys each kind shows in: your consumables, your class's reminders (and your custom
+	-- ones), the group's feasts and cauldrons
+	consumablesWhere = { dungeon = true, raid = true },
+	classWhere  = { dungeon = true, raid = true, delve = true, world = true, arena = true, bg = true },
+	sharedWhere = { dungeon = true, raid = true, bg = true },
 	consumables = { flask = true, food = true, rune = true, oil = true, healthstone = true },
 	-- per setup (spec and PvE or PvP), what you used last: ["<specID>/pve"] = { flask = aura,
 	-- oil16 / oil17 = enchant, food = item, rune16 / rune17 = enchant, [a choose entry's key] = { spells } }
@@ -94,8 +98,9 @@ end
 
 -- of the saved data: 2 made the icons half as large again (36 was the first default), 3 moved the row's
 -- default place up from the middle of the screen (the centre, 140 up, was the first), 4 keeps what you
--- used per spec and PvE or PvP (it was per spec, which became PvE)
-local VERSION = 4
+-- used per spec and PvE or PvP (it was per spec, which became PvE), 5 gives consumables and class
+-- reminders a scenario list each (one list held both; dropped, the new lists start from their defaults)
+local VERSION = 5
 
 local function InitDB()
 	if type(CombatKitReminderDB) ~= "table" then CombatKitReminderDB = {} end
@@ -115,6 +120,7 @@ local function InitDB()
 			end
 		end
 	end
+	if was < 5 then saved.where = nil end
 	saved.version = VERSION
 end
 
@@ -262,6 +268,11 @@ function KINDS.ally(e, soon, spell)
 	local on, left = ns.OnAlly(Value(e.auras), e.self)
 	if on == nil then return nil end
 	return Judge(on and 1 or 0, 1, left, soon)
+end
+
+-- a spell that makes an item to carry (a warlock's healthstones): while none of them is in the bags
+function KINDS.make(e)
+	if not ns.InBags(Value(e.items)) then return true end
 end
 
 function KINDS.avoid(e)
@@ -445,12 +456,11 @@ local function BuildChecks()
 	Add("oil", "consumable", icon, L["Weapon oil"], Oil(ns.MAIN), action)
 	icon, action = OilFor(ns.OFF)
 	Add("oil2", "consumable", icon, L["Off-hand oil"], Oil(ns.OFF), action)
-	-- a warlock makes their own; anyone else takes one from the warlock in the group
+	-- one to take from the warlock in the group (from the Soulwell: nothing to click); a warlock
+	-- makes their own, which is a class reminder of theirs
 	Add("healthstone", "consumable", FromBags(ns.HEALTHSTONE), L["Healthstone"], function()
 		if not ns.db.consumables.healthstone or ns.InBags(ns.HEALTHSTONE.items) then return nil end
-		if ns.Known(ns.HEALTHSTONE.create) or ns.GroupHas("WARLOCK") then return true end
-	end, function()
-		if ns.Known(ns.HEALTHSTONE.create) then return { kind = "spell", id = ns.HEALTHSTONE.create } end
+		if not ns.Known(ns.HEALTHSTONE.create) and ns.GroupHas("WARLOCK") then return true end
 	end)
 
 	-- the player's class: its list is made once, then the other classes' lists go
@@ -478,6 +488,8 @@ local function BuildChecks()
 			end or nil,
 			function() return (Applies(e)) end)
 		check.warn = e.kind == "avoid"
+		check.spec = e.spec
+		check.Spell = Spell
 		-- the guides' names for this setup, for the settings page
 		if e.guide then
 			check.Guide = function()
@@ -495,16 +507,29 @@ local function BuildChecks()
 	end
 end
 
--- Your class's reminders, for the settings: { { key=, label=, icon=, now = applies right now, on= }, ... }
+-- Your class's reminders, for the settings (and AuraLab): { { key=, label=, icon=, spell=, now = applies
+-- right now, on=, spec = { [specID] = true } for some specs only, else nil }, ... }
 function ns.ClassItems()
 	local items = {}
 	for _, c in ipairs(checks) do
 		if c.group == "class" then
-			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), now = c.Applies(),
-				on = not ns.db.off[c.key], warn = c.warn, guide = c.Guide and c.Guide() }
+			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = c.Applies(),
+				on = not ns.db.off[c.key], warn = c.warn, guide = c.Guide and c.Guide(), spec = c.spec }
 		end
 	end
 	return items
+end
+
+-- Your class's specs in the game's order: { { id=, name=, icon= }, ... }
+function ns.ClassSpecs()
+	local specs = {}
+	for i = 1, 5 do
+		-- past the last spec the client answers an empty record, or nothing
+		local id, name, _, icon = C_SpecializationInfo.GetSpecializationInfo(i)
+		if not id or id == 0 then break end
+		specs[#specs + 1] = { id = id, name = name, icon = icon }
+	end
+	return specs
 end
 
 function ns.SetClassItem(key, on)
@@ -675,9 +700,10 @@ local function Evaluate()
 	if not running then return end
 	local db = ns.db
 	local key = ns.Scenario()
-	local reminders = db.where[key] and true or false
+	local consumablesHere = db.consumablesWhere[key] and true or false
+	local classHere = db.classWhere[key] and true or false
 	local shared = db.sharedWhere[key] and (db.shared.feast or db.shared.cauldron) and true or false
-	Watch((reminders or shared) and not InCombatLockdown())
+	Watch((consumablesHere or classHere or shared) and not InCombatLockdown())
 	due = nil
 	if Blocked() then
 		Plan()
@@ -687,19 +713,22 @@ local function Evaluate()
 	-- the group's feast or cauldron first: that is where to go now
 	local list, up = {}, {}
 	if shared then ns.SharedReminders(key, list, up) end
-	if reminders then
+	if consumablesHere or classHere then
 		local soon, consumable = Soon(key)
-		local consumables = not pulled or readyCheck or key == "raid"   -- a raid: whenever combat ends
+		-- a raid: whenever combat ends
+		local consumables = consumablesHere and (not pulled or readyCheck or key == "raid")
 		local side = Side()
 		for _, c in ipairs(checks) do
 			-- your own food or flask steps aside while the group's is down
 			local aside = (c.key == "food" and up.feast) or (c.key == "flask" and up.cauldron)
-			if (c.group == "class" or consumables) and ForHere(c, side) and not aside then
+			local here = c.group == "consumable" and consumables or c.group == "class" and classHere
+			if here and ForHere(c, side) and not aside then
 				local show, text, warn, label, icon = c.Get(c.group == "consumable" and consumable or soon)
 				if show then list[#list + 1] = Entry(c, text, warn, label, icon) end
 			end
 		end
-		for _, c in ipairs(ns.CustomList()) do
+		-- custom reminders sit on the class page, and follow its scenarios
+		for _, c in ipairs(classHere and ns.CustomList() or {}) do
 			local show, text, warn = Custom(c, soon)
 			if show then
 				list[#list + 1] = { key = "custom" .. c.id, icon = ns.SpellIcon(c.id), label = ns.SpellName(c.id),
@@ -743,8 +772,9 @@ function ns.Report()
 	local db = ns.db
 	local key = ns.Scenario()
 	local _, instanceType, difficultyID = GetInstanceInfo()
-	say("scenario %s (%s, difficulty %s); your reminders here: %s, the group's feasts and cauldrons here: %s", key,
-		tostring(instanceType), tostring(difficultyID), Yes(db.where[key]), Yes(db.sharedWhere[key]))
+	say("scenario %s (%s, difficulty %s); here: consumables %s, class %s, the group's feasts and cauldrons %s", key,
+		tostring(instanceType), tostring(difficultyID), Yes(db.consumablesWhere[key]), Yes(db.classWhere[key]),
+		Yes(db.sharedWhere[key]))
 	say("hidden by: %s; first combat seen: %s; ready check: %s; consumables now: %s; consumables running out within %d min",
 		Blocked() or "nothing", Yes(pulled), Yes(readyCheck),
 		Yes(not pulled or readyCheck or key == "raid"), math.floor(select(2, Soon(key)) / 60))

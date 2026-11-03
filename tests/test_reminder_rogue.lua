@@ -56,7 +56,6 @@ eq(items[2].guide, "spell" .. ATROPHIC .. " + spell" .. CRIPPLING, "the class pa
 
 -- an arena: nothing remembered for PvP, the guides' PvP poisons
 W.instanceType = "arena"
-RM.db.where.arena = true
 W.playerAuras = {}
 fire("PLAYER_ENTERING_WORLD")
 eq(cast(LETHAL), WOUND, "an arena: Wound first")

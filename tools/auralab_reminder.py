@@ -13,6 +13,9 @@ Here that becomes:
   3. whether a group member's cast reads out of combat (dungeon, raid)
   4. how auras are handed out in dungeons, raids, keys, in and out of combat
   5. the weapon enchant APIs; 6. the stance bar against the aura API
+  7. the game's glow on action buttons: which spells it lights, out of combat
+     (a long buff that is missing) or only in combat (procs), and, by place and
+     resting area, whether it says it lights the class reminders' spells
 
 followed by the lines themselves, newest last. Needs lupa (pip install lupa), as the tests do.
 """
@@ -46,10 +49,13 @@ def read(path):
     db = lua.eval("AuraLabDB")
     r = db["reminder"] if db is not None else None
     if r is None:
-        return [], {}
+        return [], {}, {}
     lines = [r["lines"][i] for i in range(1, len(r["lines"]) + 1)] if r["lines"] else []
     casts = {k: int(v) for k, v in (r["casts"] or {}).items()}
-    return lines, casts
+    glows = {}
+    for k, v in (r["glows"] or {}).items():
+        glows[k] = int(v) if not hasattr(v, "items") else {kk: vv for kk, vv in v.items()}
+    return lines, casts, glows
 
 
 def parsed(lines):
@@ -68,10 +74,10 @@ def item_of(text):
 
 def main():
     path = saved_path()
-    lines, casts = read(path)
+    lines, casts, glows = read(path)
     rows = parsed(lines)
     print("%s: %d lines" % (path, len(rows)))
-    if not rows and not casts:
+    if not rows and not casts and not glows:
         print("nothing recorded yet: AuraLab 0.14 or later, the switch on, then /reload or log out")
         return
     by = defaultdict(list)
@@ -120,6 +126,22 @@ def main():
     print("\n6. the stance bar against the aura API")
     seen = Counter(r["text"] for r in by["stance"] if "spell nil" not in r["text"] and "bar 0" not in r["text"])
     print("   " + ("; ".join("%s (x%d)" % kv for kv in seen.most_common(5)) if seen else "no stance seen yet"))
+
+    print("\n7. the game's glow on action buttons (AuraLab 0.15 or later)")
+    spells = {k: v for k, v in glows.items() if isinstance(v, dict)}
+    for spell, c in sorted(spells.items(), key=lambda kv: -(kv[1]["on"] - kv[1]["combat"])):
+        print("   %-8s %-28s on %4d, off %4d, in combat %4d" % (spell, c["name"], c["on"], c["off"], c["combat"]))
+    if glows.get("secret"):
+        print("   %d glow events with a secret spell" % glows["secret"])
+    if not glows:
+        print("   no glow heard yet")
+    last = {}
+    for r in by["lit"]:
+        last[(r["place"], r["text"].split(";")[0])] = r
+    for (place, resting), r in sorted(last.items()):
+        print("   %-12s %s" % (place, r["text"][:300]))
+    for r in by["glow"][-20:]:
+        print("   %s %-12s %s" % (r["when"], r["place"], r["text"][:200]))
 
     print("\nchat and cast lines")
     for r in by["chat"] + by["cast"]:
