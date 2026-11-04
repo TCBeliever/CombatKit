@@ -88,8 +88,8 @@ ns.AddLocale("enUS", {
 	["SWITCH_OFF"]      = "Off",
 	["SWITCH_ON"]       = "On",
 	["Slash hint"]      = "/ck opens the settings.",
-	["LANDING_FIRST"]   = "Welcome. Tick the modules you want: a module that is off is never loaded and uses no memory. This can be changed any time in /ck.",
-	["LANDING_NEW"]     = "This version brings modules you have not seen yet. Tick the ones you want; the rest stay unloaded. This can be changed any time in /ck.",
+	["LANDING_FIRST"]   = "Welcome to CombatKit.\nLoad only the modules you use: one that is not loaded costs nothing. Settings later in Options > AddOns or /ck.",
+	["LANDING_NEW"]     = "This version has new modules. Load only the ones you use: one that is not loaded costs nothing. Settings later in Options > AddOns or /ck.",
 })
 
 ns.AddLocale("zhTW", {
@@ -120,10 +120,11 @@ ns.AddLocale("zhTW", {
 	["SWITCH_ON"]       = "開",
 	["Slash hint"]      = "輸入 /ck 開啟設定。",
 	["Open settings"]                   = "開啟設定",
+	["Go to settings"]                  = "進入設定",
 	["%s is not installed."]            = "%s 沒有安裝。",
 	["Could not load %s (%s)."]         = "無法載入 %s（%s）。",
-	["LANDING_FIRST"]   = "歡迎使用。勾選你要的模組：關閉的模組不會載入、不佔記憶體。之後隨時可以在 /ck 裡改。",
-	["LANDING_NEW"]     = "這個版本有你還沒看過的新模組。勾選你要的，其餘維持不載入。之後隨時可以在 /ck 裡改。",
+	["LANDING_FIRST"]   = "歡迎使用 CombatKit。\n按需載入你要用的模組，沒載入的不消耗效能。後續設定在「選項 > 插件」或 /ck。",
+	["LANDING_NEW"]     = "這版有新的模組。按需載入你要用的，沒載入的不消耗效能。後續設定在「選項 > 插件」或 /ck。",
 	["Apply"]           = "套用",
 	["Later"]           = "稍後再說",
 })

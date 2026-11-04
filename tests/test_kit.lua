@@ -35,8 +35,17 @@ eq(CK.db.settings.theme, "tide", "a fresh install is in Tide")
 eq(CK.Skin.theme, "tide", "and so is the palette")
 
 -- ---------------------------------------------------------------- the landing: the first login asks about every module
+eq(CK.Landing.GetFrame(), nil, "at login nothing yet: the landing waits for the loading screen")
+-- a login as the game runs one: the event, then the loading screen ends, then a moment
+local function login()
+	fire("PLAYER_LOGIN")
+	fire("PLAYER_ENTERING_WORLD")
+	flush()
+end
+fire("PLAYER_ENTERING_WORLD")
+flush()
 local landing = CK.Landing.GetFrame()
-check(landing and landing:IsShown(), "a fresh install: the landing is up")
+check(landing and landing:IsShown(), "a fresh install: the landing is up, once the loading screen is over")
 check(not loaded("CombatKit_Options"), "without loading the settings window")
 eq(#landing.defs, 5, "the five modules that are switched as a whole")
 check(landing.rows[1].check:GetChecked() and not landing.rows[2].check:GetChecked(), "ticked as they would be on: Loadout yes, Stats no")
@@ -47,21 +56,24 @@ check(CK.IsModuleEnabled("Loadout") and not loaded("CombatKit_Stats"), "and leav
 check(CK.db.settings.asked.Stats and CK.db.settings.asked.Range, "every module shown is now asked about")
 CK.SetModuleEnabled("Range", false)
 -- the next login: nothing new, nothing asked; a module added later is asked about alone
-fire("PLAYER_LOGIN")
+login()
 check(not landing:IsShown(), "asked once: the next login shows nothing")
 CK.db.settings.asked.Range = nil
-fire("PLAYER_LOGIN")
+login()
 check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "Range", "a module never asked about: the landing shows it alone")
 check(landing.intro:GetText() == CK.L["LANDING_NEW"], "as new, not as a welcome")
 CK.Landing.Later()
 check(not landing:IsShown() and CK.db.settings.asked.Range == nil, "Later: closed, and asked again next time")
 SlashCmdList.COMBATKIT("landing")
 check(landing:IsShown() and #landing.defs == 5, "/ck landing shows it for every module")
+landing.settings:Click(); flush()
+check(not landing:IsShown() and CK.Options and CK.Options.IsShown(), "Go to settings: the choices taken, the settings window open")
+CK.Options.GetFrame():Hide()
 CK.Landing.Later()
 -- an update that brings Reminder: asked about alone, unticked; nothing starts until the player ticks it
 for _, def in ipairs(CK.MODULES) do CK.db.settings.asked[def.name] = true end
 CK.db.settings.asked.Reminder = nil
-fire("PLAYER_LOGIN")
+login()
 check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "Reminder"
 	and not landing.rows[1].check:GetChecked(), "an update with Reminder: shown alone, unticked")
 CK.Landing.Apply()

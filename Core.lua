@@ -322,6 +322,8 @@ local function RegisterInGameOptions()
 	ns.gameOptions = { panel = panel, open = open }   -- for the tests
 end
 
+local LANDING_DELAY = 2   -- seconds after the loading screen
+
 local driver = CreateFrame("Frame")
 driver:RegisterEvent("ADDON_LOADED")
 driver:RegisterEvent("PLAYER_LOGIN")
@@ -338,9 +340,16 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 			if Wanted(def) then StartModule(def) end
 		end
 		ns.HUD.Refresh()
+		-- the landing waits for the loading screen to be over: shown at login it was closed again
+		-- before the player saw it (seen in game, 2026-11-04)
+		self:RegisterEvent("PLAYER_ENTERING_WORLD")
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 		-- the first time, and whenever a module appears the player was never asked about
-		local pending, why = ns.PendingModules()
-		if #pending > 0 then ns.Landing.Show(pending, why) end
+		C_Timer.After(LANDING_DELAY, function()
+			local pending, why = ns.PendingModules()
+			if #pending > 0 then ns.Landing.Show(pending, why) end
+		end)
 	end
 end)
 

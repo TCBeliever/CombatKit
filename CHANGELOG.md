@@ -116,4 +116,5 @@ First public release.
 - Themes: *Obsidian* (black-gold), the same as OneClickFish's and SmartVoidcore's, replaces *Dusk*. A saved Dusk falls back to Tide.
 - Range and Party CD: their settings laid out one per line, the Party CD spell icons as large as the Reminder's.
 - 繁體中文: 競技場 and 團本 instead of Arena and Raid.
+- The window that offers modules (after an update, and the first time): opens once the loading screen is over (at login it could close again unseen), larger text on a slightly see-through ground, a switch per module, and *Go to settings* to take the choices and look around.
 - Party CD: Smoke Bomb and Death Pact are seen. The game marks their auras as debuffs, so the team's buff slots never drew them.
