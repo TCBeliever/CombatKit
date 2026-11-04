@@ -13,8 +13,8 @@ ns.classes.DEATHKNIGHT = function()
 	-- hand, the top players do both). The hero tree changes nothing; for Frost, Shattering Blade and
 	-- Frostbane do. Frost in PvE dual wields, in PvP takes a two-hander: Icy Veins' Razorice for a
 	-- two-hander in PvE is left out. Blood in PvP has no guide; the most used rune stands in.
-	local function Guide(side)
-		local spec = ns.SpecID()
+	local function Guide(side, spec)
+		spec = spec or ns.SpecID()   -- either spec may be asked about: the settings page shows each one's
 		if spec == 250 then return { SANGUINATION } end
 		if spec == 252 then return { APOCALYPSE } end
 		if spec == 251 then

@@ -19,14 +19,19 @@ ns.classes.ROGUE = function()
 	-- changes nothing. Atrophic and Numbing share a talent node: whichever is known is the one. In
 	-- PvP the lethal becomes Wound; Assassination's second (Deadly) is read from the top players'
 	-- talents, no guide names it.
-	local function Lethal(side)
-		local spec = ns.SpecID()
+	-- Either spec may be asked about (the settings page shows each one's). A list is as long
+	-- as the spec wants poisons of the kind: two for Assassination, which takes Dragon-Tempered
+	-- Blades, one for the others.
+	local function Lethal(side, spec)
+		spec = spec or ns.SpecID()
 		if side == "pvp" then return spec == 259 and { WOUND, DEADLY } or { WOUND } end
 		return spec == 259 and { DEADLY, AMPLIFYING } or { INSTANT }
 	end
-	local function NonLethal(side)
-		if side == "pvp" then return ns.SpecID() == 259 and { CRIPPLING, ATROPHIC } or { CRIPPLING } end
-		return { ATROPHIC, NUMBING, CRIPPLING }
+	local function NonLethal(side, spec)
+		spec = spec or ns.SpecID()
+		if side == "pvp" then return spec == 259 and { CRIPPLING, ATROPHIC } or { CRIPPLING } end
+		local node = ns.FirstKnown({ ATROPHIC, NUMBING }) or ATROPHIC   -- one talent node: the one taken
+		return spec == 259 and { node, CRIPPLING } or { node }
 	end
 	return {
 		{ key = "lethal", kind = "buff", label = "Lethal poison", choose = true, guide = Lethal,

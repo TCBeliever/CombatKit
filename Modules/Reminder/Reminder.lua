@@ -492,16 +492,19 @@ local function BuildChecks()
 		check.Spell = Spell
 		-- the guides' names for this setup, for the settings page
 		if e.guide then
-			check.Guide = function()
-				local guide = e.guide(Side()) or {}
+			-- for your spec, or another (spec): yours as far as your talents go, another's as the guides have it
+			check.Guide = function(spec)
+				local mine = not spec or spec == ns.SpecID()
+				local guide = e.guide(Side(), spec) or {}
 				if e.runeSpells then
-					-- the rune for this hand: of a pair, the first for the main hand, the second for the off hand
-					local id = guide[e.slot == ns.OFF and 2 or 1] or guide[1]
+					-- the rune for this hand: of a pair, the first for the main hand, the second for the off hand;
+					-- a single rune is for a two-hander, and leaves the off hand none
+					local id = guide[e.slot == ns.OFF and 2 or 1]
 					return id and ns.SpellName(e.runeSpells[id] or id) or nil
 				end
-				local names, want = {}, e.need and Value(e.need) or math.huge
+				local names, want = {}, mine and e.need and Value(e.need) or math.huge
 				for _, id in ipairs(guide) do
-					if ns.Known(id) and #names < want then names[#names + 1] = ns.SpellName(id) end
+					if (not mine or ns.Known(id)) and #names < want then names[#names + 1] = ns.SpellName(id) end
 				end
 				return #names > 0 and table.concat(names, " + ") or nil
 			end
@@ -516,9 +519,18 @@ function ns.ClassItems()
 	for _, c in ipairs(checks) do
 		if c.group == "class" then
 			local now = c.Applies()
-			-- the guides' pick only where it would be used now
+			-- the guides' pick only where it would be used now; and each spec's, for the page to show
+			-- under that spec
+			local guides
+			if c.Guide then
+				guides = {}
+				for _, s in ipairs(ns.ClassSpecs()) do
+					if not c.spec or c.spec[s.id] then guides[s.id] = c.Guide(s.id) end
+				end
+			end
 			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = now,
-				on = not ns.db.off[c.key], warn = c.warn, guide = now and c.Guide and c.Guide() or nil, spec = c.spec }
+				on = not ns.db.off[c.key], warn = c.warn, guide = now and c.Guide and c.Guide() or nil, guides = guides,
+				spec = c.spec }
 		end
 	end
 	return items

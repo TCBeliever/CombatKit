@@ -53,6 +53,22 @@ eq(cast(LETHAL), INSTANT, "all off: the click casts Instant first, as last time,
 eq(cast(NONLETHAL), ATROPHIC, "a non-lethal one too: the guides' Atrophic first")
 local items = RM.ClassItems()
 eq(items[2].guide, "spell" .. ATROPHIC .. " + spell" .. CRIPPLING, "the class page names the guides' two (Numbing is not known)")
+eq(items[1].guides[260], "spell" .. INSTANT, "and each spec's: Outlaw's lethal poison is Instant")
+eq(items[2].guides[261], "spell" .. ATROPHIC, "Subtlety's non-lethal: one, the talent node's Atrophic")
+
+-- the page: the poisons under each spec, with that spec's pick; another spec's greyed
+SlashCmdList.COMBATKIT("")
+local main = CK.Options.GetFrame()
+main.tabs.Reminder:Click()
+for _, row in ipairs(main.treeRows) do
+	if row:IsShown() and row.section == "Reminder" and row.node == "class" then row:Click() end
+end
+local page = main.bodies.Reminder.pages.class
+check(page.heads[1]:IsShown() and page.heads[1].text:GetText() == "Assassination", "no 'all specs' head: every poison is per spec")
+check(page.heads[3]:IsShown() and not page.heads[4]:IsShown(), "Assassination, Outlaw, Subtlety")
+eq(page.items[3].key, "lethal", "Outlaw's lethal poison")
+check(page.items[3].label:GetText():find("spell" .. INSTANT, 1, true), "with Outlaw's pick")
+main:Hide()
 
 -- an arena: nothing remembered for PvP, the guides' PvP poisons
 W.instanceType = "arena"

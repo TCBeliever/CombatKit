@@ -214,11 +214,23 @@ local function Sections(items)
 		sections[#sections + 1] = { name = s.name, icon = s.icon, current = s.id == mine, items = {} }
 	end
 	for _, item in ipairs(items) do
-		local of = {}
+		local of, picks = {}, 0
 		for i, s in ipairs(specs) do
 			if item.spec and item.spec[s.id] then of[#of + 1] = i + 1 end
+			if item.guides and item.guides[s.id] then picks = picks + 1 end
 		end
-		if #of == 0 or #of == #specs then
+		if picks > 0 then
+			-- each spec its own recommendation (poisons, runes): under each spec, greyed where it is not yours
+			for i, s in ipairs(specs) do
+				if item.guides[s.id] then
+					-- yours as it stands now (no pick while it does not apply); another spec's from the guides
+					local yours = s.id == mine
+					local copy = setmetatable({ guide = yours and item.guide or not yours and item.guides[s.id] or nil,
+						now = item.now and yours }, { __index = item })
+					table.insert(sections[i + 1].items, copy)
+				end
+			end
+		elseif #of == 0 or #of == #specs then
 			table.insert(sections[1].items, item)
 		else
 			for _, i in ipairs(of) do table.insert(sections[i].items, item) end
@@ -261,7 +273,7 @@ local function RefreshClass(p)
 					c:SetLabel(label)
 					c:SetChecked(item.on)
 					c.tipTitle = item.label
-					c.tip = not item.now and L["NOT_NOW_TIP"] or item.guide and L["GUIDE_TIP"] or nil
+					c.tip = item.guide and L["GUIDE_TIP"] or not item.now and L["NOT_NOW_TIP"] or nil
 				end
 			end
 			y = y - math.ceil(#s.items / 2) * 24 - 8
