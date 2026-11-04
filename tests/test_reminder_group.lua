@@ -47,16 +47,19 @@ end
 local function find(label)
 	for _, r in ipairs(shown()) do if r.label == label then return r end end
 end
-local PET, STONE = "spell" .. IMP, "spell" .. SOULSTONE
+local PET, STONE = "spell" .. IMP, "spell" .. SOULSTONE   -- the demon by its name (the stubs name a spell by its ID)
 
 -- ---------------------------------------------------------------- solo
-check(find(PET), "no demon out: Summon Imp")
+check(find(PET), "no demon out: the demon reminder")
+eq(find(PET) and find(PET).button and find(PET).button:GetAttribute("spell"), IMP, "a click summons the one demon known")
 check(not find(STONE), "solo: no Soulstone to put on anyone")
-local MAKE = "spell" .. CREATE
+local MAKE = L["Healthstone"]   -- named as what it makes, as the consumable is
 local hs = find(MAKE)
 check(hs, "no healthstone in the bags: Create Healthstone, a class reminder")
 eq(hs and hs.button and hs.button:GetAttribute("spell"), CREATE, "a click casts it")
-check(not find(L["Healthstone"]), "not the consumable: that one is for taking a healthstone from a warlock")
+local named = 0
+for _, r in ipairs(shown()) do if r.label == MAKE then named = named + 1 end end
+eq(named, 1, "not the consumable as well: that one is for taking a healthstone from a warlock")
 W.inInstance, W.instanceType = false, "none"
 fire("PLAYER_ENTERING_WORLD")
 check(find(MAKE), "in the open world too, where consumables are not reminded")
@@ -133,19 +136,19 @@ W.playerAuras = nil
 W.specIndex = 2
 W.units.pet = { guid = "Pet-0-3299-0-12-416-0000ABCDEF" }   -- an imp
 fire("PLAYER_SPECIALIZATION_CHANGED", "player")
-check(find("spell30146"), "an imp out as Demonology with Summon Felguard: Summon Felguard, in red")
+check(find(L["Felguard"]), "an imp out as Demonology with Summon Felguard: Felguard, in red")
 W.units.pet.guid = "Pet-0-3299-0-12-17252-0000ABCDEF"
 fire("UNIT_PET", "player")
-check(not find("spell30146"), "a Felguard out: fine")
+check(not find(L["Felguard"]), "a Felguard out: fine")
 W.units.pet.guid = "Pet-0-3299-0-12-416-0000ABCDEF"
 W.instanceType = "arena"
 fire("PLAYER_ENTERING_WORLD")
-check(not find("spell30146"), "an imp as Demonology in an arena: fine, PvP brings whichever demon")
+check(not find(L["Felguard"]), "an imp as Demonology in an arena: fine, PvP brings whichever demon")
 W.instanceType = "party"
 fire("PLAYER_ENTERING_WORLD")
 W.specIndex = 1
 fire("PLAYER_SPECIALIZATION_CHANGED", "player")
-check(not find("spell30146"), "an imp as Affliction: fine")
+check(not find(L["Felguard"]), "an imp as Affliction: fine")
 
 T.releaseChat()
 return T.report("reminder group [" .. (LOCALE or "enUS") .. "]")

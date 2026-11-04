@@ -33,12 +33,21 @@ ns.classes.ROGUE = function()
 		local node = ns.FirstKnown({ ATROPHIC, NUMBING }) or ATROPHIC   -- one talent node: the one taken
 		return spec == 259 and { node, CRIPPLING } or { node }
 	end
+	-- The name above the icon: the poison a click puts on, short of "Poison" in English (Deadly);
+	-- the zhTW names are four characters as they are. The settings page names the kind.
+	local function Name(spell)
+		local name = ns.SpellName(spell)
+		return name and (name:gsub(" Poison$", "")) or nil
+	end
+	local L = CombatKit.L
 	return {
-		{ key = "lethal", kind = "buff", label = "Lethal poison", choose = true, guide = Lethal,
-			spell = function() return ns.FirstKnown(LETHAL) end,
+		{ key = "lethal", kind = "buff", choose = true, guide = Lethal, Name = Name,
+			Title = function() return L["Lethal poison"] end,
+			spell = function() return ns.KnownOrFirst(LETHAL) end,
 			auras = LETHAL, need = function() return Need(LETHAL) end },
-		{ key = "nonlethal", kind = "buff", label = "Non-lethal poison", choose = true, guide = NonLethal,
-			spell = function() return ns.FirstKnown(NONLETHAL) end,
+		{ key = "nonlethal", kind = "buff", choose = true, guide = NonLethal, Name = Name,
+			Title = function() return L["Non-lethal poison"] end,
+			spell = function() return ns.KnownOrFirst(NONLETHAL) end,
 			auras = NONLETHAL, need = function() return Need(NONLETHAL) end },
 	}
 end

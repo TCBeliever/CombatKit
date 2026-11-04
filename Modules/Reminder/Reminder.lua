@@ -31,6 +31,12 @@ CK.NewModule("Reminder", ns)
 --     form = true: the stance bar counts as well as the aura (buff, avoid),
 --     cooldown = true: not while the spell cools down (ally), self = true: on yourself counts (ally),
 --     choose = true: several spells to pick from; a click casts one not on yet (buff),
+--     options = IDs or function() -> IDs: the spells to pick one from (a demon, an aura); a click
+--               casts the one you cast last in this setup, or Prefer(side)'s when it names one;
+--               Alt over the icon shows the others,
+--     Look = function(spell) -> icon, name: the icon (and name) of what a spell brings (a hunter's pets),
+--     Name = function(spell) -> text: the name above the icon, where the spell's own is too long,
+--     Title = function(spell) -> text: its name on the settings page, where the icon's is too short,
 --     buffs = IDs: the imbue's own buff, which counts as well as its enchant (imbue),
 --     felguard = true: Demonology with Summon Felguard needs a Felguard out, in PvE (pet),
 --     items = IDs: what the spell makes, one of which is to be in the bags (make),
@@ -81,6 +87,10 @@ ns.defaults = {
 	-- centred, 80 below the top edge: where the user put it on 2026-11-03 (480 above the middle of
 	-- their screen, 1113 high at UI scale 0.69), kept from the top so a shorter screen has it too
 	point = "CENTER", relPoint = "TOP", x = 0, y = -80,
+	-- a hunter's or warlock's pet below `below` percent: a line of its own, in combat too: the icon
+	-- (if asked) and the text beside it, the text as large as `fontSize`. Where the user dragged it
+	-- on 2026-11-04, rounded: 370 above the middle of the screen.
+	petHealth = { on = true, below = 40, icon = true, fontSize = 20, point = "CENTER", relPoint = "CENTER", x = 0, y = 370 },
 }
 
 -- Fill missing keys in `dst` from `defaults` (never overwrites existing values).
@@ -234,6 +244,15 @@ local function Pick(e)
 	return first
 end
 
+-- The one of an "options" entry's spells to cast: the one Prefer names (a Felguard for
+-- Demonology), else the one you cast last in this setup, while you still know it
+local function Chosen(e)
+	local prefer = e.Prefer and e.Prefer(Side())
+	if prefer then return prefer end
+	local mine = (Used()[e.key] or {})[1]
+	if mine and ns.Known(mine) then return mine end
+end
+
 local KINDS = {}
 
 function KINDS.group(e, soon)
@@ -284,13 +303,16 @@ function KINDS.avoid(e)
 end
 
 function KINDS.pet(e)
+	-- on a mount the pet may be away (after a flight it comes back only once you get off), and
+	-- the game brings it back by itself: nothing to remind of until you dismount
+	if IsMounted and IsMounted() then return nil end
 	if not ns.HasPet() then return true end
 	-- Demonology with Summon Felguard: the demon out has to be a Felguard, in PvE (in PvP
 	-- a warlock brings whichever demon the match wants)
 	if e.felguard and Side() == "pve" and ns.SpecID() == DEMONOLOGY and ns.Known(ns.FELGUARD.summon) then
 		local creature = ns.PetCreature()
 		if creature and not ns.FELGUARD.creatures[creature] then
-			return true, nil, true, ns.SpellName(ns.FELGUARD.summon)
+			return true, nil, true, L["Felguard"]
 		end
 	end
 end
@@ -473,10 +495,21 @@ local function BuildChecks()
 	ns.classes = nil
 	for _, e in ipairs(classEntries) do
 		local function Spell() return Value(e.spell) end
-		local function Cast() return e.choose and Pick(e) or Spell() end
+		local function Cast()
+			if e.choose then return Pick(e) or Spell() end
+			if e.options then return Chosen(e) or Spell() end
+			return Spell()
+		end
+		local function Icon(spell)
+			local look = e.Look and e.Look(spell)
+			return look or ns.SpellIcon(spell)
+		end
 		local check = Add(e.key, "class",
-			function() return ns.SpellIcon(Cast()) end,
-			e.label and L[e.label] or function() return ns.SpellName(Spell()) end,
+			function() return Icon(Cast()) end,
+			e.label and L[e.label] or function()
+				local spell = Cast()
+				return e.Name and e.Name(spell) or ns.SpellName(spell)
+			end,
 			function(soon)
 				if ns.db.off[e.key] then return nil end
 				local applies, spell = Applies(e)
@@ -491,7 +524,26 @@ local function BuildChecks()
 			function() return (Applies(e)) end)
 		check.warn = e.kind == "avoid"
 		check.spec = e.spec
+		check.kind = e.kind
+		check.withPet = e.kind == "pet" or e.withPet   -- the settings page's pet section, where a class has one
 		check.Spell = Spell
+		check.Cast = Cast
+		check.Title = e.Title and function() return e.Title(Cast()) end
+		-- the others to pick from, known and not the one a click casts (nor, of poisons, one on you
+		-- already): { { kind = "spell", id=, slot=, icon=, name= }, ... }
+		if (e.options or e.choose) and not NO_CLICK[e.kind] then
+			check.Options = function(current)
+				local list = {}
+				for _, id in ipairs(Value(e.options or e.auras) or {}) do
+					if id ~= current and ns.Known(id) and not (e.choose and ns.PlayerAuras({ id }) == 1) then
+						local icon, name = Icon(id), e.Look and select(2, e.Look(id)) or nil
+						list[#list + 1] = { kind = "spell", id = id, icon = icon, name = name,
+							slot = e.kind == "imbue" and Value(e.slot) or nil }
+					end
+				end
+				return list
+			end
+		end
 		-- the guides' names for this setup, for the settings page
 		if e.guide then
 			-- for your spec, or another (spec): yours as far as your talents go, another's as the guides have it.
@@ -520,7 +572,8 @@ local function BuildChecks()
 end
 
 -- Your class's reminders, for the settings (and AuraLab): { { key=, label=, icon=, spell=, now = applies
--- right now, on=, spec = { [specID] = true } for some specs only, else nil }, ... }
+-- right now, on=, spec = { [specID] = true } for some specs only, else nil, kind=, withPet = listed with
+-- the pet where the page has a pet section }, ... }
 function ns.ClassItems()
 	local items = {}
 	for _, c in ipairs(checks) do
@@ -538,12 +591,22 @@ function ns.ClassItems()
 					end
 				end
 			end
-			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = now,
+			items[#items + 1] = { key = c.key, label = Value(c.label), title = c.Title and c.Title(), icon = Value(c.icon),
+			spell = c.Spell(), now = now,
 				on = not ns.db.off[c.key], warn = c.warn, guide = now and c.Guide and c.Guide() or nil, guides = guides,
-				guideIcons = guideIcons, spec = c.spec }
+				guideIcons = guideIcons, spec = c.spec, kind = c.kind, withPet = c.withPet }
 		end
 	end
 	return items
+end
+
+-- Is a pet of yours meant to be out (your class's pet reminder applies), and the class's
+-- token: for the pet's health
+function ns.PetExpected()
+	for _, e in ipairs(classEntries or {}) do
+		if e.kind == "pet" and (Applies(e)) then return true, playerClass end
+	end
+	return false, playerClass
 end
 
 -- The icon of one of your consumables (the one in your bags, else the kind's own), or of what the
@@ -725,10 +788,20 @@ local function Soon(key)
 	return soon, consumable
 end
 
+-- What one icon shows. `tip`: what its tooltip describes ({ kind=, id= }), whether or not a
+-- click uses it; none where the check names something else (a rune to put on).
+-- `options`: the others a click could cast instead, for the chooser.
 local function Entry(c, text, warn, label, icon)
-	local action = c.action and ns.db.click and c.action() or nil
+	local act = c.action and c.action() or nil
+	local tip = act
+	if not tip and c.Cast and not (label or icon) then
+		local spell = c.Cast()
+		tip = spell and { kind = "spell", id = spell } or nil
+	end
+	local action = ns.db.click and act or nil
 	return { key = c.key, icon = icon or Value(c.icon), label = label or Value(c.label), text = text, warn = warn,
-		action = action }
+		action = action, tip = tip, kind = c.kind or c.group,
+		options = action and c.Options and c.Options(action.id) or nil }
 end
 
 local function Evaluate()
@@ -768,7 +841,7 @@ local function Evaluate()
 			local show, text, warn = Custom(c, soon)
 			if show then
 				list[#list + 1] = { key = "custom" .. c.id, icon = ns.SpellIcon(c.id), label = ns.SpellName(c.id),
-					text = text, warn = warn,
+					text = text, warn = warn, tip = { kind = "spell", id = c.id }, kind = "custom",
 					action = db.click and c.when == "missing" and ns.Known(c.id) and { kind = "spell", id = c.id } or nil }
 			end
 		end
@@ -885,6 +958,7 @@ local EVENTS = {
 	"UPDATE_SHAPESHIFT_FORM", "READY_CHECK", "READY_CHECK_FINISHED",
 	"CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED", "ENCOUNTER_START", "ENCOUNTER_END",
 	"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE", "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED",
+	"PLAYER_MOUNT_DISPLAY_CHANGED",
 }
 
 local handlers = {}
@@ -946,6 +1020,21 @@ function handlers.UNIT_AURA(unit)
 end
 function handlers.UNIT_INVENTORY_CHANGED(unit) if Mine(unit) then ns.Queue(0.3) end end
 function handlers.UNIT_PET(unit) if Mine(unit) then ns.Queue(0.5) end end
+
+-- your own casts (registered for the player alone): one of an "options" entry's spells is the
+-- one to cast next time in this setup, however it was cast (the icon, the chooser, a key)
+function handlers.UNIT_SPELLCAST_SUCCEEDED(unit, _, spell)
+	if not Mine(unit) or type(spell) ~= "number" or ns.Secret(spell) then return end
+	for _, e in ipairs(classEntries or {}) do
+		for _, id in ipairs(e.options and Value(e.options) or {}) do
+			if id == spell then
+				Used()[e.key] = { spell }
+				ns.Queue(0.3)
+				return
+			end
+		end
+	end
+end
 function handlers.UNIT_ENTERED_VEHICLE(unit) if Mine(unit) then ns.Queue(0.3) end end
 handlers.UNIT_EXITED_VEHICLE = handlers.UNIT_ENTERED_VEHICLE
 
@@ -977,7 +1066,9 @@ function ns.OnEnable()
 	watching = nil
 	-- an event this client does not know raises an error on registration
 	for _, e in ipairs(EVENTS) do pcall(driver.RegisterEvent, driver, e) end
+	pcall(driver.RegisterUnitEvent, driver, "UNIT_SPELLCAST_SUCCEEDED", "player")
 	ns.SetSharedListening(SharedOn())
+	ns.PetHealthStart(true)
 	CK.HUD.AddSection(ns.hudSection)
 	-- switched on mid-session there is no loading screen to wait for
 	loading = false
@@ -989,6 +1080,7 @@ function ns.OnDisable()
 	driver:UnregisterAllEvents()
 	watching = nil
 	ns.SetSharedListening(false)
+	ns.PetHealthStart(false)
 	ns.SetLocked(true)
 	ns.SetTesting(false)
 	ns.ShowReminders({})

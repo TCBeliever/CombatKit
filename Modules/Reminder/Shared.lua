@@ -136,7 +136,8 @@ function ns.SharedReminders(key, list, up)
 			a = nil
 		end
 		if a and db.shared[kind] and db.sharedWhere[key] and not (pvp and kind == "cauldron") and not TAKEN[kind]() then
-			list[#list + 1] = { key = kind, icon = ns.ItemIcon(a.item), label = L[ns.SHARED[kind].label], expires = a.expires }
+			list[#list + 1] = { key = kind, icon = ns.ItemIcon(a.item), label = L[ns.SHARED[kind].label], expires = a.expires,
+				tip = { kind = "item", id = a.item }, kind = "shared" }
 			up[kind] = true
 		end
 	end

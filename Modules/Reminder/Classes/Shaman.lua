@@ -7,7 +7,7 @@ ns.classes.SHAMAN = function()
 	return {
 		{ key = "skyfury", kind = "group", spell = 462854, auras = { 462854 } },   -- Skyfury
 		-- Lightning or Water Shield; without Elemental Orbit, Earth Shield on yourself is the one shield instead
-		{ key = "shield", kind = "buff", spell = function() return ns.FirstKnown({ WATER, LIGHTNING }) end,
+		{ key = "shield", kind = "buff", spell = function() return ns.KnownOrFirst({ WATER, LIGHTNING }) end, options = { WATER, LIGHTNING },
 			auras = function()
 				if Orbit() then return { LIGHTNING, WATER } end
 				return { LIGHTNING, WATER, EARTH, EARTH_SELF }

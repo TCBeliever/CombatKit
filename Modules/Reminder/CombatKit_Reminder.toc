@@ -25,5 +25,6 @@ Classes\Shaman.lua
 Classes\Warlock.lua
 Classes\Warrior.lua
 Display.lua
+PetHealth.lua
 Shared.lua
 Reminder.lua

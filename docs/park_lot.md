@@ -34,3 +34,9 @@ UI.lua draws the active highlight from the game's own textures (docs/PartyCD-nex
 
 The next round in `docs/PartyCD-next.md` is done and released in 1.1.1 (A highlight, B racial abilities, C the proposed additions, D the generated files' dates). Left: the stand-in frames' sides with DandersFrames grown from the centre (D, `SLOT_CENTERED` in UI.lua), to compare with the real party in game.
 - Still not decided: Breath of Eons (Augmentation burst), Earth Elemental.
+
+## Reminder: later
+
+Set aside by the user on 2026-11-04 ("先不做"), seen in Class Reminders' pet add-on:
+- A pet on passive: a warning while your pet (hunter, warlock, Unholy ghoul, Frost Water Elemental) is set to passive and so does nothing.
+- A pet on defensive: the same for defensive, off by default there.

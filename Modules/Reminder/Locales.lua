@@ -7,9 +7,22 @@ local CK = CombatKit
 
 CK.AddLocale("enUS", {
 	["REMINDER_HUD_TIP"] = "Missing consumables and buffs. Left click: the Reminder settings.",
-	-- names above an icon: short enough for one line at the icon's width
-	["Lethal poison"]     = "Lethal",
-	["Non-lethal poison"] = "Non-lethal",
+	-- the kinds of poison, on the settings page (the icon is named for the poison itself)
+	["Lethal poison"]     = "Lethal poison",
+	["Non-lethal poison"] = "Non-lethal poison",
+	-- tooltips over an icon: why it shows, what a click does
+	["Pet health low"] = "Pet low HP",
+	["Pet %d"]     = "Pet %d",
+	["Summon demon (%s)"] = "Summon demon (%s)",
+	["Summon pet (%s)"]   = "Summon pet (%s)",
+	["TIP_LEFT"]   = "%s left",
+	["TIP_MIN"]    = "%d min left",
+	["TIP_SEC"]    = "%d s left",
+	["TIP_GROUP"]  = "%s in the group without it",
+	["TIP_CAST"]   = "Left click: cast",
+	["TIP_USE"]    = "Left click: use",
+	["TIP_CHOOSE"] = "Hold Alt: pick another",
+	["TIP_PICK"]   = "Left click: cast it. The icon casts it from now on.",
 })
 
 CK.AddLocale("zhTW", {
@@ -22,9 +35,23 @@ CK.AddLocale("zhTW", {
 	["Off-hand oil"]      = "副手武器油",
 	["Feast"]             = "大餐",
 	["Flask cauldron"]    = "精煉大鍋",
-	["Lethal poison"]     = "致命",
-	["Non-lethal poison"] = "非致命",
+	["Lethal poison"]     = "致命毒藥",
+	["Non-lethal poison"] = "非致命毒藥",
 	["Main-hand rune"]    = "主手符文",
 	["Off-hand rune"]     = "副手符文",
 	["Rune to change"]    = "該換符文",
+	["Felguard"]          = "惡魔守衛",
+	["Pet %d"]            = "寵物%d",
+	["Summon demon (%s)"] = "召喚惡魔（%s）",
+	["Summon pet (%s)"]   = "召喚寵物（%s）",
+	["Water Elemental"]   = "水元素",
+	["Pet health low"]    = "寵物低血",
+	["TIP_LEFT"]          = "剩 %s",
+	["TIP_MIN"]           = "剩 %d 分鐘",
+	["TIP_SEC"]           = "剩 %d 秒",
+	["TIP_GROUP"]         = "隊伍裡有 %s 人沒有",
+	["TIP_CAST"]          = "左鍵：施放",
+	["TIP_USE"]           = "左鍵：使用",
+	["TIP_CHOOSE"]        = "按住 Alt：換一個",
+	["TIP_PICK"]          = "左鍵：施放。之後圖示改施放這個。",
 })

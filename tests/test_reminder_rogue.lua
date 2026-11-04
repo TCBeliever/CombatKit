@@ -11,30 +11,37 @@ W.specs = { { 259, "Assassination" }, { 260, "Outlaw" }, { 261, "Subtlety" } }
 W.known = { [DEADLY] = true, [INSTANT] = true, [CRIPPLING] = true, [ATROPHIC] = true, [BLADES] = true }
 W.playerAuras = {}
 W.inInstance, W.instanceType, W.difficultyID = true, "party", 2
+-- Deadly Poison by its English name, to see the icon named for the poison, short of "Poison"
+local spellName = C_Spell.GetSpellName
+C_Spell.GetSpellName = function(id) if id == DEADLY then return "Deadly Poison" end return spellName(id) end
 local CK = T.boot()
 CK.SetModuleEnabled("Reminder", true)
 local RM = CK.modules.Reminder
 local L = CK.L
 RM.db.consumables = { flask = false, food = false, rune = false, oil = true, healthstone = false }
 fire("PLAYER_ENTERING_WORLD")
-local function find(label)
+-- an icon by the reminder it stands for
+local function find(key)
 	local frame, icons, buttons = RM.GetDisplay()
 	if not frame or not frame:IsShown() then return nil end
 	for i, b in ipairs(icons) do
-		if b:IsShown() and b.label:GetText() == label then
-			return { text = b.text:GetText(), icon = b.icon:GetTexture(), button = buttons[i] }
+		local r = buttons[i] and buttons[i].reminder
+		if b:IsShown() and r and r.key == key then
+			return { text = b.text:GetText(), icon = b.icon:GetTexture(), label = b.label:GetText(), button = buttons[i] }
 		end
 	end
 end
 
-local function cast(label) local r = find(label); return r and r.button and r.button:GetAttribute("spell") end
-local LETHAL, NONLETHAL = L["Lethal poison"], L["Non-lethal poison"]
+local function cast(key) local r = find(key); return r and r.button and r.button:GetAttribute("spell") end
+local LETHAL, NONLETHAL = "lethal", "nonlethal"
 
 eq(cast(LETHAL), DEADLY, "no poison on: a click casts Deadly Poison")
 eq(find(LETHAL).icon, "icon" .. DEADLY, "and shows it")
+eq(find(LETHAL).label, "Deadly", "named for the poison, short of Deadly Poison")
 W.playerAuras[DEADLY] = { expirationTime = W.now + 3600 }
 fire("UNIT_AURA", "player")
 eq(cast(LETHAL), INSTANT, "Deadly on, two wanted: the click casts the other one, not Deadly again")
+eq(find(LETHAL).label, "spell" .. INSTANT, "and is named for it")
 W.playerAuras[INSTANT] = { expirationTime = W.now + 3600 }
 fire("UNIT_AURA", "player")
 check(not find(LETHAL), "both on: fine")
@@ -66,6 +73,7 @@ end
 local page = main.bodies.Reminder.pages.class
 check(page.heads[1]:IsShown() and page.heads[1].text:GetText() == "Assassination", "no 'all specs' head: every poison is per spec")
 check(page.heads[3]:IsShown() and not page.heads[4]:IsShown(), "Assassination, Outlaw, Subtlety")
+eq(page.items[1].label:GetText(), L["Lethal poison"], "on the page, the kind of poison by its full name")
 eq(page.items[3].key, "lethal", "Outlaw's lethal poison")
 check(page.items[3].guide:GetText():find("spell" .. INSTANT, 1, true), "with Outlaw's pick, under the name")
 check(page.items[3].icon:GetTexture() == "icon" .. INSTANT and page.items[3].icon.__desaturated, "and its icon, grey: not your spec")

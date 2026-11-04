@@ -151,12 +151,163 @@ end
 local clicks
 local buttons = {}
 
-local function ShowTip(self)
-	local a = self.action
-	if not a then return end
-	GameTooltip:SetOwner(self, "ANCHOR_TOP")
-	if a.kind == "spell" then GameTooltip:SetSpellByID(a.id) else GameTooltip:SetItemByID(a.id) end
+-- ---------------------------------------------------------------------------
+-- Tooltips: the game's own for the spell or item, then why it shows (the time
+-- left, how many in the group lack it) and what a click does
+-- ---------------------------------------------------------------------------
+
+local HINT = { 0.6, 0.8, 1 }
+
+local function Status(r)
+	if r.expires then return string.format(L["TIP_LEFT"], Countdown(r.expires - GetTime())) end
+	if r.text and r.kind == "group" then return string.format(L["TIP_GROUP"], r.text) end
+	if r.text then
+		-- the icon's short time ("4m", "30s") in words
+		local n, unit = r.text:match("^(%d+)([ms])$")
+		if n then return string.format(L[unit == "m" and "TIP_MIN" or "TIP_SEC"], tonumber(n)) end
+		return string.format(L["TIP_LEFT"], r.text)
+	end
+end
+
+-- `clickable`: over a click button (a click does something)
+local function Tip(owner, r, clickable)
+	if not r then return end
+	GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+	local t = r.tip
+	if t and t.kind == "item" then
+		GameTooltip:SetItemByID(t.id)
+	elseif t then
+		GameTooltip:SetSpellByID(t.id)
+	else
+		GameTooltip:SetText(r.label or "", 1, 1, 1)
+	end
+	local status = Status(r)
+	if status then GameTooltip:AddLine(status, NAME[1], NAME[2], NAME[3]) end
+	if clickable and r.action then
+		GameTooltip:AddLine(L[r.action.kind == "item" and "TIP_USE" or "TIP_CAST"], HINT[1], HINT[2], HINT[3])
+	end
+	if clickable and r.options and #r.options > 0 then GameTooltip:AddLine(L["TIP_CHOOSE"], HINT[1], HINT[2], HINT[3]) end
 	GameTooltip:Show()
+end
+
+-- ---------------------------------------------------------------------------
+-- The chooser: Alt held over an icon that has others to pick from (a
+-- demon, a pet, a poison, an aura) shows them in a row under it, secure
+-- buttons of their own on the same secure frame. A click on one casts it, and
+-- what you cast is what the icon casts next time (Reminder.lua learns it).
+-- ---------------------------------------------------------------------------
+
+local GRACE = 0.4   -- seconds the mouse may be off the icon and the row before the row goes
+local choices = {}
+local chooserOwner   -- the click button the row belongs to
+local hovered        -- the click button under the mouse
+local watch = CreateFrame("Frame")
+watch:Hide()
+local mods = CreateFrame("Frame")
+
+local function Modified() return IsAltKeyDown() end
+
+local function CloseChooser()
+	chooserOwner = nil
+	watch:Hide()
+	if InCombatLockdown() then return end   -- the state driver has them out of sight
+	for _, b in ipairs(choices) do b:Hide() end
+end
+
+local function ChoiceTip(self)
+	local opt = self.option
+	if not opt then return end
+	GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+	if opt.name then
+		GameTooltip:SetText(opt.name, 1, 1, 1)
+		GameTooltip:AddLine(ns.SpellName(opt.id) or "", NAME[1], NAME[2], NAME[3])
+	else
+		GameTooltip:SetSpellByID(opt.id)
+	end
+	GameTooltip:AddLine(L["TIP_PICK"], HINT[1], HINT[2], HINT[3], true)
+	GameTooltip:Show()
+end
+
+local Point
+
+local function ChoiceButton(i)
+	local b = choices[i]
+	if b then return b end
+	b = CreateFrame("Button", nil, clicks, "SecureActionButtonTemplate")
+	b:RegisterForClicks("LeftButtonUp", "LeftButtonDown")
+	b.edge = b:CreateTexture(nil, "BACKGROUND")
+	b.edge:SetPoint("TOPLEFT", -1, 1)
+	b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
+	b.edge:SetColorTexture(0, 0, 0, 1)
+	b.icon = b:CreateTexture(nil, "ARTWORK")
+	b.icon:SetAllPoints()
+	b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	b:SetScript("OnEnter", ChoiceTip)
+	b:SetScript("OnLeave", GameTooltip_Hide)
+	-- gone once the click is over: on the way up, whichever way the cast went
+	b:SetScript("PostClick", function(_, _, down) if not down then CloseChooser() end end)
+	choices[i] = b
+	return b
+end
+
+local function OpenChooser(owner)
+	if InCombatLockdown() or chooserOwner == owner or not owner:IsShown() then return end
+	local list = owner.reminder and owner.reminder.options
+	if not list or #list == 0 then return end
+	CloseChooser()
+	local size = math.max(24, math.floor(owner:GetWidth() * 0.7 + 0.5))
+	-- under the icon, unless that leaves the screen: then above it, over its name
+	local bottom = owner:GetBottom()
+	local below = not bottom or bottom > size + 20
+	for i, opt in ipairs(list) do
+		local b = ChoiceButton(i)
+		local x = (i - 1) * (size + 4)
+		b:SetSize(size, size)
+		b:ClearAllPoints()
+		if below then
+			b:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", x, -6)
+		else
+			b:SetPoint("BOTTOMLEFT", owner, "TOPLEFT", x, math.floor(owner:GetWidth() * 0.7))
+		end
+		Point(b, opt)
+		b.option = opt
+		b.icon:SetTexture(opt.icon or 134400)
+		b:Show()
+	end
+	for i = #list + 1, #choices do choices[i]:Hide() end
+	chooserOwner = owner
+	watch.away = 0
+	watch:Show()
+	-- the icon's tooltip would cover the row
+	if GameTooltip:IsOwned(owner) then GameTooltip:Hide() end
+end
+
+watch:SetScript("OnUpdate", function(self, elapsed)
+	if not chooserOwner then return self:Hide() end
+	local over = chooserOwner:IsMouseOver()
+	for _, b in ipairs(choices) do
+		if b:IsShown() and b:IsMouseOver() then over = true end
+	end
+	self.away = over and 0 or (self.away or 0) + elapsed
+	if self.away > GRACE then CloseChooser() end
+end)
+
+mods:SetScript("OnEvent", function()
+	if hovered and Modified() then OpenChooser(hovered) end
+end)
+
+local function EnterButton(self)
+	hovered = self
+	mods:RegisterEvent("MODIFIER_STATE_CHANGED")
+	if Modified() then OpenChooser(self) end
+	-- with its row open (Alt held, or back from a choice) the icon shows no tooltip over it
+	if chooserOwner ~= self then Tip(self, self.reminder, true) end
+end
+
+local function LeaveButton()
+	hovered = nil
+	GameTooltip_Hide()
+	mods:UnregisterEvent("MODIFIER_STATE_CHANGED")
 end
 
 local function ClickButton(i)
@@ -173,13 +324,13 @@ local function ClickButton(i)
 	-- right button goes through, so holding it over an icon still turns the camera
 	b:RegisterForClicks("LeftButtonUp", "LeftButtonDown")
 	if b.SetPassThroughButtons then pcall(b.SetPassThroughButtons, b, "RightButton") end
-	b:SetScript("OnEnter", ShowTip)
-	b:SetScript("OnLeave", GameTooltip_Hide)
+	b:SetScript("OnEnter", EnterButton)
+	b:SetScript("OnLeave", LeaveButton)
 	buttons[i] = b
 	return b
 end
 
-local function Point(b, a)
+function Point(b, a)   -- the local declared above, for the chooser's buttons
 	if a.kind == "spell" then
 		b:SetAttribute("type", "spell")
 		b:SetAttribute("spell", a.id)
@@ -196,6 +347,7 @@ end
 -- No buttons up: out of combat only (the state driver sees to combat)
 function ns.ClearClicks()
 	if InCombatLockdown() then return end
+	CloseChooser()
 	for _, b in ipairs(buttons) do b:Hide() end
 end
 
@@ -213,6 +365,7 @@ local function PlaceClicks(list, width, size)
 			b:SetSize(size, size)
 			b:SetPoint("LEFT", clicks, "LEFT", (i - 1) * (size + Gap(size)), 0)
 			Point(b, r.action)
+			b.reminder = r
 			b:Show()
 		elseif buttons[i] then
 			buttons[i]:Hide()
@@ -223,6 +376,16 @@ local function PlaceClicks(list, width, size)
 		clicks:ClearAllPoints()
 		clicks:SetPoint(Anchor())
 		clicks:SetSize(width, size)
+	end
+	-- an open chooser follows its icon: the same others, or gone with them
+	local owner = chooserOwner
+	if owner then
+		chooserOwner = nil
+		if owner:IsShown() and owner.reminder and owner.reminder.options and #owner.reminder.options > 0 then
+			OpenChooser(owner)
+		else
+			CloseChooser()
+		end
 	end
 end
 
@@ -276,6 +439,11 @@ local function Icon(i)
 	b.label:SetJustifyV("BOTTOM")
 	b.text = b:CreateFontString(nil, "OVERLAY")
 	b.text:SetPoint("BOTTOM", b, "BOTTOM", 0, 2)
+	-- a tooltip where no click button covers it (nothing to click, or clicks off); the mouse
+	-- only hovers, a click goes through
+	if b.SetMouseClickEnabled then b:SetMouseClickEnabled(false) end
+	b:SetScript("OnEnter", function(self) Tip(self, self.reminder, false) end)
+	b:SetScript("OnLeave", GameTooltip_Hide)
 	icons[i] = b
 	return b
 end
@@ -336,6 +504,10 @@ local function Layout(list)
 		b.text:SetFont(STANDARD_TEXT_FONT, textSize, "OUTLINE")
 		b.text:SetText(r.expires and Countdown(r.expires - GetTime()) or r.text or "")
 		SetGlow(b, ns.db.glow, size, r.warn)
+		-- samples (unlocked, testing) are for the size and place: no tooltip
+		local real = locked and not testing
+		b.reminder = real and r or nil
+		if b.SetMouseMotionEnabled then b:SetMouseMotionEnabled(real) end
 		b:Show()
 		counting = counting or r.expires ~= nil
 	end
@@ -400,6 +572,7 @@ end
 -- Size and position, from the saved settings
 function ns.ApplyDisplay()
 	CK.HUD.Refresh()   -- the HUD rows follow the same settings, and the samples while testing
+	ns.PetHealthApply()   -- so does the pet's health: its size, and its sample
 	if not frame then return end
 	local db = ns.db
 	frame:ClearAllPoints()
@@ -410,6 +583,7 @@ end
 -- Unlocked: sample icons that can be dragged
 function ns.SetLocked(state)
 	locked = state and true or false
+	ns.PetHealthApply()
 	if not frame and (locked and not testing) then return end
 	if not frame then Create() end
 	ns.ApplyDisplay()
@@ -425,6 +599,7 @@ end
 -- A test: the sample icons where the row stands, without unlocking
 function ns.SetTesting(on)
 	testing = on and true or false
+	ns.PetHealthApply()
 	if not frame and (locked and not testing) then return end
 	if not frame then Create() end
 	ns.ApplyDisplay()
@@ -433,6 +608,8 @@ end
 function ns.ResetPosition()
 	local db, d = ns.db, ns.defaults
 	db.point, db.relPoint, db.x, db.y = d.point, d.relPoint, d.x, d.y
+	local p, dp = db.petHealth, d.petHealth
+	p.point, p.relPoint, p.x, p.y = dp.point, dp.relPoint, dp.x, dp.y
 	ns.ApplyDisplay()
 end
 
@@ -468,4 +645,4 @@ ns.hudSection = {
 function ns.Shown() return current end
 
 -- for the tests
-function ns.GetDisplay() return frame, icons, buttons end
+function ns.GetDisplay() return frame, icons, buttons, choices end

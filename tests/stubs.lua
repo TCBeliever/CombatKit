@@ -127,6 +127,9 @@ W.itemRange = { [37727] = 5, [63427] = 6, [34368] = 8, [32321] = 10, [1251] = 15
 W.spells = {}   -- { { id, maxRange }, ... } in the spell book
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 function UnitExists(unit) return W.units[unit] ~= nil end
+-- W.shift / W.alt: the modifier keys held
+function IsShiftKeyDown() return W.shift or false end
+function IsAltKeyDown() return W.alt or false end
 function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
 function UnitCanAssist(_, unit) return W.units[unit] ~= nil and W.units[unit].friendly == true end
@@ -496,7 +499,13 @@ local function Mock(kind, name)
 			if was and scripts.OnHide then scripts.OnHide(self) end
 		end,
 		SetShown = function(self, v) if v then self:Show() else self:Hide() end end,
-		SetText = function(self, text) self.__text = text; self.__secret = nil end,
+		-- as the game: a font string takes no text before it has a font (its own, a font object, a template's)
+		SetText = function(self, text)
+			if self.__kind == "FontString" and not self.__font and not self.__fontObject then
+				error("FontString:SetText(): Font not set", 2)
+			end
+			self.__text = text; self.__secret = nil
+		end,
 		-- the game formats a secret number; the text is then secret too, and so is its width
 		SetFormattedText = function(self, fmt, ...)
 			local args, secret = { ... }, false
@@ -507,10 +516,17 @@ local function Mock(kind, name)
 		GetText = function(self) return self.__text end,
 		GetName = function(self) return self.__name end,
 		GetFontString = function(self)
-			self.__fs = self.__fs or Mock("FontString")
+			if not self.__fs then
+				self.__fs = Mock("FontString")
+				self.__fs.__fontObject = "the button's"   -- a button's text has its button's font
+			end
 			return self.__fs
 		end,
-		CreateFontString = function() return Mock("FontString") end,
+		CreateFontString = function(_, _, _, template)
+			local fs = Mock("FontString")
+			fs.__fontObject = template
+			return fs
+		end,
 		CreateTexture = function() return Mock("Texture") end,
 		CreateMaskTexture = function() return Mock("MaskTexture") end,
 		CreateAnimationGroup = function() return Mock("AnimationGroup") end,

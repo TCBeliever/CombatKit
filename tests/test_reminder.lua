@@ -42,7 +42,7 @@ end
 local function find(label)
 	for _, r in ipairs(shown()) do if r.label == label then return r end end
 end
-local AI, ELEMENTAL = "spell1459", "spell31687"
+local AI, ELEMENTAL = "spell1459", L["Water Elemental"]
 
 -- ---------------------------------------------------------------- where and when
 check(find(AI) and find(ELEMENTAL) and not find(L["Flask"]), "open world: the class reminders, no consumables")
@@ -327,6 +327,7 @@ eq(#shown(), 0, "back in the dungeon, both run out")
 local fake = { classes = {} }
 function fake.Known(id) return W.known[id] or false end
 function fake.FirstKnown(ids) for _, id in ipairs(ids) do if fake.Known(id) then return id end end end
+function fake.KnownOrFirst(ids) return fake.FirstKnown(ids) or ids[1] end
 for _, file in ipairs({ "Rogue", "Shaman", "Warrior", "Warlock", "Hunter", "DeathKnight", "Druid", "Paladin", "Priest", "Evoker", "Mage" }) do
 	local chunk = assert(loadfile(ROOT .. "/Modules/Reminder/Classes/" .. file .. ".lua"))
 	chunk("CombatKit_Reminder", fake)

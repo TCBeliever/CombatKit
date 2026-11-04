@@ -23,6 +23,7 @@ local FOREVER = math.huge
 ns.FOREVER = FOREVER
 
 local function Secret(v) return issecretvalue ~= nil and issecretvalue(v) end
+ns.Secret = Secret
 
 -- True while the game hides auras from addons as a whole
 function ns.AurasHidden()
@@ -269,6 +270,12 @@ function ns.FirstKnown(ids)
 	end
 end
 
+-- The first of `ids` the player knows, else the first of them: a reminder that knows none is
+-- still named and shown on the settings page, and does not apply
+function ns.KnownOrFirst(ids)
+	return ns.FirstKnown(ids) or ids[1]
+end
+
 -- The spell of the stance or form the player is in, from the stance bar: 0 for none
 function ns.Stance()
 	local index = GetShapeshiftForm and GetShapeshiftForm() or 0
@@ -301,8 +308,32 @@ function ns.Role()
 	return role
 end
 
+-- A living pet out. In combat either answer may be secret: an unreadable "dead" counts as alive
+-- (the health shows the rest), an unreadable "there" as not there.
 function ns.HasPet()
-	return UnitExists("pet") and not UnitIsDeadOrGhost("pet")
+	local there = UnitExists("pet")
+	if Secret(there) or not there then return false end
+	local dead = UnitIsDeadOrGhost("pet")
+	if Secret(dead) then return true end
+	return not dead
+end
+
+-- What a summoning spell brings, by the spell's name without "Summon" (Summon Imp: Imp)
+function ns.SummonedName(spell)
+	local name = ns.SpellName(spell)
+	if not name then return nil end
+	return (name:gsub("^召喚", ""):gsub("^Summon ", ""))
+end
+
+-- A hunter's pet in one of the five slots Call Pet 1 to 5 bring: its icon and name, or nothing
+-- while the stable cannot be read
+function ns.StablePet(slot)
+	if not (C_StableInfo and C_StableInfo.GetStablePetInfo) then return nil end
+	local ok, info = pcall(C_StableInfo.GetStablePetInfo, slot)
+	if not ok or type(info) ~= "table" then return nil end
+	local icon, name = info.icon, info.name
+	if Secret(icon) or Secret(name) then return nil end
+	return icon, type(name) == "string" and name or nil
 end
 
 -- The creature the pet is, from its GUID; nil when that cannot be read
@@ -384,5 +415,5 @@ function ns.ItemIcon(item)
 	return C_Item.GetItemIconByID and C_Item.GetItemIconByID(item) or nil
 end
 
-function ns.SpellIcon(id) return C_Spell.GetSpellTexture(id) end
-function ns.SpellName(id) return C_Spell.GetSpellName(id) end
+function ns.SpellIcon(id) return id and C_Spell.GetSpellTexture(id) or nil end
+function ns.SpellName(id) return id and C_Spell.GetSpellName(id) or nil end

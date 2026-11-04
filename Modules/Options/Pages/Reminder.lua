@@ -16,9 +16,12 @@ local CONSUMABLES = {
 local SHARED = { { "feast", "Feast" }, { "cauldron", "Flask cauldron" } }
 local CLASS_ROWS = 16   -- switches for the class list; one for several specs stands under each
 local CLASS_COLS = 3    -- the class list's columns
+local PET_COLS = 2      -- the pet's section: two to a row, room for "Summon demon (Felguard)"
 local ICON = 20         -- a class reminder's icon
-local HEADS = 5         -- section heads over the class list: every spec, then each spec with reminders of its own
+local HEADS = 6         -- section heads over the class list: the pet, every spec, then each spec with reminders of its own
 local CUSTOM_ROWS = 10  -- custom reminders, two columns, as many as a class can have
+local HALF_W, HALF_GAP = 240, 36   -- the pet's health: its two sliders side by side
+local DIM_ALPHA = 0.55  -- the pet's health settings while the warning is off
 local RM   -- the module, set whenever the section is used
 
 local function Changed()
@@ -171,6 +174,41 @@ local function BuildClass(p)
 	p.none = CK.Bind(Skin.Label(p, "", nil, "dim"), "CLASS_NONE")
 	p.none:SetPoint("TOPLEFT", 0, -2)
 
+	-- a hunter's or warlock's pet: the warning when it runs low (in combat too), a reminder like
+	-- the others (a check box, the icon the warning shows), its settings under its name and grey
+	-- while it is off. Refresh puts it at the end of the pet's section.
+	if RM.HasPetHealth() then
+		local pb = CreateFrame("Frame", nil, p)
+		p.petBlock = pb
+		local function Set(key, value)
+			RM.db.petHealth[key] = value
+			RM.PetHealthApply()
+			O.Changed()
+		end
+		p.petOn = WithSlot(Skin.Checkbox(pb, "", function(checked)
+			Set("on", checked)
+			p.petDep:SetAlpha(checked and 1 or DIM_ALPHA)
+		end))
+		p.petOn:SetPoint("TOPLEFT", 0, 0)
+		Skin.Tooltip(p.petOn, "Pet health low", "PET_HEALTH_TIP")
+		local dep = CreateFrame("Frame", nil, pb)
+		dep:SetPoint("TOPLEFT", p.petOn.labelX, -(ICON + 2 + 6))
+		dep:SetSize(2 * HALF_W + HALF_GAP, 18 + 6 + Skin.SLIDER_H)
+		p.petDep = dep
+		p.petIcon = CK.Bind(Skin.Switch(dep, "", function(checked) Set("icon", checked) end), "Show the icon")
+		p.petIcon:SetPoint("TOPLEFT", 0, 0)
+		p.petBelow = Skin.Slider(dep, "Threshold", { min = 5, max = 95, step = 5, width = HALF_W,
+			format = function(v) return string.format("%d%%", v) end,
+			parse = function(t) local n = Skin.ParsePercent(t) return n and n * 100 end,
+			onChange = function(v) Set("below", v) end })
+		p.petBelow:SetPoint("TOPLEFT", 0, -(18 + 6))
+		p.petFont = Skin.Slider(dep, "Font size", { min = 8, max = 48, width = HALF_W,
+			onChange = function(v) Set("fontSize", v) end })
+		p.petFont:SetPoint("TOPLEFT", HALF_W + HALF_GAP, -(18 + 6))
+		p.petH = ICON + 2 + 6 + 18 + 6 + Skin.SLIDER_H
+		pb:SetSize(p.petOn.labelX + 2 * HALF_W + HALF_GAP, p.petH)
+	end
+
 	-- custom: a line to add one, then the list; Refresh puts the block below the class list
 	local b = CreateFrame("Frame", nil, p)
 	b:SetSize(O.RIGHT_W, 20)
@@ -224,7 +262,8 @@ local function BuildClass(p)
 	end
 end
 
--- The class list in sections: what every spec has (an item for every spec, or for none in
+-- The class list in sections: a hunter's or warlock's pet first (the pet, what goes with it, and
+-- the warning when it runs low), then what every spec has (an item for every spec, or for none in
 -- particular), then each spec with reminders of its own; one for several specs stands under each
 local function Sections(items)
 	local specs = RM.ClassSpecs()
@@ -234,13 +273,22 @@ local function Sections(items)
 	for _, s in ipairs(specs) do
 		sections[#sections + 1] = { name = s.name, icon = s.icon, current = s.id == mine, items = {} }
 	end
+	local pet = RM.HasPetHealth() and { name = L["Pet"], icon = RM.PetHeadIcon(), pet = true, items = {} } or nil
+	local others = {}   -- what goes with the pet, after the pet itself
 	for _, item in ipairs(items) do
 		local of, picks = {}, 0
 		for i, s in ipairs(specs) do
 			if item.spec and item.spec[s.id] then of[#of + 1] = i + 1 end
 			if item.guides and item.guides[s.id] then picks = picks + 1 end
 		end
-		if picks > 0 then
+		if pet and item.withPet then
+			-- for some specs only: which, under its name
+			local names = {}
+			for _, i in ipairs(of) do names[#names + 1] = specs[i - 1].name end
+			local only = #names > 0 and #names < #specs and table.concat(names, L["LIST_SEP"]) or nil
+			local copy = only and setmetatable({ only = only }, { __index = item }) or item
+			table.insert(item.kind == "pet" and pet.items or others, copy)
+		elseif picks > 0 then
 			-- each spec its own recommendation (poisons, runes): under each spec, greyed where it is not yours
 			for i, s in ipairs(specs) do
 				if item.guides[s.id] then
@@ -257,15 +305,24 @@ local function Sections(items)
 			for _, i in ipairs(of) do table.insert(sections[i].items, item) end
 		end
 	end
+	if pet then
+		for _, item in ipairs(others) do table.insert(pet.items, item) end
+		table.insert(sections, 1, pet)
+	end
 	return sections
 end
 
 local function RefreshClass(p)
 	local items = RM.ClassItems()
 	local y, heads, n = 0, 0, 0
-	local col = math.floor((O.RIGHT_W - 24) / CLASS_COLS)
+	local shown = {}
 	for _, s in ipairs(Sections(items)) do
-		if #s.items > 0 and heads < HEADS then
+		if #s.items > 0 or (s.pet and p.petBlock) then shown[#shown + 1] = s end
+	end
+	-- a heading names a group apart from the others: a page of one group needs none
+	local named = #shown > 1
+	for _, s in ipairs(shown) do
+		if named and heads < HEADS then
 			heads = heads + 1
 			local head = p.heads[heads]
 			head:ClearAllPoints()
@@ -280,34 +337,47 @@ local function RefreshClass(p)
 			-- another spec than yours: its name dim, like its reminders
 			head.text:SetText(s.current == false and Skin.Text("dim", s.name) or s.name)
 			y = y - 26
-			-- three to a row; a row is as tall as its tallest reminder (one with a recommendation under it)
-			local rowH = 0
-			for i, item in ipairs(s.items) do
-				local c = p.items[n + 1]
-				if c then
-					n = n + 1
-					local column = (i - 1) % CLASS_COLS
-					if column == 0 and i > 1 then
-						y = y - rowH - 6
-						rowH = 0
-					end
-					c:ClearAllPoints()
-					c:SetPoint("TOPLEFT", 24 + column * col, y)
-					c:Show()
-					c.key = item.key
-					-- not for your spec or talents right now: greyed, still to be set
-					c:SetLabel(item.now and (item.label or "?") or Skin.Text("dim", item.label or "?"))
-					c:SetChecked(item.on)
-					c.icon:SetTexture(item.icon)
-					c.icon:SetDesaturated(not item.now)
-					c.guide:SetWidth(col - c.labelX - 6)
-					c.guide:SetText(item.guide and string.format(L["GUIDE_PICK"], item.guide) or "")
-					c.tipTitle = item.label
-					c.tip = item.guide and L["GUIDE_TIP"] or not item.now and L["NOT_NOW_TIP"] or nil
-					rowH = math.max(rowH, ICON + 2 + (item.guide and c.guide:GetStringHeight() + 1 or 0))
+		end
+		-- three to a row, the pet's two (room for its name); a row is as tall as its tallest reminder
+		-- (one with a line under its name: a recommendation, or the specs it is for)
+		local cols = s.pet and PET_COLS or CLASS_COLS
+		local col = math.floor((O.RIGHT_W - 24) / cols)
+		local rowH = 0
+		for i, item in ipairs(s.items) do
+			local c = p.items[n + 1]
+			if c then
+				n = n + 1
+				local column = (i - 1) % cols
+				if column == 0 and i > 1 then
+					y = y - rowH - 6
+					rowH = 0
 				end
+				c:ClearAllPoints()
+				c:SetPoint("TOPLEFT", 24 + column * col, y)
+				c:Show()
+				c.key = item.key
+				-- not for your spec or talents right now: greyed, still to be set
+				-- the page's own name where the icon's is short (Summon demon (Imp) for Imp)
+				local name = item.title or item.label or "?"
+				c:SetLabel(item.now and name or Skin.Text("dim", name))
+				c:SetChecked(item.on)
+				c.icon:SetTexture(item.icon)
+				c.icon:SetDesaturated(not item.now)
+				local under = item.guide and string.format(L["GUIDE_PICK"], item.guide)
+					or item.only and string.format(L["SPECS_ONLY"], item.only) or nil
+				c.guide:SetWidth(col - c.labelX - 6)
+				c.guide:SetText(under or "")
+				c.tipTitle = name
+				c.tip = item.guide and L["GUIDE_TIP"] or not item.now and L["NOT_NOW_TIP"] or nil
+				rowH = math.max(rowH, ICON + 2 + (under and c.guide:GetStringHeight() + 1 or 0))
 			end
-			y = y - rowH - 12
+		end
+		if #s.items > 0 then y = y - rowH - 12 end
+		-- the pet's section ends with the warning when it runs low
+		if s.pet and p.petBlock then
+			p.petBlock:ClearAllPoints()
+			p.petBlock:SetPoint("TOPLEFT", 24, y)
+			y = y - p.petH - 12
 		end
 	end
 	for i = heads + 1, HEADS do p.heads[i]:Hide() end
@@ -316,6 +386,19 @@ local function RefreshClass(p)
 		p.items[i]:Hide()
 	end
 	p.none:SetShown(#items == 0)
+	if p.petBlock then
+		-- greyed like a reminder your spec or talents do not use, while no pet is wanted
+		local pet, wanted = RM.db.petHealth, RM.PetExpected()
+		local name = L["Pet health low"]
+		p.petOn:SetLabel(wanted and name or Skin.Text("dim", name))
+		p.petOn:SetChecked(pet.on)
+		p.petOn.icon:SetTexture(RM.PetHealthIcon() or 134400)
+		p.petOn.icon:SetDesaturated(not wanted)
+		p.petDep:SetAlpha(pet.on and 1 or DIM_ALPHA)
+		p.petIcon:SetChecked(pet.icon)
+		p.petBelow:SetValue(pet.below)
+		p.petFont:SetValue(pet.fontSize)
+	end
 	p.customBlock:ClearAllPoints()
 	p.customBlock:SetPoint("TOPLEFT", 0, math.min(y, -24) - 14)
 
