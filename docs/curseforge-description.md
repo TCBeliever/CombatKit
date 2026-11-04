@@ -4,6 +4,7 @@ CombatKit is a modular combat addon with a small resource footprint. It bundles:
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
 - **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their party frames.
+- **Reminder**: an icon for each consumable or class buff you are missing, out of combat; a click casts or uses it.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No libraries, no texture or font files. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
@@ -26,17 +27,28 @@ Arena only. A row of icons by each teammate's party frame (DandersFrames, FrameS
 
 How it knows: other players' auras are secret to addons in an arena. The module asks the game to draw each watched aura into a hidden frame of its own and reads only whether it is there. The idea of detecting a secret aura through what the game draws of it came from AsIntendedCDs; the design here is new.
 
+**Reminder** (off by default)
+
+A row of icons out of combat, one for each thing you are missing, in the scenarios you pick:
+
+- Your consumables: flask, food, augment rune, weapon oil or stone, healthstone. At a dungeon or raid entrance until the first pull, in a raid again after every fight, anywhere during a ready check.
+- Your class: your group buff, stance or form, shields, poisons, auras, weapon imbues, a death knight's runes, your pet, what you put on a group member (Earth Shield, the beacons, Source of Magic, Soulstone), a warlock's healthstone to make.
+- The group's feast or flask cauldron, the moment someone puts one down.
+- Any spell ID of your own.
+
+A click casts the spell or uses the item from your bags: the kind you used last in this spec, in PvE or PvP. Before that, rogue poisons and death knight runes follow the guides. Hold Alt over an icon to pick another; hover it to see why it is up. A hunter's or warlock's pet low on health gets a warning of its own, in combat too, that works where the game keeps the pet's health secret. Nothing shows in combat, in a capital city or an inn, or in a running key or encounter.
+
 **Extras**
 
 Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident.
 
 **HUD**
 
-One box shared by Loadout and Stats. Drag to move, Ctrl + mouse wheel to resize; scale, background opacity, border and font are in the settings. Hidden when there is nothing to show.
+One box shared by Loadout, Stats and, if you like, Reminder's rows. Drag to move, Ctrl + mouse wheel to resize; scale, background opacity, border and font are in the settings. Hidden when there is nothing to show.
 
 **How to use**
 
-`/ck` opens the settings; so do the addon compartment at the minimap and the game's Options > AddOns list. The modules are listed down the left, Settings at the bottom; a dimmed entry is a module that is off, and its page has the switch. Two colour themes (blue, violet) and two languages (English, 繁體中文), switchable in the settings.
+`/ck` opens the settings; so do the addon compartment at the minimap and the game's Options > AddOns list. The modules are listed down the left, Settings at the bottom; a dimmed entry is a module that is off, and its page has the switch. Two colour themes (blue, black-gold) and two languages (English, 繁體中文), switchable in the settings.
 
 **Support**
 
