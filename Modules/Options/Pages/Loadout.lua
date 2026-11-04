@@ -273,7 +273,7 @@ end
 
 local function BuildLoadout(p)
 	-- a group page: list its scenarios separately in the tree
-	p.split = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.split = CK.Bind(Skin.Switch(p, "", function(checked)
 		LO.char.split[selected.key] = checked
 		Changed()
 	end), "Use different settings per scenario")
@@ -282,7 +282,7 @@ local function BuildLoadout(p)
 
 	-- checked: the scenario uses its group's settings. The label names the
 	-- group, so it is set on refresh.
-	p.follow = Skin.Checkbox(p, "", function(checked)
+	p.follow = Skin.Switch(p, "", function(checked)
 		local entry = LO.char.scenarios[selected.key]
 		entry.custom = not checked
 		-- first time on its own: start from what it was using until now
@@ -294,7 +294,7 @@ local function BuildLoadout(p)
 	p.follow:SetPoint("TOPLEFT", 0, 0)
 
 	-- open world and delves: switch to the picked spec on entering
-	p.auto = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.auto = CK.Bind(Skin.Switch(p, "", function(checked)
 		LO.char.scenarios[selected.key].autoSpec = checked and selectedSpec or nil
 		Changed()
 	end), "Switch spec automatically")
@@ -314,7 +314,7 @@ local function BuildLoadout(p)
 	p.fieldY = -(SPEC_ICON + 4) - 4 - 14 - 14
 
 	-- up to three setups for the spec; the one picked with 1 2 3 is shown and used
-	p.multi = CK.Bind(Skin.Checkbox(editor, "", SetMulti), "Multiple setups")
+	p.multi = CK.Bind(Skin.Switch(editor, "", SetMulti), "Multiple setups")
 	Skin.Tooltip(p.multi, "Multiple setups", "MULTI_TIP")
 	p.setButtons = {}
 	for n = 1, LO.MAX_SETS do
@@ -362,7 +362,7 @@ local function BuildLoadout(p)
 	end), "Apply")
 	Skin.Tooltip(p.switch, "Apply", "SWITCH_NOW_TIP")
 
-	p.warmode = CK.Bind(Skin.Checkbox(editor, "", function(checked)
+	p.warmode = CK.Bind(Skin.Switch(editor, "", function(checked)
 		LO.char.warmodePvP = checked
 		Changed()
 	end), "Open world with War Mode uses PvP")
@@ -536,7 +536,7 @@ end
 local function BuildOptions(p)
 	local y = 0
 	local function Toggle(labelKey, tipKey, get, set)
-		local c = CK.Bind(Skin.Checkbox(p, "", function(checked) set(checked); Changed() end), labelKey)
+		local c = CK.Bind(Skin.Switch(p, "", function(checked) set(checked); Changed() end), labelKey)
 		c:SetPoint("TOPLEFT", 0, y)
 		if tipKey then Skin.Tooltip(c, labelKey, tipKey) end
 		c.get = get
@@ -612,7 +612,7 @@ local function BuildDebug(page)
 
 	local y = -62
 	local function Toggle(field, key, tipKey)
-		local c = CK.Bind(Skin.Checkbox(p, "", function(checked) Set(field, checked) end), key)
+		local c = CK.Bind(Skin.Switch(p, "", function(checked) Set(field, checked) end), key)
 		c:SetPoint("TOPLEFT", 0, y)
 		if tipKey then Skin.Tooltip(c, key, tipKey) end
 		y = y - 24

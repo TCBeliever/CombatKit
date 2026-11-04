@@ -60,7 +60,7 @@ ns.CUSTOM_MAX = 10   -- custom reminders per class
 ns.defaults = {
 	-- the scenario keys each kind shows in: your consumables, your class's reminders (and your custom
 	-- ones), the group's feasts and cauldrons
-	consumablesWhere = { dungeon = true, raid = true },
+	consumablesWhere = { dungeon = true, raid = true, arena = true, bg = true },   -- PvP: a healthstone only
 	classWhere  = { dungeon = true, raid = true, delve = true, world = true, arena = true, bg = true },
 	sharedWhere = { dungeon = true, raid = true, bg = true },
 	consumables = { flask = true, food = true, rune = true, oil = true, healthstone = true },
@@ -69,13 +69,13 @@ ns.defaults = {
 	used        = {},
 	shared      = { feast = true, cauldron = true },
 	off         = {},     -- class reminders switched off: [key] = true
-	expiring    = 5,      -- minutes: a buff with less left counts as missing; 0 = only when gone
+	expiring    = 5,      -- minutes, 0 to 60: a buff with less left counts as missing; 0 = only when gone
 	-- { { id=, when = "missing" | "present", who = "me" | "group", class = token }, ... }
 	custom      = {},
 	icons       = true,   -- the row of icons on screen
 	hud         = false,  -- the same as rows on the HUD
 	click       = true,   -- a click on an icon casts its spell or uses its item
-	glow        = true,   -- the game's proc glow round each icon
+	glow        = true,   -- thin dashes running round each icon
 	sound       = "",     -- a SOUNDKIT key played when a reminder appears; "" = none
 	size        = 54,
 	-- centred, 80 below the top edge: where the user put it on 2026-11-03 (480 above the middle of
@@ -121,6 +121,8 @@ local function InitDB()
 		end
 	end
 	if was < 5 then saved.where = nil end
+	-- 0 to 60 minutes (it was 0 to 15)
+	saved.expiring = math.max(0, math.min(60, tonumber(saved.expiring) or ns.defaults.expiring))
 	saved.version = VERSION
 end
 
@@ -492,7 +494,8 @@ local function BuildChecks()
 		check.Spell = Spell
 		-- the guides' names for this setup, for the settings page
 		if e.guide then
-			-- for your spec, or another (spec): yours as far as your talents go, another's as the guides have it
+			-- for your spec, or another (spec): yours as far as your talents go, another's as the guides have it.
+			-- The names, and the first one's spell (its icon).
 			check.Guide = function(spec)
 				local mine = not spec or spec == ns.SpecID()
 				local guide = e.guide(Side(), spec) or {}
@@ -500,13 +503,17 @@ local function BuildChecks()
 					-- the rune for this hand: of a pair, the first for the main hand, the second for the off hand;
 					-- a single rune is for a two-hander, and leaves the off hand none
 					local id = guide[e.slot == ns.OFF and 2 or 1]
-					return id and ns.SpellName(e.runeSpells[id] or id) or nil
+					local spell = id and (e.runeSpells[id] or id)
+					return spell and ns.SpellName(spell) or nil, spell
 				end
-				local names, want = {}, mine and e.need and Value(e.need) or math.huge
+				local names, first, want = {}, nil, mine and e.need and Value(e.need) or math.huge
 				for _, id in ipairs(guide) do
-					if (not mine or ns.Known(id)) and #names < want then names[#names + 1] = ns.SpellName(id) end
+					if (not mine or ns.Known(id)) and #names < want then
+						names[#names + 1] = ns.SpellName(id)
+						first = first or id
+					end
 				end
-				return #names > 0 and table.concat(names, " + ") or nil
+				return #names > 0 and table.concat(names, " + ") or nil, first
 			end
 		end
 	end
@@ -521,19 +528,32 @@ function ns.ClassItems()
 			local now = c.Applies()
 			-- the guides' pick only where it would be used now; and each spec's, for the page to show
 			-- under that spec
-			local guides
+			local guides, guideIcons
 			if c.Guide then
-				guides = {}
+				guides, guideIcons = {}, {}
 				for _, s in ipairs(ns.ClassSpecs()) do
-					if not c.spec or c.spec[s.id] then guides[s.id] = c.Guide(s.id) end
+					if not c.spec or c.spec[s.id] then
+						local text, spell = c.Guide(s.id)
+						guides[s.id], guideIcons[s.id] = text, spell and ns.SpellIcon(spell)
+					end
 				end
 			end
 			items[#items + 1] = { key = c.key, label = Value(c.label), icon = Value(c.icon), spell = c.Spell(), now = now,
 				on = not ns.db.off[c.key], warn = c.warn, guide = now and c.Guide and c.Guide() or nil, guides = guides,
-				spec = c.spec }
+				guideIcons = guideIcons, spec = c.spec }
 		end
 	end
 	return items
+end
+
+-- The icon of one of your consumables (the one in your bags, else the kind's own), or of what the
+-- group puts down, for the settings page
+function ns.ConsumableIcon(key)
+	for _, c in ipairs(checks) do
+		if c.key == key then return Value(c.icon) end
+	end
+	local shared = (key == "feast" and ns.FEAST) or (key == "cauldron" and ns.CAULDRON)
+	return shared and ns.ItemIcon(shared.items[1]) or nil
 end
 
 -- Your class's specs in the game's order: { { id=, name=, icon= }, ... }

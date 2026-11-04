@@ -6,21 +6,24 @@ local CK = CombatKit
 -- keeps its own strings in CombatKit_Options.
 
 CK.AddLocale("enUS", {
-	["REMINDER_HUD_TIP"] = "What is missing before a pull. Left click: the Reminder settings.",
+	["REMINDER_HUD_TIP"] = "Missing consumables and buffs. Left click: the Reminder settings.",
+	-- names above an icon: short enough for one line at the icon's width
+	["Lethal poison"]     = "Lethal",
+	["Non-lethal poison"] = "Non-lethal",
 })
 
 CK.AddLocale("zhTW", {
-	["REMINDER_HUD_TIP"]  = "開怪前缺的東西。左鍵：Reminder 設定。",
+	["REMINDER_HUD_TIP"]  = "缺少的消耗品與增益。左鍵：Reminder 設定。",
 	["Healthstone"]       = "治療石",
-	["Flask"]             = "精煉藥劑",
+	["Flask"]             = "精煉",
 	["Food"]              = "食物",
 	["Augment rune"]      = "增強符文",
 	["Weapon oil"]        = "武器油",
 	["Off-hand oil"]      = "副手武器油",
 	["Feast"]             = "大餐",
-	["Flask cauldron"]    = "精煉藥劑大鍋",
-	["Lethal poison"]     = "致命毒藥",
-	["Non-lethal poison"] = "非致命毒藥",
+	["Flask cauldron"]    = "精煉大鍋",
+	["Lethal poison"]     = "致命",
+	["Non-lethal poison"] = "非致命",
 	["Main-hand rune"]    = "主手符文",
 	["Off-hand rune"]     = "副手符文",
 	["Rune to change"]    = "該換符文",

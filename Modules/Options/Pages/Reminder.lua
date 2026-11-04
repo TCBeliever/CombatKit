@@ -6,14 +6,17 @@ local L, Skin, O = CK.L, CK.Skin, CK.Options
 -- its own, and your own spell IDs), where they show, and how.
 
 local X = O.FIELD_X + 20
+local SLIDER_W = 300   -- a slider a line, this wide
 local LINE = 26
 local COL_W = 300    -- a column of the class list
-local CONSUMABLES = {   -- two lines
-	{ { "flask", "Flask" }, { "food", "Food" }, { "rune", "Augment rune" } },
-	{ { "oil", "Weapon oil" }, { "healthstone", "Healthstone" } },
+local CONSUMABLES = {
+	{ "flask", "Flask" }, { "food", "Food" }, { "rune", "Augment rune" }, { "oil", "Weapon oil" },
+	{ "healthstone", "Healthstone" },
 }
 local SHARED = { { "feast", "Feast" }, { "cauldron", "Flask cauldron" } }
-local CLASS_ROWS = 16   -- check boxes for the class list, two columns; one for several specs stands under each
+local CLASS_ROWS = 16   -- switches for the class list; one for several specs stands under each
+local CLASS_COLS = 3    -- the class list's columns
+local ICON = 20         -- a class reminder's icon
 local HEADS = 5         -- section heads over the class list: every spec, then each spec with reminders of its own
 local CUSTOM_ROWS = 10  -- custom reminders, two columns, as many as a class can have
 local RM   -- the module, set whenever the section is used
@@ -23,13 +26,26 @@ local function Changed()
 	O.Changed()
 end
 
--- A check box for a true/false setting of the module
-local function Switch(p, key, labelKey)
-	return CK.Bind(Skin.Checkbox(p, "", function(checked)
+-- A true/false setting of the module: a switch, or (box) a check box when it is one of a set
+local function Switch(p, key, labelKey, box)
+	return CK.Bind((box and Skin.Checkbox or Skin.Switch)(p, "", function(checked)
 		RM.db[key] = checked
 		RM.ApplyDisplay()   -- the samples too, while they are up
 		Changed()
 	end), labelKey)
+end
+
+-- A check box with an icon between the box and the name, framed as the game frames its own
+local function WithSlot(c)
+	c:SetHeight(ICON + 2)
+	c.slot = CreateFrame("Frame", nil, c)
+	c.slot:SetSize(ICON + 2, ICON + 2)
+	c.slot:SetPoint("LEFT", Skin.CHECK_W + 6, 0)
+	c.icon = Skin.FramedIcon(c.slot, ICON)
+	c.icon:SetPoint("CENTER")
+	c.labelX = Skin.CHECK_W + 6 + ICON + 2 + 6
+	c:SetLabel(c.label:GetText())
+	return c
 end
 
 -- ---------------------------------------------------------------------------
@@ -37,55 +53,55 @@ end
 -- ---------------------------------------------------------------------------
 
 local function BuildConsumables(p)
+	-- a check box a line, as OneClickFish lays them out
 	local y = 0
 	Skin.Field(p, "Yours", 0, y)
 	p.consumables = {}
-	for line, boxes in ipairs(CONSUMABLES) do
-		local previous
-		for _, c in ipairs(boxes) do
-			local key = c[1]
-			local box = CK.Bind(Skin.Checkbox(p, "", function(checked)
-				RM.db.consumables[key] = checked
-				Changed()
-			end), c[2])
-			if previous then
-				box:SetPoint("LEFT", previous, "RIGHT", 16, 0)
-			else
-				box:SetPoint("TOPLEFT", X, y - 1 - (line - 1) * LINE)
-			end
-			previous = box
-			p.consumables[key] = box
-		end
+	for _, c in ipairs(CONSUMABLES) do
+		local key = c[1]
+		local box = CK.Bind(WithSlot(Skin.Checkbox(p, "", function(checked)
+			RM.db.consumables[key] = checked
+			Changed()
+		end)), c[2])
+		box:SetPoint("TOPLEFT", X, y - 1)
+		y = y - LINE
+		p.consumables[key] = box
 	end
 	p.timing = CK.Bind(Skin.Label(p, "", nil, "dim"), "CONSUMABLE_TIMING")
-	p.timing:SetPoint("TOPLEFT", X, y - 4 - 2 * LINE)
+	p.timing:SetPoint("TOPLEFT", X, y - 2)
 	p.timing:SetWidth(O.RIGHT_W - X)
 	p.timing:SetJustifyH("LEFT")
 
-	y = y - 3 * LINE - 26
+	y = y - LINE - 20
 	Skin.Field(p, "The group's", 0, y)
 	p.shared = {}
-	local previous
 	for _, s in ipairs(SHARED) do
 		local kind = s[1]
-		local box = CK.Bind(Skin.Checkbox(p, "", function(checked)
+		local box = CK.Bind(WithSlot(Skin.Checkbox(p, "", function(checked)
 			RM.SetShared(kind, checked)
 			O.Changed()
-		end), s[2])
-		if previous then box:SetPoint("LEFT", previous, "RIGHT", 16, 0) else box:SetPoint("TOPLEFT", X, y - 1) end
-		previous = box
+		end)), s[2])
+		box:SetPoint("TOPLEFT", X, y - 1)
+		y = y - LINE
 		p.shared[kind] = box
 	end
 	p.sharedNote = CK.Bind(Skin.Label(p, "", nil, "dim"), "SHARED_TIP")
-	p.sharedNote:SetPoint("TOPLEFT", X, y - 1 - LINE)
+	p.sharedNote:SetPoint("TOPLEFT", X, y - 2)
 	p.sharedNote:SetWidth(O.RIGHT_W - X)
 	p.sharedNote:SetJustifyH("LEFT")
 end
 
 local function RefreshConsumables(p)
 	local db = RM.db
-	for key, box in pairs(p.consumables) do box:SetChecked(db.consumables[key]) end
-	for kind, box in pairs(p.shared) do box:SetChecked(db.shared[kind]) end
+	-- the icon of the one in your bags, else the kind's own
+	for key, box in pairs(p.consumables) do
+		box:SetChecked(db.consumables[key])
+		box.icon:SetTexture(RM.ConsumableIcon(key) or 134400)
+	end
+	for kind, box in pairs(p.shared) do
+		box:SetChecked(db.shared[kind])
+		box.icon:SetTexture(RM.ConsumableIcon(kind) or 134400)
+	end
 end
 
 -- ---------------------------------------------------------------------------
@@ -117,7 +133,7 @@ end
 -- A section head: the class's or a spec's icon, and its name
 local function Head(p)
 	local h = CreateFrame("Frame", nil, p)
-	h:SetSize(2 * COL_W, 20)
+	h:SetSize(O.RIGHT_W, 20)
 	h.icon = h:CreateTexture(nil, "ARTWORK")
 	h.icon:SetSize(18, 18)
 	h.icon:SetPoint("LEFT", 0, 0)
@@ -132,10 +148,15 @@ local function BuildClass(p)
 	for i = 1, HEADS do p.heads[i] = Head(p) end
 	for i = 1, CLASS_ROWS do
 		local c
-		c = Skin.Checkbox(p, "", function(checked)
+		-- a check box, the spell's icon in a slot (as OneClickFish's icon tray has them),
+		-- the name, and under the name the recommendation
+		c = WithSlot(Skin.Checkbox(p, "", function(checked)
 			if c.key then RM.SetClassItem(c.key, checked) end
 			O.Changed()
-		end)
+		end))
+		c.guide = Skin.Label(c, "", nil, "dim")
+		c.guide:SetPoint("TOPLEFT", c, "BOTTOMLEFT", c.labelX, 1)
+		c.guide:SetJustifyH("LEFT")
 		-- on hover, why it is greyed out, and where its recommendation comes from
 		c:HookScript("OnEnter", function(self)
 			if not self.tip then return end
@@ -226,7 +247,7 @@ local function Sections(items)
 					-- yours as it stands now (no pick while it does not apply); another spec's from the guides
 					local yours = s.id == mine
 					local copy = setmetatable({ guide = yours and item.guide or not yours and item.guides[s.id] or nil,
-						now = item.now and yours }, { __index = item })
+						icon = item.guideIcons[s.id], now = item.now and yours }, { __index = item })
 					table.insert(sections[i + 1].items, copy)
 				end
 			end
@@ -242,6 +263,7 @@ end
 local function RefreshClass(p)
 	local items = RM.ClassItems()
 	local y, heads, n = 0, 0, 0
+	local col = math.floor((O.RIGHT_W - 24) / CLASS_COLS)
 	for _, s in ipairs(Sections(items)) do
 		if #s.items > 0 and heads < HEADS then
 			heads = heads + 1
@@ -257,26 +279,35 @@ local function RefreshClass(p)
 			end
 			-- another spec than yours: its name dim, like its reminders
 			head.text:SetText(s.current == false and Skin.Text("dim", s.name) or s.name)
-			y = y - 24
+			y = y - 26
+			-- three to a row; a row is as tall as its tallest reminder (one with a recommendation under it)
+			local rowH = 0
 			for i, item in ipairs(s.items) do
 				local c = p.items[n + 1]
 				if c then
 					n = n + 1
-					local column, row = (i - 1) % 2, math.floor((i - 1) / 2)
+					local column = (i - 1) % CLASS_COLS
+					if column == 0 and i > 1 then
+						y = y - rowH - 6
+						rowH = 0
+					end
 					c:ClearAllPoints()
-					c:SetPoint("TOPLEFT", 24 + column * COL_W, y - row * 24)
+					c:SetPoint("TOPLEFT", 24 + column * col, y)
 					c:Show()
 					c.key = item.key
-					-- not for your spec or talents right now: greyed, still to be set; the guides' pick after it
-					local label = item.now and (item.label or "?") or Skin.Text("dim", item.label or "?")
-					if item.guide then label = label .. Skin.Text("dim", "  " .. string.format(L["GUIDE_PICK"], item.guide)) end
-					c:SetLabel(label)
+					-- not for your spec or talents right now: greyed, still to be set
+					c:SetLabel(item.now and (item.label or "?") or Skin.Text("dim", item.label or "?"))
 					c:SetChecked(item.on)
+					c.icon:SetTexture(item.icon)
+					c.icon:SetDesaturated(not item.now)
+					c.guide:SetWidth(col - c.labelX - 6)
+					c.guide:SetText(item.guide and string.format(L["GUIDE_PICK"], item.guide) or "")
 					c.tipTitle = item.label
 					c.tip = item.guide and L["GUIDE_TIP"] or not item.now and L["NOT_NOW_TIP"] or nil
+					rowH = math.max(rowH, ICON + 2 + (item.guide and c.guide:GetStringHeight() + 1 or 0))
 				end
 			end
-			y = y - math.ceil(#s.items / 2) * 24 - 8
+			y = y - rowH - 12
 		end
 	end
 	for i = heads + 1, HEADS do p.heads[i]:Hide() end
@@ -315,7 +346,7 @@ end
 
 local ORDER = { "dungeon", "raid", "delve", "world", "arena", "bg" }
 -- a column for each kind, named as its page is
-local COLUMNS = { { "consumablesWhere", "Consumables" }, { "classWhere", "Your class" }, { "sharedWhere", "Feasts and cauldrons" } }
+local COLUMNS = { { "consumablesWhere", "Consumables" }, { "sharedWhere", "Feasts and cauldrons" }, { "classWhere", "Your class" } }
 local COL_X = { 200, 330, 460 }
 
 local function BuildWhere(p)
@@ -332,7 +363,7 @@ local function BuildWhere(p)
 		for c, col in ipairs(COLUMNS) do
 			local set = col[1]
 			-- an unticked box is saved as false: a missing key would read as the default again
-			local box = Skin.Checkbox(p, "", function(checked)
+						local box = Skin.Checkbox(p, "", function(checked)
 				RM.db[set][key] = checked
 				Changed()
 			end)
@@ -367,19 +398,21 @@ local function SoundItems()
 end
 
 local function BuildDisplay(p)
-	p.size = Skin.Slider(p, "Icon size", { min = 24, max = 96, step = 2,
+	-- a slider a line
+	p.size = Skin.Slider(p, "Icon size", { min = 24, max = 96, step = 2, width = SLIDER_W,
 		onChange = function(v) RM.db.size = v; RM.ApplyDisplay(); O.Changed() end })
 	p.size:SetPoint("TOPLEFT", 0, 0)
-	p.expiring = Skin.Slider(p, "Running out within", { min = 0, max = 15,
-		format = function(v) return v == 0 and L["Off"] or string.format(L["%d min"], v) end,
-		parse = function(t) return tonumber((t or ""):match("%d+")) or 0 end,
+	-- a buff with less left than this counts as missing; 0: only one gone
+	p.expiring = Skin.Slider(p, "Before it runs out", { min = 0, max = 60, width = SLIDER_W,
+		format = function(v) return string.format(L["%d min"], v) end,
+		parse = function(t) return tonumber((t or ""):match("%d+")) end,
 		onChange = function(v) RM.db.expiring = v; Changed() end })
-	p.expiring:SetPoint("TOPLEFT", 200, 0)
+	p.expiring:SetPoint("TOPLEFT", 0, -(Skin.SLIDER_H + 10))
 
 	-- unlocked, sample icons show and can be dragged; closing the window locks them again
-	local y = -(Skin.SLIDER_H + 14)
+	local y = -2 * (Skin.SLIDER_H + 10) - 4
 	Skin.Field(p, "Position", 0, y)
-	p.unlock = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.unlock = CK.Bind(Skin.Switch(p, "", function(checked)
 		RM.SetLocked(not checked)
 		O.Refresh()
 	end), "Unlock")
@@ -389,17 +422,16 @@ local function BuildDisplay(p)
 
 	y = y - 32
 	Skin.Field(p, "Show", 0, y)
-	p.icons = Switch(p, "icons", "Icons on screen")
-	p.icons:SetPoint("TOPLEFT", X, y - 1)
-	p.hud = Switch(p, "hud", "Rows on the HUD")
-	p.hud:SetPoint("LEFT", p.icons, "RIGHT", 16, 0)
+	-- a line each
+	p.icons = Switch(p, "icons", "Icons on screen", true)   -- where they show: one or both
+	p.hud = Switch(p, "hud", "Rows on the HUD", true)
+	Skin.Tooltip(p.hud, "Rows on the HUD", "HUD_ROWS_TIP")
 	p.click = Switch(p, "click", "Click to use")
-	p.click:SetPoint("TOPLEFT", X, y - 1 - LINE)
 	Skin.Tooltip(p.click, "Click to use", "CLICK_TIP")
 	p.glow = Switch(p, "glow", "Glow")
-	p.glow:SetPoint("LEFT", p.click, "RIGHT", 16, 0)
+	for i, s in ipairs({ p.icons, p.hud, p.click, p.glow }) do s:SetPoint("TOPLEFT", X, y - 1 - (i - 1) * LINE) end
 
-	y = y - 2 * LINE - 6
+	y = y - 4 * LINE - 6
 	Skin.Field(p, "Sound", 0, y)
 	p.sound = Skin.Dropdown(p, 200, SoundItems, function(_, item)
 		RM.db.sound = item.value
@@ -455,11 +487,10 @@ O.AddSection({
 			page.Build(frame)
 		end
 		-- sample icons where the row stands, without unlocking: a button by the title, on every page
-		body.test = Skin.Button(body, "", 70, 20, function()
+		body.test = O.TitleButton(body, 70, function()
 			RM.SetTesting(not RM.IsTesting())
 			O.Refresh()
 		end)
-		body.test:SetPoint("LEFT", O.GetFrame().detail.title, "RIGHT", 12, 0)
 	end,
 	Refresh = function(node, body)
 		RM = CK.modules.Reminder

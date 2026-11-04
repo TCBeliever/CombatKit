@@ -14,7 +14,8 @@ W.inInstance, W.instanceType, W.difficultyID = true, "party", 23
 -- saved by the first version: its default size and place
 CombatKitReminderDB = { size = 36, sound = "", point = "CENTER", relPoint = "CENTER", x = 0, y = 140,
 	used = { [266] = { flask = 1235111 } },   -- kept per spec, before PvE and PvP were told apart
-	where = { dungeon = true, raid = true, world = true } }   -- one list for consumables and class reminders
+	where = { dungeon = true, raid = true, world = true },   -- one list for consumables and class reminders
+	expiring = 99 }   -- past the end of the range
 
 local CK = T.boot()
 CK.SetModuleEnabled("Reminder", true)
@@ -26,6 +27,8 @@ eq(RM.db.used["266/pve"] and RM.db.used["266/pve"].flask, 1235111, "what was kep
 eq(RM.db.used[266], nil, "and no longer under the spec alone")
 eq(RM.db.where, nil, "the one scenario list is dropped")
 check(not RM.db.consumablesWhere.world and RM.db.classWhere.world, "the new lists start from their defaults")
+eq(RM.db.expiring, 60, "a value past the end of the range comes back to it")
+RM.db.expiring = 5   -- the default, for what follows
 eq(RM.db.version, 5, "and is marked as done")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = true }
 fire("PLAYER_ENTERING_WORLD")

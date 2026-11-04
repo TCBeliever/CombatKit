@@ -47,7 +47,7 @@ local function BuildAlert(p, a)
 	p.fontSize:SetPoint("TOPLEFT", 0, -60)
 
 	Skin.Field(a, "Effect", 0, -128)
-	p.rise = CK.Bind(Skin.Checkbox(a, "", function(checked)
+	p.rise = CK.Bind(Skin.Switch(a, "", function(checked)
 		MI.AlertSettings().rise = checked and true or false
 		Changed()
 	end), "Float up")
@@ -55,7 +55,7 @@ local function BuildAlert(p, a)
 
 	-- while ticked the text stays on screen and can be dragged; closing the window ends it
 	Skin.Field(a, "Position", 0, -160)
-	p.test = CK.Bind(Skin.Checkbox(a, "", function(checked)
+	p.test = CK.Bind(Skin.Switch(a, "", function(checked)
 		MI.SetAlertTesting(checked)
 		O.Refresh()
 	end), "Unlock")
@@ -75,7 +75,7 @@ local function BuildAlert(p, a)
 end
 
 local function Build(p)
-	p.enable = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.enable = CK.Bind(Skin.Switch(p, "", function(checked)
 		CK.SetFeatureEnabled("Misc", current, checked)   -- refreshes the window
 	end), "Enable")
 	p.enable:SetPoint("TOPLEFT", 0, 0)

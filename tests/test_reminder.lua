@@ -20,8 +20,9 @@ local RM = CK.modules.Reminder
 local L = CK.L
 check(RM and RM.enabled and RM.IsRunning(), "switched on: loaded and running")
 eq(RM.classes, nil, "the class lists are dropped once the player's is made")
-check(RM.db.consumablesWhere.dungeon and RM.db.consumablesWhere.raid and not RM.db.consumablesWhere.world,
-	"consumables: dungeons and raids by default")
+check(RM.db.consumablesWhere.dungeon and RM.db.consumablesWhere.raid and RM.db.consumablesWhere.arena and RM.db.consumablesWhere.bg
+	and not RM.db.consumablesWhere.world,
+	"consumables: dungeons, raids, and arenas and battlegrounds for a healthstone, by default")
 check(RM.db.classWhere.world and RM.db.classWhere.delve and RM.db.classWhere.arena and RM.db.classWhere.bg,
 	"class reminders: everywhere by default")
 check(RM.db.sharedWhere.bg and not RM.db.sharedWhere.arena, "feasts and cauldrons: battlegrounds too, no arena")
@@ -80,7 +81,7 @@ W.playerAuras[1235111].expirationTime = W.now + 230
 fire("UNIT_AURA", "player")
 eq(find(L["Flask"]) and find(L["Flask"]).text, "4m", "under five minutes left: back, with the time")
 RM.db.expiring = 0; RM.Refresh()
-check(not find(L["Flask"]), "running out switched off: only a missing one counts")
+check(not find(L["Flask"]), "0 minutes ahead: only a missing one counts")
 RM.db.expiring = 5
 W.playerAuras[1235111].expirationTime = W.now + 1200
 W.difficultyID = 23
@@ -359,6 +360,8 @@ local function go(node)
 end
 local page = body.pages.consumables
 check(page:IsShown() and page.consumables.flask:GetChecked(), "the first page: the consumables")
+check(page.consumables.flask.icon:GetTexture() ~= nil and page.shared.feast.icon:GetTexture() == "itemicon" .. RM.FEAST.items[1],
+	"each with its icon: the one in the bags, else the kind's own")
 W.playerAuras[1235111] = nil
 W.combat = true
 fire("PLAYER_REGEN_DISABLED")
@@ -378,9 +381,9 @@ page.shared.cauldron:Click()
 
 go("where")
 local where = body.pages.where
-check(where:IsShown() and where.boxes.consumablesWhereraid:GetChecked() and not where.boxes.consumablesWherebg:GetChecked()
+check(where:IsShown() and where.boxes.consumablesWhereraid:GetChecked() and where.boxes.consumablesWherebg:GetChecked()
 	and where.boxes.classWhereworld:GetChecked() and where.boxes.sharedWherebg:GetChecked(),
-	"where: consumables in raids, class reminders everywhere, the group's in battlegrounds too")
+	"where: consumables in raids and battlegrounds, class reminders everywhere, the group's in battlegrounds too")
 where.boxes.consumablesWhereraid:Click()
 eq(RM.db.consumablesWhere.raid, false, "unticked is saved as false, not as a missing key")
 check(not find(L["Flask"]), "consumables unticked for raids: no flask")
@@ -399,6 +402,7 @@ local first = class.items[1]
 check(class:IsShown() and first:IsShown() and first.key == "intellect", "your class: its reminders, the group buff first")
 check(class.items[2]:IsShown() and not class.items[3]:IsShown(), "two for a mage")
 eq(class.heads[1].text:GetText(), L["All specs"], "the group buff under every spec")
+eq(first.icon:GetTexture(), "icon1459", "each row with its spell's icon")
 eq(class.items[2].key, "elemental", "the Water Elemental")
 eq(class.heads[2].text:GetText(), "Frost", "under Frost, the one spec with a reminder of its own")
 check(not class.heads[3]:IsShown(), "Arcane and Fire have none: no heads for them")
@@ -415,6 +419,10 @@ RM.Refresh()
 
 body.test:Click()
 check(RM.IsTesting() and #shown() == 2 and find(AI) and find(ELEMENTAL), "the test on the class page: your class's reminders")
+RM.db.hud = true
+eq(#(RM.hudSection.GetRows() or {}), 2, "listed on the HUD: the samples there too while testing")
+RM.db.hud = false
+eq(RM.hudSection.GetRows(), nil, "not listed there: none")
 local _, testIcons = RM.GetDisplay()
 check(testIcons[1].glow and testIcons[1].glow.tex:IsShown(), "with the glow, by default")
 local row = RM.GetDisplay()

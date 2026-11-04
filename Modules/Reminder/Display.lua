@@ -7,7 +7,7 @@ local L, Skin = CK.L, CK.Skin
 -- drags, and if asked the same as rows on the HUD. Each icon shows the
 -- spell's or the item's icon, its name above it and, inside at the bottom,
 -- the time left when it is running out (a feast counts down) or how many in
--- the group lack a buff; and, if asked, the game's proc glow running round it.
+-- the group lack a buff; and, if asked, thin dashes running round it.
 -- A click on one casts its spell or uses its item, and a sound can say that
 -- one appeared.
 --
@@ -40,67 +40,70 @@ function ns.IsTesting() return testing end
 local function Gap(size) return math.max(6, math.floor(size * 0.2)) end
 
 -- ---------------------------------------------------------------------------
--- The glow: the game's own proc border (the band that runs round an action
--- button), run by an animation of our own; nothing of the action bars' glow
--- code is called. A client without that atlas gets the classic marching ants
--- (a file cut into cells), and one without either no glow.
+-- The glow: thin dashes marching round the icon's edge ("pixel ants"), drawn
+-- with the white texture and moved by an animation of our own; quieter than
+-- the game's proc band, which the user found too bright (2026-11-04).
 -- ---------------------------------------------------------------------------
 
-local PROC = { atlas = "UI-HUD-ActionBar-Proc-Loop-Flipbook", rows = 6, columns = 5, frames = 30, duration = 1, scale = 1.4 }
-local ANTS = { file = "Interface\\SpellActivationOverlay\\IconAlertAnts", size = 256, cell = 48, columns = 5, frames = 22,
-	duration = 0.5, scale = 1.2 }
+local ANTS = { lines = 8, thick = 2, pad = 2, period = 4, color = { 1, 0.82, 0.25 }, warn = { 1, 0.35, 0.35 } }
 
-local function HasAtlas(name)
-	if not (C_Texture and C_Texture.GetAtlasInfo) then return true end
-	local ok, info = pcall(C_Texture.GetAtlasInfo, name)
-	return ok and info ~= nil
+-- the dashes at a point of the round (0 to 1): each starts there along the edge, clockwise from
+-- the top left, half a dash's share of the edge long, cut short at a corner
+local function PlaceAnts(g, progress)
+	local w, h = g.w, g.h
+	local perim = 2 * (w + h)
+	local len = perim / ANTS.lines / 2
+	for i, line in ipairs(g.lines) do
+		local p = ((i - 1) / ANTS.lines + progress) % 1 * perim
+		line:ClearAllPoints()
+		if p < w then
+			line:SetSize(math.min(len, w - p), ANTS.thick)
+			line:SetPoint("TOPLEFT", g.tex, "TOPLEFT", p, 0)
+		elseif p < w + h then
+			local q = p - w
+			line:SetSize(ANTS.thick, math.min(len, h - q))
+			line:SetPoint("TOPRIGHT", g.tex, "TOPRIGHT", 0, -q)
+		elseif p < 2 * w + h then
+			local q = p - w - h
+			line:SetSize(math.min(len, w - q), ANTS.thick)
+			line:SetPoint("BOTTOMRIGHT", g.tex, "BOTTOMRIGHT", -q, 0)
+		else
+			local q = p - 2 * w - h
+			line:SetSize(ANTS.thick, math.min(len, h - q))
+			line:SetPoint("BOTTOMLEFT", g.tex, "BOTTOMLEFT", 0, q)
+		end
+	end
 end
 
-local function AntsFrame(tex, i)
-	local unit = ANTS.cell / ANTS.size
-	local col, line = i % ANTS.columns, math.floor(i / ANTS.columns)
-	tex:SetTexCoord(col * unit, (col + 1) * unit, line * unit, (line + 1) * unit)
-end
-
--- the glow on an icon, made once: { tex=, anim=, scale= }, or false
+-- the glow on an icon, made once: { tex = the frame round the icon, lines=, anim=, w=, h= }
 local function Glow(b)
 	if b.glow ~= nil then return b.glow end
-	local tex = b:CreateTexture(nil, "OVERLAY", nil, 7)
-	tex:SetPoint("CENTER")
-	tex:SetBlendMode("ADD")
-	tex:Hide()
-	local anim = tex:CreateAnimationGroup()
-	anim:SetLooping("REPEAT")
-	local style
-	if HasAtlas(PROC.atlas) and tex:SetAtlas(PROC.atlas) ~= false then
-		style = PROC
-		local flip = anim:CreateAnimation("FlipBook")
-		flip:SetFlipBookRows(PROC.rows)
-		flip:SetFlipBookColumns(PROC.columns)
-		flip:SetFlipBookFrames(PROC.frames)
-		flip:SetDuration(PROC.duration)
-	elseif tex:SetTexture(ANTS.file) ~= false and tex:GetTexture() ~= nil then
-		style = ANTS
-		AntsFrame(tex, 0)
-		local step = anim:CreateAnimation("Animation")
-		step:SetDuration(ANTS.duration)
-		step:SetScript("OnUpdate", function(self)
-			AntsFrame(tex, math.min(ANTS.frames - 1, math.floor((self:GetProgress() or 0) * ANTS.frames)))
-		end)
-	else
-		b.glow = false
-		return false
+	local holder = CreateFrame("Frame", nil, b)
+	holder:SetPoint("CENTER")
+	holder:SetFrameLevel((b:GetFrameLevel() or 0) + 2)
+	holder:Hide()
+	local g = { tex = holder, lines = {}, w = 1, h = 1 }
+	for i = 1, ANTS.lines do
+		g.lines[i] = holder:CreateTexture(nil, "OVERLAY", nil, 7)
 	end
-	b.glow = { tex = tex, anim = anim, scale = style.scale }
-	return b.glow
+	local anim = holder:CreateAnimationGroup()
+	anim:SetLooping("REPEAT")
+	local step = anim:CreateAnimation("Animation")
+	step:SetDuration(ANTS.period)
+	step:SetScript("OnUpdate", function(self) PlaceAnts(g, self:GetProgress() or 0) end)
+	g.anim = anim
+	b.glow = g
+	return g
 end
 
 local function SetGlow(b, on, size, warn)
 	local g = Glow(b)
-	if not g then return end
 	if on then
-		g.tex:SetSize(size * g.scale, size * g.scale)
-		g.tex:SetVertexColor(unpack(warn and { 1, 0.35, 0.35 } or { 1, 1, 1 }))
+		g.w, g.h = size + 2 * ANTS.pad, size + 2 * ANTS.pad
+		g.tex:SetSize(g.w, g.h)
+		local c = warn and ANTS.warn or ANTS.color
+		for _, line in ipairs(g.lines) do line:SetColorTexture(c[1], c[2], c[3], 1) end
+		PlaceAnts(g, 0)
 		g.tex:Show()
 		if not g.anim:IsPlaying() then g.anim:Play() end
 	else
@@ -396,6 +399,7 @@ end
 
 -- Size and position, from the saved settings
 function ns.ApplyDisplay()
+	CK.HUD.Refresh()   -- the HUD rows follow the same settings, and the samples while testing
 	if not frame then return end
 	local db = ns.db
 	frame:ClearAllPoints()
@@ -446,9 +450,11 @@ ns.hudSection = {
 	key = "reminder",
 	order = 15,
 	GetRows = function()
-		if not ns.db.hud or #current == 0 then return nil end
+		-- testing or unlocked: the samples here too, so the setting shows what it does
+		local list = (testing or not locked) and Samples() or current
+		if not ns.db.hud or #list == 0 then return nil end
 		local rows = {}
-		for _, r in ipairs(current) do
+		for _, r in ipairs(list) do
 			local right = r.expires and Countdown(r.expires - GetTime()) or r.text
 			rows[#rows + 1] = { icon = r.icon, value = r.warn and Skin.Text("bad", r.label or "") or (r.label or ""), right = right }
 		end

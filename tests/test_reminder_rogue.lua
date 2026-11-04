@@ -67,7 +67,8 @@ local page = main.bodies.Reminder.pages.class
 check(page.heads[1]:IsShown() and page.heads[1].text:GetText() == "Assassination", "no 'all specs' head: every poison is per spec")
 check(page.heads[3]:IsShown() and not page.heads[4]:IsShown(), "Assassination, Outlaw, Subtlety")
 eq(page.items[3].key, "lethal", "Outlaw's lethal poison")
-check(page.items[3].label:GetText():find("spell" .. INSTANT, 1, true), "with Outlaw's pick")
+check(page.items[3].guide:GetText():find("spell" .. INSTANT, 1, true), "with Outlaw's pick, under the name")
+check(page.items[3].icon:GetTexture() == "icon" .. INSTANT and page.items[3].icon.__desaturated, "and its icon, grey: not your spec")
 main:Hide()
 
 -- an arena: nothing remembered for PvP, the guides' PvP poisons

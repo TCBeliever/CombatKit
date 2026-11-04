@@ -30,7 +30,7 @@ local function Build(p)
 	p.decimals = Skin.Slider(p, "Decimals", { min = 0, max = 2, onChange = function(v) ST.db.decimals = v; Changed() end })
 	p.decimals:SetPoint("TOPLEFT", 0, 0)
 
-	p.english = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.english = CK.Bind(Skin.Switch(p, "", function(checked)
 		ST.db.english = checked or nil
 		Changed()
 	end), "English on the HUD")

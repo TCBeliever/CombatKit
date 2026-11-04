@@ -5,6 +5,7 @@ local L, Skin, O = CK.L, CK.Skin, CK.Options
 -- are watched (per class, in groups), profiles, and debug.
 
 local X = O.FIELD_X + 20
+local SLIDER_W = 300   -- a slider a line, this wide
 local AR   -- the module, set whenever the section is used
 local pages
 
@@ -62,19 +63,20 @@ end
 
 local MEDALLION = 336126   -- Gladiator's Medallion: the PvP trinket's icon
 
--- a spell's icon between a check box and its name; the click area takes the
--- icon in, whatever the label (a language change sets it again)
+-- a spell's icon between a check box or switch and its name; the click area takes the icon
+-- in, whatever the label (a language change sets it again, and moves the icon
+-- after 關 / 開, whose width it may change)
+local ICON = 20   -- as large as the Reminder's
 local function WithIcon(c)
-	c.icon = c:CreateTexture(nil, "ARTWORK")
-	c.icon:SetSize(16, 16)
-	c.icon:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
-	c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-	c.label:ClearAllPoints()
-	c.label:SetPoint("LEFT", c.icon, "RIGHT", 6, 0)
+	c:SetHeight(ICON + 2)
+	c.icon = Skin.FramedIcon(c, ICON)   -- framed as the game frames its own, like the Reminder's
 	local SetLabel = c.SetLabel
 	function c:SetLabel(label)
+		local x = self:BaseLabelX()
+		self.icon:ClearAllPoints()
+		self.icon:SetPoint("LEFT", x, 0)
+		self.labelX = x + ICON + 7
 		SetLabel(self, label)
-		self:SetWidth(self:GetWidth() + 22)
 	end
 	c:SetLabel(c.label:GetText())
 	return c
@@ -82,21 +84,20 @@ end
 
 -- ---------------------------------------------------------------- the display
 local function BuildMain(p)
-	Skin.Field(p, "Show", 0, 0)
-	p.trinket = CK.Bind(WithIcon(Skin.Checkbox(p, "", function(checked)
+	-- the switches from the left edge, their names say it all
+	p.trinket = CK.Bind(WithIcon(Skin.Switch(p, "", function(checked)
 		AR.db.trinket = checked
 		Changed()
 	end)), "The PvP trinket")
 	p.trinket.icon:SetTexture(C_Spell.GetSpellTexture(MEDALLION) or 134400)
-	p.trinket:SetPoint("TOPLEFT", X, -1)
+	p.trinket:SetPoint("TOPLEFT", 0, -1)
 
 	-- by the party frames: which side, how far, shifted along the edge
-	Skin.Field(p, "Attach", 0, -26)
-	p.attach = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.attach = CK.Bind(Skin.Switch(p, "", function(checked)
 		AR.db.attach = checked
 		Changed()
 	end), "Attach to party frames")
-	p.attach:SetPoint("TOPLEFT", X, -27)
+	p.attach:SetPoint("TOPLEFT", 0, -27)
 	-- the side and how the lines line up go together: the second follows the first
 	Skin.Field(p, "Side", 0, -50)
 	p.side = Skin.Dropdown(p, 100, Items(SIDES), function(_, item)
@@ -113,43 +114,47 @@ local function BuildMain(p)
 	end)
 	p.grow:SetPoint("TOPLEFT", p.growLabel, "TOPRIGHT", 10, 4)
 
-	-- the numbers, three to a line
-	local COL, SW = 150, 130
-	local function Slider(key, x, y, opts)
-		opts.width = SW
+	-- the numbers, a slider a line, as the Range page has them
+	local y = -86
+	local function Slider(key, opts)
+		opts.width = SLIDER_W
 		local s = Skin.Slider(p, key, opts)
-		s:SetPoint("TOPLEFT", x, y)
+		s:SetPoint("TOPLEFT", 0, y)
 		return s
 	end
-	local row1 = -78
-	local row2 = row1 - Skin.SLIDER_H - 6
-	p.offset = Slider("Offset", 0, row1, { min = -40, max = 80, step = 1,
+	local function Next() y = y - Skin.SLIDER_H - 10 end
+	p.offset = Slider("Offset", { min = -40, max = 80, step = 1,
 		onChange = function(v) AR.db.offset = v; Changed() end })
-	p.offsetAlong = Slider("Offset along the frame", COL, row1, { min = -80, max = 80, step = 1,
+	Next()
+	p.offsetAlong = Slider("Offset along the frame", { min = -80, max = 80, step = 1,
 		onChange = function(v) AR.db.offsetAlong = v; Changed() end })
-	p.iconSize = Slider("Icon size", COL * 2, row1, { min = 16, max = 48,
+	Next()
+	p.iconSize = Slider("Icon size", { min = 16, max = 48,
 		onChange = function(v) AR.db.iconSize = v; Changed() end })
-	p.spacing = Slider("Spacing", 0, row2, { min = 0, max = 12,
+	Next()
+	p.spacing = Slider("Spacing", { min = 0, max = 12,
 		onChange = function(v) AR.db.spacing = v; Changed() end })
-	p.maxPerRow = Slider("Max icons per row", COL, row2, { min = 1, max = 12,
-		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
-	-- in its place while the icons are spread evenly over a number of lines
-	p.lines = Slider("Lines", COL, row2, { min = 1, max = 6,
-		onChange = function(v) AR.db.lines = v; Changed() end })
-	-- how a row breaks into lines: at most so many to a line, or evenly over so many lines
-	p.perRowLabel = CK.Bind(Skin.Label(p, "", nil, "dim"), "Line break")
-	p.perRowLabel:SetPoint("TOP", p.iconSize, "BOTTOM", 0, -6)
-	p.perRow = Skin.Dropdown(p, SW, Items(PER_ROW), function(_, item)
+	Next()
+	-- how a row breaks into lines: at most so many to a line, or evenly over so many lines;
+	-- the number for it on the line under it
+	p.perRowLabel = Skin.Field(p, "Line break", 0, y)
+	p.perRow = Skin.Dropdown(p, 180, Items(PER_ROW), function(_, item)
 		AR.db.perRow = item.value
 		Changed()
 		O.Refresh()
 	end)
-	p.perRow:SetPoint("TOP", p.perRowLabel, "BOTTOM", 0, -4)
+	p.perRow:SetPoint("TOPLEFT", X, y)
+	y = y - 32
+	p.maxPerRow = Slider("Max icons per row", { min = 1, max = 12,
+		onChange = function(v) AR.db.maxPerRow = v; Changed() end })
+	-- in its place while the icons are spread evenly over a number of lines
+	p.lines = Slider("Lines", { min = 1, max = 6,
+		onChange = function(v) AR.db.lines = v; Changed() end })
 
 	-- a row without a frame to hang on: dragging it while unlocked
-	local y = row2 - Skin.SLIDER_H - 6
+	y = y - Skin.SLIDER_H - 14
 	Skin.Field(p, "Position", 0, y)
-	p.unlock = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.unlock = CK.Bind(Skin.Switch(p, "", function(checked)
 		AR.SetLocked(not checked)
 		O.Refresh()
 	end), "Unlock")
@@ -159,11 +164,10 @@ local function BuildMain(p)
 
 	-- sample rows on screen, to see the look by the party frames or at the loose
 	-- positions without unlocking: a button by the page's title
-	p.test = Skin.Button(p, "", 70, 20, function()
+	p.test = O.TitleButton(p, 70, function()
 		AR.SetTest(not AR.IsTesting())
 		O.Refresh()
 	end)
-	p.test:SetPoint("LEFT", O.GetFrame().detail.title, "RIGHT", 12, 0)
 
 	-- the highlight while an aura is up
 	y = y - 24
@@ -217,7 +221,7 @@ end
 -- still fits the window. An ability nothing can detect (Spells.lua
 -- `undetectable`) is listed greyed out, marked in red, its box out of reach.
 -- Hovering an ability shows the game's own tooltip for it.
-local ROW_H = 20
+local ROW_H = 24   -- a row with a 20px icon
 local GAP = 6         -- under a category
 local COL_MIN = 290   -- the second column starts at half the page, never closer than this
 local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Offensive cooldowns" }, { "control", "Crowd control" },
@@ -312,7 +316,7 @@ end
 -- a check box with the spell's icon between the box and the name; hovered,
 -- the game's own tooltip for the spell (a greyed-out row too)
 local function AbilityRow(parent, onChange)
-	local c = WithIcon(Skin.Checkbox(parent, "", onChange))
+	local c = WithIcon(Skin.Checkbox(parent, "", onChange))   -- a set to pick from: check boxes
 	c:HookScript("OnEnter", function(self)
 		if not self.def then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -490,7 +494,7 @@ end
 
 -- ---------------------------------------------------------------- debug
 local function BuildDebug(p)
-	p.showSelf = CK.Bind(Skin.Checkbox(p, "", function(checked)
+	p.showSelf = CK.Bind(Skin.Switch(p, "", function(checked)
 		AR.db.showSelf = checked
 		Changed()
 	end), "Show your own row")

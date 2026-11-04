@@ -28,7 +28,7 @@ local O = {}
 CK.Options = O
 
 -- layout units; the whole window is scaled by settings.windowScale (1.5 by default)
-local W, H        = 758, 464   -- the right side is as wide as the whole window used to be
+local W, H        = 758, 464   -- the right side is as wide as the whole window used to be; a taller page scrolls
 local TITLE_H     = 28
 local TOP         = TITLE_H - 1   -- the title bar's bottom border line
 local SIDE_W      = 118           -- the list of sections at the left
@@ -278,7 +278,7 @@ local function ShowOff(def)
 	local d = main.detail
 	d.title:SetText(def.tab())
 	d.desc:SetText(L["MODDESC_" .. def.module])
-	for _, body in pairs(main.bodies) do body:Hide() end
+	for _, body in pairs(main.bodies) do body.scroll:Hide(); body:Hide() end
 	local off = main.off
 	off.module = def.module
 	off.check:SetChecked(false)
@@ -311,6 +311,101 @@ local function FixSelection()
 	end
 end
 
+-- ---------------------------------------------------------------------------
+-- A page taller than the room under its header scrolls: the mouse wheel moves
+-- it, a thin bar at the right edge shows where it stands and can be dragged.
+-- The window keeps its size.
+-- ---------------------------------------------------------------------------
+
+local SCROLL_STEP = 40
+
+-- A button by the page's title (Test): on the header, outside what scrolls (which would clip it),
+-- and shown while its page is.
+function O.TitleButton(page, w, onClick)
+	local d = main.detail
+	local b = Skin.Button(d, "", w, 20, onClick)
+	b:SetPoint("LEFT", d.title, "RIGHT", 12, 0)
+	b:SetShown(page:IsVisible())
+	page:HookScript("OnShow", function() b:Show() end)
+	page:HookScript("OnHide", function() b:Hide() end)
+	return b
+end
+
+-- the body a section's pages are built in, inside the frame that scrolls it
+local function ScrollBody(d)
+	local scroll = CreateFrame("ScrollFrame", nil, d)
+	local body = CreateFrame("Frame", nil, scroll)
+	body:SetSize(RIGHT_W, 1)
+	scroll:SetScrollChild(body)
+	body.scroll = scroll
+
+	local bar = CreateFrame("Slider", nil, scroll)
+	bar:SetOrientation("VERTICAL")
+	bar:SetPoint("TOPRIGHT", scroll, "TOPRIGHT", 9, 0)
+	bar:SetPoint("BOTTOMRIGHT", scroll, "BOTTOMRIGHT", 9, 0)
+	bar:SetWidth(6)
+	local track = Skin.Fill(bar, "BACKGROUND", "border")
+	track:SetWidth(2)
+	track:SetPoint("TOP")
+	track:SetPoint("BOTTOM")
+	bar:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+	local thumb = bar:GetThumbTexture()
+	if thumb then
+		thumb:SetSize(4, 30)
+		Skin.Paint(thumb, function(t) t:SetVertexColor(Skin.Color("accent")) end)
+	end
+	bar:SetValueStep(1)
+	bar:SetMinMaxValues(0, 0)
+	bar:SetValue(0)
+	bar:SetScript("OnValueChanged", function(_, v) scroll:SetVerticalScroll(v) end)
+	bar:Hide()
+	scroll.bar = bar
+
+	scroll:EnableMouseWheel(true)
+	scroll:SetScript("OnMouseWheel", function(_, delta)
+		local _, max = bar:GetMinMaxValues()
+		bar:SetValue(math.max(0, math.min(max or 0, (bar:GetValue() or 0) - delta * SCROLL_STEP)))
+	end)
+	return body
+end
+
+-- how far down a page reaches: the lowest of what is shown on it. A control counts whole;
+-- a frame that holds a page (as tall as the room) counts by what it holds.
+local function Lowest(f, low)
+	for _, r in ipairs({ f:GetRegions() }) do
+		if r:IsShown() then
+			local b = r:GetBottom()
+			if b and b < low then low = b end
+		end
+	end
+	for _, c in ipairs({ f:GetChildren() }) do
+		if c:IsShown() then
+			if (c:GetHeight() or 0) <= 80 then
+				local b = c:GetBottom()
+				if b and b < low then low = b end
+			end
+			low = Lowest(c, low)
+		end
+	end
+	return low
+end
+
+-- the body as tall as its page, the bar shown only when the page is taller than the room
+local function Fit(body)
+	local scroll = body.scroll
+	local top, room = body:GetTop(), scroll:GetHeight() or 0
+	if not top or room <= 0 then return end
+	local h = math.ceil(top - Lowest(body, top)) + 8
+	body:SetHeight(math.max(h, 1))
+	local max = math.max(0, h - room)
+	local bar = scroll.bar
+	bar:SetMinMaxValues(0, max)
+	bar:SetShown(max > 0)
+	if (bar:GetValue() or 0) > max then bar:SetValue(max) end
+	local thumb = bar:GetThumbTexture()
+	if thumb and max > 0 then thumb:SetHeight(math.max(20, room * room / h)) end
+end
+
 local function RefreshDetail()
 	local def = byKey[selected.section]
 	if not IsOn(def) then return ShowOff(def) end
@@ -323,21 +418,30 @@ local function RefreshDetail()
 
 	local body = main.bodies[def.key]
 	if not body then
-		body = CreateFrame("Frame", nil, d)
+		body = ScrollBody(d)
 		main.bodies[def.key] = body
 		def.Build(body)
 	end
-	for key, other in pairs(main.bodies) do other:SetShown(key == def.key) end
-	body:ClearAllPoints()
+	for key, other in pairs(main.bodies) do other.scroll:SetShown(key == def.key); other:SetShown(key == def.key) end
+	local scroll = body.scroll
+	scroll:ClearAllPoints()
 	if desc and desc ~= "" then
-		body:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -DESC_GAP)   -- the text wraps: its height is its own
+		scroll:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -DESC_GAP)   -- the text wraps: its height is its own
 	elseif not title or title == "" then
-		body:SetPoint("TOPLEFT", 0, 0)   -- no header at all: the page starts at the top
+		scroll:SetPoint("TOPLEFT", 0, 0)   -- no header at all: the page starts at the top
 	else
-		body:SetPoint("TOPLEFT", 0, BODY_Y_BARE)
+		scroll:SetPoint("TOPLEFT", 0, BODY_Y_BARE)
 	end
-	body:SetPoint("BOTTOMRIGHT")
+	scroll:SetPoint("BOTTOMRIGHT")
+	-- another page: from its top
+	local page = def.key .. "/" .. tostring(selected.node)
+	if main.page ~= page then
+		main.page = page
+		scroll.bar:SetValue(0)
+	end
 	def.Refresh(selected.node, body)
+	-- measured once the page has laid itself out
+	C_Timer.After(0, function() if scroll:IsVisible() then Fit(body) end end)
 end
 
 function O.Refresh()
@@ -436,7 +540,7 @@ local function CreateMain()
 	local off = CreateFrame("Frame", nil, d)
 	off:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -DESC_GAP)
 	off:SetPoint("BOTTOMRIGHT")
-	off.check = CK.Bind(Skin.Checkbox(off, "", function(checked)
+	off.check = CK.Bind(Skin.Switch(off, "", function(checked)
 		CK.SetModuleEnabled(off.module, checked)   -- refreshes the window: its pages take over
 	end), "Enable")
 	off.check:SetPoint("TOPLEFT", 0, 0)
@@ -498,16 +602,18 @@ local function BuildModules(page)
 			local listKey = "MODLIST_" .. def.name
 			if not (CK.locales.enUS[listKey] or CK.locales.zhTW[listKey]) then listKey = "MOD_" .. def.name end
 			row.check = CK.Bind(Skin.Checkbox(page, "", function(checked) CK.SetModuleEnabled(def.name, checked) end), listKey)
+			-- the line under a switch lines up with its label
+			local labelX = Skin.CHECK_LABEL_X
 			if above then
-				row.check:SetPoint("TOPLEFT", above, "BOTTOMLEFT", -20, -12)
+				row.check:SetPoint("TOPLEFT", above, "BOTTOMLEFT", -labelX, -12)
 			else
 				row.check:SetPoint("TOPLEFT", 0, 0)
 			end
 			row.state = Skin.Label(page, "")
 			row.state:SetPoint("LEFT", row.check, "RIGHT", 10, 0)
 			row.desc = CK.Bind(Skin.Label(page, "", nil, "dim"), "MODDESC_" .. def.name)
-			row.desc:SetPoint("TOPLEFT", row.check, "BOTTOMLEFT", 20, -3)
-			row.desc:SetWidth(RIGHT_W - 20)
+			row.desc:SetPoint("TOPLEFT", row.check, "BOTTOMLEFT", labelX, -3)
+			row.desc:SetWidth(RIGHT_W - labelX)
 			row.desc:SetJustifyH("LEFT")
 			row.module = def.name
 			page.rows[#page.rows + 1] = row
@@ -607,8 +713,9 @@ local function BuildGeneral(page)
 	page.theme = Skin.Dropdown(page, 220, ThemeItems, function(_, item) CK.SetTheme(item.value) end)
 	page.theme:SetPoint("TOPLEFT", X, -32)
 
+	-- applied when the mouse lets go: the window rescaled under the cursor would move the bar away
 	page.windowScale = Skin.Slider(page, "Window scale", { min = WINDOW_SCALE_MIN, max = WINDOW_SCALE_MAX, step = 0.1,
-		format = Skin.Percent, parse = Skin.ParsePercent, onChange = function(v) O.SetWindowScale(v) end })
+		format = Skin.Percent, parse = Skin.ParsePercent, onRelease = true, onChange = function(v) O.SetWindowScale(v) end })
 	page.windowScale:SetPoint("TOPLEFT", 0, -64)
 end
 
@@ -617,7 +724,7 @@ local function BuildHud(page)
 	local X = O.FIELD_X
 	local function Row(key, y) Skin.Field(page, key, 0, y) end
 	local function Check(labelKey, y, onChange)
-		local c = CK.Bind(Skin.Checkbox(page, "", onChange), labelKey)
+		local c = CK.Bind(Skin.Switch(page, "", onChange), labelKey)
 		c:SetPoint("TOPLEFT", X, y - 1)
 		return c
 	end

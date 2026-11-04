@@ -6,7 +6,7 @@ A modular combat addon for World of Warcraft (Retail) with a small resource foot
 - **Stats**: live stats on a compact HUD.
 - **Range**: distance to your target, focus and mouseover.
 - **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their frames.
-- **Reminder**: icons for what is missing before a pull: flask, food, augment rune, weapon oil, healthstone, your class's buffs, a feast put down nearby.
+- **Reminder**: reminders of what is missing: flask, food, augment rune, weapon oil, healthstone, your class's buffs, and a feast or cauldron the group puts down.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No libraries, no texture or font files.
@@ -74,7 +74,7 @@ How it knows: other players' auras are secret to addons in an arena. The game is
 
 ## Reminder
 
-A row of icons, out of combat, in the scenarios you pick (dungeons and raids by default): one for each thing missing before a pull, its name above it, the time left inside when it is running out (under five minutes by default), and for a group buff how many near you lack it.
+A row of icons, out of combat, in the scenarios you pick: one for each thing missing, its name above it, the time left inside when it is running out (under five minutes by default), and for a group buff how many near you lack it.
 
 - **Your consumables** (PvE only; a healthstone in PvP too): a flask, food (any Well Fed; not while you are eating), an augment rune (only when you have one), oil, a stone or ammunition on each weapon, bows and guns included (not on a slot your class imbues itself; the icon and the click take what goes on that weapon), a healthstone (taken from a warlock in the group; a warlock's own is a class reminder). At the entrance, until the first pull; in a raid again whenever combat ends (a boss down, a buff run out); a ready check shows them anywhere. A Mythic+ run needs no second reminder: once the key runs nothing shows, so at a Mythic entrance a consumable that would not last a key run (35 minutes) is shown as running out.
 - **Your class**: your group buff (Arcane Intellect, Battle Shout, Power Word: Fortitude, Mark of the Wild, Blessing of the Bronze, Skyfury), what you put on yourself (stance or form, shields, poisons, an aura, a weapon imbue or a rune, Grimoire of Sacrifice), a warlock's healthstone to make when there is none in the bags, your pet, and what you put on someone else in a group (Earth Shield, the beacons, Source of Magic, Symbiotic Relationship, Soulstone). Defensive Stance on Arms or Fury shows in red: time to leave it.
@@ -94,7 +94,7 @@ Small things that do not deserve an addon of their own. One with settings has a 
 
 ## Look and weight
 
-Flat panels drawn by the addon itself, no Blizzard frame skin. Two themes, *Tide* (blue) and *Dusk* (violet), switchable in **Settings > General**; each is one table in `Skin.lua`, and another one is a table and a name. English and 繁體中文, switchable there too; more translations are welcome, every `Locales.lua` is a plain table.
+Flat panels drawn by the addon itself, no Blizzard frame skin. Two themes, *Tide* (blue) and *Obsidian* (black-gold), switchable in **Settings > General**; each is one table in `Skin.lua`, and another one is a table and a name. English and 繁體中文, switchable there too; more translations are welcome, every `Locales.lua` is a plain table.
 
 ## Development
 

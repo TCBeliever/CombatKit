@@ -17,7 +17,8 @@ local WHITE = "Interface\\Buttons\\WHITE8x8"
 -- The themes to pick from, in the order the settings list them; the first is
 -- the default. To add one, add its table here and its name to the options'
 -- locales (THEME_<key>). ok, warn and bad mean the same in every theme, so an
--- accent keeps clear of green, amber and red.
+-- accent keeps clear of green and red; the black-gold accent sits close to amber.
+-- The themes are the family's: OneClickFish and SmartVoidcore have the same two.
 Skin.THEMES = {
 	{ key = "tide", colors = {
 		bg       = { 0.025, 0.040, 0.055 },
@@ -33,16 +34,16 @@ Skin.THEMES = {
 		warn     = { 0.91, 0.66, 0.25 },
 		bad      = { 0.95, 0.35, 0.35 },
 	} },
-	{ key = "dusk", colors = {
-		bg       = { 0.040, 0.030, 0.060 },
-		panel    = { 0.085, 0.060, 0.135 },
-		element  = { 0.140, 0.100, 0.230 },
-		hover    = { 0.190, 0.140, 0.300 },
-		selected = { 0.180, 0.130, 0.290 },
-		border   = { 0.390, 0.280, 0.560 },
-		accent   = { 0.700, 0.540, 0.920 },
+	{ key = "obsidian", colors = {   -- black-gold
+		bg       = { 0.027, 0.031, 0.039 },
+		panel    = { 0.059, 0.067, 0.082 },
+		element  = { 0.102, 0.114, 0.137 },
+		hover    = { 0.137, 0.153, 0.184 },
+		selected = { 0.129, 0.141, 0.169 },
+		border   = { 0.431, 0.353, 0.180 },
+		accent   = { 0.831, 0.686, 0.216 },
 		text     = { 1.00, 1.00, 1.00 },
-		dim      = { 0.70, 0.65, 0.78 },
+		dim      = { 0.663, 0.678, 0.710 },
 		ok       = { 0.34, 0.88, 0.48 },
 		warn     = { 0.91, 0.66, 0.25 },
 		bad      = { 0.95, 0.35, 0.35 },
@@ -182,27 +183,40 @@ function Skin.Button(parent, text, w, h, onClick)
 	return b
 end
 
--- A plain Button that behaves like a check box. onChange(checked)
+-- Two widgets for true or false. A check box is one item of a set to pick from
+-- (which consumables, which units, which spells); a switch turns one setting
+-- on or off. Both are Buttons, so the label is clickable too; c.labelX moves
+-- the label right (room for an icon), c:BaseLabelX() is where it starts
+-- otherwise. onChange(checked).
+
+-- A check box: a small square, an accent mark inside when ticked
+local CHECK_W = 14
+Skin.CHECK_W = CHECK_W
+Skin.CHECK_LABEL_X = CHECK_W + 6   -- where a check box's label starts; a line under one lines up here
 function Skin.Checkbox(parent, text, onChange)
 	local c = CreateFrame("Button", nil, parent)
 	c:SetHeight(18)
 	c.box = Skin.Fill(c, "BACKGROUND", "border")
-	c.box:SetSize(14, 14)
+	c.box:SetSize(CHECK_W, CHECK_W)
 	c.box:SetPoint("LEFT")
 	c.fill = Skin.Fill(c, "BORDER", "element")
-	c.fill:SetSize(12, 12)
+	c.fill:SetSize(CHECK_W - 2, CHECK_W - 2)
 	c.fill:SetPoint("CENTER", c.box)
 	c.mark = Skin.Fill(c, "ARTWORK", "accent")
 	c.mark:SetSize(8, 8)
 	c.mark:SetPoint("CENTER", c.box)
 	c.mark:Hide()
 	c.label = Skin.Label(c, "")
-	c.label:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
 
+	function c:BaseLabelX() return Skin.CHECK_LABEL_X end
 	-- the click area follows the label, whatever the language
 	function c:SetLabel(label)
+		local x = self.labelX or self:BaseLabelX()
+		self.label:ClearAllPoints()
+		self.label:SetPoint("LEFT", self, "LEFT", x, 0)
 		self.label:SetText(label or "")
-		self:SetWidth(14 + 6 + self.label:GetStringWidth())
+		local w = (label and label ~= "") and self.label:GetStringWidth() or 0
+		self:SetWidth(w > 0 and x + w or CHECK_W)
 	end
 	c:SetLabel(text)
 
@@ -218,6 +232,117 @@ function Skin.Checkbox(parent, text, onChange)
 
 	c:SetScript("OnEnter", function(self) if not self.disabled then self.box:SetColorTexture(Skin.Color("accent")) end end)
 	c:SetScript("OnLeave", function(self) self.box:SetColorTexture(Skin.Color("border")) end)
+	c:SetScript("OnClick", function(self)
+		if self.disabled then return end
+		self:SetChecked(not self.checked)
+		onChange(self.checked)
+	end)
+	return c
+end
+
+-- A switch, the family's (OneClickFish, SmartVoidcore): off is the knob at the
+-- left on a plain track, on is the knob at the right on an accent track, with
+-- 關 left of the track and 開 right of it, the side in force lit. compact: the
+-- track alone. The colours are set in SetChecked, so a theme switch repaints
+-- by setting its own state again.
+local TRACK_W, TRACK_H, SWITCH_GAP = 30, 16, 4
+Skin.TRACK_W = TRACK_W
+-- 關 and 開 beside the track, on every switch; off (2026-11-04, the user's trial): every switch is compact
+Skin.SWITCH_WORDS = false
+
+-- 關 and 開 share one width, measured in the current language and again when it changes
+local switchW, switchFor, measure
+local function SwitchW()
+	local off, on = ns.L["SWITCH_OFF"], ns.L["SWITCH_ON"]
+	if switchFor ~= off .. "/" .. on then
+		measure = measure or UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		measure:Hide()
+		measure:SetText(off)
+		local a = measure:GetStringWidth()
+		measure:SetText(on)
+		switchW = math.ceil(math.max(a, measure:GetStringWidth()))
+		switchFor = off .. "/" .. on
+	end
+	return switchW
+end
+
+-- Where a switch's label starts, from its left edge; a line under one lines up here
+function Skin.SwitchLabelX(compact)
+	if compact or not Skin.SWITCH_WORDS then return TRACK_W + 8 end
+	return SwitchW() + SWITCH_GAP + TRACK_W + SWITCH_GAP + SwitchW() + 8
+end
+
+function Skin.Switch(parent, text, onChange, compact)
+	local c = CreateFrame("Button", nil, parent)
+	c:SetHeight(18)
+	compact = compact or not Skin.SWITCH_WORDS
+	c.compact = compact and true or false
+	c.off = c:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	c.off:SetPoint("LEFT")
+	c.box = c:CreateTexture(nil, "BACKGROUND")
+	c.box:SetSize(TRACK_W, TRACK_H)
+	if compact then c.box:SetPoint("LEFT") else c.box:SetPoint("LEFT", c.off, "RIGHT", SWITCH_GAP, 0) end
+	c.on = c:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	c.on:SetPoint("LEFT", c.box, "RIGHT", SWITCH_GAP, 0)
+	c.off:SetShown(not compact)
+	c.on:SetShown(not compact)
+	c.fill = c:CreateTexture(nil, "BORDER")
+	c.fill:SetSize(TRACK_W - 2, TRACK_H - 2)
+	c.fill:SetPoint("CENTER", c.box)
+	c.knob = c:CreateTexture(nil, "ARTWORK")
+	c.knob:SetSize(TRACK_H - 6, TRACK_H - 6)
+	c.label = Skin.Label(c, "")
+
+	-- the click area follows the label, whatever the language; 關 and 開 are set
+	-- here too, so a language switch (which sets the label again) reaches them
+	function c:BaseLabelX() return Skin.SwitchLabelX(self.compact) end
+	function c:SetLabel(label)
+		if not self.compact then
+			self.off:SetText(ns.L["SWITCH_OFF"])
+			self.off:SetWidth(SwitchW())
+			self.on:SetText(ns.L["SWITCH_ON"])
+			self.on:SetWidth(SwitchW())
+		end
+		local x = self.labelX or self:BaseLabelX()
+		self.label:ClearAllPoints()
+		self.label:SetPoint("LEFT", self, "LEFT", x, 0)
+		self.label:SetText(label or "")
+		local w = (label and label ~= "") and self.label:GetStringWidth() or 0
+		self:SetWidth(w > 0 and x + w or x - 8)
+	end
+	c:SetLabel(text)
+
+	function c:SetChecked(v)
+		self.checked = v and true or false
+		self.knob:ClearAllPoints()
+		if self.checked then
+			self.knob:SetPoint("RIGHT", self.box, "RIGHT", -3, 0)
+			self.knob:SetColorTexture(Skin.Color("text"))
+			self.fill:SetColorTexture(Skin.Color("accent"))
+		else
+			self.knob:SetPoint("LEFT", self.box, "LEFT", 3, 0)
+			self.knob:SetColorTexture(Skin.Color("dim"))
+			self.fill:SetColorTexture(Skin.Color("element"))
+		end
+		self.off:SetTextColor(Skin.Color(self.checked and "dim" or "text"))
+		self.on:SetTextColor(Skin.Color(self.checked and "accent" or "dim"))
+		self.box:SetColorTexture(Skin.Color(self.hovered and not self.disabled and "accent" or "border"))
+	end
+	function c:GetChecked() return self.checked or false end
+	function c:SetDisabled(disabled)
+		self.disabled = disabled and true or false
+		self:SetAlpha(self.disabled and 0.55 or 1)
+	end
+	Skin.Paint(c, function(self) self:SetChecked(self.checked) end)
+
+	c:SetScript("OnEnter", function(self)
+		self.hovered = true
+		if not self.disabled then self.box:SetColorTexture(Skin.Color("accent")) end
+	end)
+	c:SetScript("OnLeave", function(self)
+		self.hovered = nil
+		self.box:SetColorTexture(Skin.Color("border"))
+	end)
 	c:SetScript("OnClick", function(self)
 		if self.disabled then return end
 		self:SetChecked(not self.checked)

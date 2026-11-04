@@ -374,15 +374,19 @@ function Skin.Stepper(parent, onStep)
 	return holder
 end
 
--- A number to set: its name above, a slider with the ends marked, and under it a
--- box the number can be typed into. opts: min, max, step (1), width (170),
--- format(v) -> text, ends(v) -> text for the two end labels (format if
--- absent), parse(text) -> number | nil, onChange(v). The block is
--- Skin.SLIDER_H tall; .value is the box (its text is what the number reads as).
-Skin.SLIDER_H = 58
+-- A number to set, the way the family lays it out (PrismMeter, OneClickFish):
+-- its name on one line with the number at its right, the bar under them, a thin
+-- track filled in the accent up to a square thumb. The number can be typed over
+-- and the mouse wheel steps it; under the bar, its two ends. opts: min, max,
+-- step (1), width (170), format(v) -> text, ends(v) -> text for the ends
+-- (format if absent), parse(text) -> number | nil, onChange(v), onRelease (see
+-- below). The block is Skin.SLIDER_H tall; .value is the number's box (its
+-- text is what it reads as).
+Skin.SLIDER_H = 46
 function Skin.Percent(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end
 function Skin.ParsePercent(text)
-	local n = tonumber((text or ""):gsub("%%", ""):gsub("%s", ""))
+	-- the outer parentheses keep gsub's count from reaching tonumber as a base
+	local n = tonumber(((text or ""):gsub("%%", ""):gsub("%s", "")))
 	if not n then return nil end
 	return n / 100
 end
@@ -390,35 +394,53 @@ function Skin.Slider(parent, key, opts)
 	local w = opts.width or 170
 	local step = opts.step or 1
 	local format = opts.format or function(v) return tostring(v) end
-	local ends = opts.ends or format   -- the fixed labels at both ends may carry a unit the box does not
+	local ends = opts.ends or format
 	local parse = opts.parse or tonumber
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(w, Skin.SLIDER_H)
 	f.label = CK.Bind(Skin.Label(f, "", nil, "dim"), key)
-	f.label:SetPoint("TOP", 0, 0)
+	f.label:SetPoint("TOPLEFT", 0, -3)
+	f.label:SetPoint("RIGHT", -60, 0)
+	f.label:SetJustifyH("LEFT")
+	f.label:SetWordWrap(false)
 
 	local s = CreateFrame("Slider", nil, f)
 	s:SetOrientation("HORIZONTAL")
-	s:SetSize(w - 8, 12)
-	s:SetPoint("TOP", 0, -17)
+	s:SetPoint("TOPLEFT", 0, -20)
+	s:SetPoint("TOPRIGHT", 0, -20)
+	s:SetHeight(12)
+	s:SetHitRectInsets(0, 0, -4, -4)
 	s:SetMinMaxValues(opts.min, opts.max)
 	s:SetValueStep(step)
 	s:SetObeyStepOnDrag(true)
-	local track = Skin.Fill(s, "BACKGROUND", "element")
+	-- the two ends, under the bar
+	f.lo = Skin.Label(f, ends(opts.min), nil, "dim")
+	f.lo:SetPoint("TOPLEFT", s, "BOTTOMLEFT", 0, -2)
+	f.hi = Skin.Label(f, ends(opts.max), nil, "dim")
+	f.hi:SetPoint("TOPRIGHT", s, "BOTTOMRIGHT", 0, -2)
+	local track = Skin.Fill(s, "BACKGROUND", "border")
 	track:SetPoint("LEFT")
 	track:SetPoint("RIGHT")
-	track:SetHeight(4)
+	track:SetHeight(2)
 	s:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
 	local thumb = s:GetThumbTexture()
-	if thumb then
-		thumb:SetSize(8, 14)
-		Skin.Paint(thumb, function(t) t:SetVertexColor(Skin.Color("accent")) end)
+	local fill = s:CreateTexture(nil, "ARTWORK")
+	fill:SetHeight(2)
+	fill:SetPoint("LEFT", track, "LEFT")
+	local function Tint(name)
+		if thumb then thumb:SetVertexColor(Skin.Color(name)) end
+		fill:SetColorTexture(Skin.Color(name))
 	end
+	if thumb then
+		thumb:SetSize(10, 10)
+		fill:SetPoint("RIGHT", thumb, "CENTER")
+	end
+	Skin.Paint(s, function() Tint(s.hovered and "text" or "accent") end)
+	s:SetScript("OnEnter", function(self) self.hovered = true; Tint("text") end)
+	s:SetScript("OnLeave", function(self) self.hovered = nil; Tint("accent") end)
+	s:EnableMouseWheel(true)
+	s:SetScript("OnMouseWheel", function(self, delta) self:SetValue(self:GetValue() + delta * step) end)
 	f.slider = s
-	f.lo = Skin.Label(f, ends(opts.min), nil, "dim")
-	f.lo:SetPoint("BOTTOMLEFT", 0, 2)
-	f.hi = Skin.Label(f, ends(opts.max), nil, "dim")
-	f.hi:SetPoint("BOTTOMRIGHT", 0, 2)
 
 	local function snap(v)
 		v = math.max(opts.min, math.min(opts.max, v))
@@ -435,8 +457,18 @@ function Skin.Slider(parent, key, opts)
 		f:SetValue(n)
 		opts.onChange(n)
 	end)
-	f.value:SetJustifyH("CENTER")
-	f.value:SetPoint("BOTTOM", 0, 0)
+	-- the number at the right of the name: plain accent text until it is clicked to type over
+	f.value:SetJustifyH("RIGHT")
+	f.value:SetSize(56, 16)
+	f.value:SetTextInsets(0, 0, 0, 0)
+	f.value:SetPoint("TOPRIGHT", 0, 0)
+	Skin.Paint(f.value, function(e)
+		e:SetBackdropColor(0, 0, 0, 0)
+		e:SetBackdropBorderColor(0, 0, 0, 0)
+		e:SetTextColor(Skin.Color("accent"))
+	end)
+	f.value:SetScript("OnEditFocusGained", function(self) self:SetBackdropBorderColor(Skin.Color("accent")) end)
+	f.value:HookScript("OnEditFocusLost", function(self) self:SetBackdropBorderColor(0, 0, 0, 0) end)
 
 	-- what the number reads as, for whoever asks the block itself
 	function f:GetText() return self.value:GetText() end
@@ -449,15 +481,56 @@ function Skin.Slider(parent, key, opts)
 		self.setting = false
 		self.value:SetText(format(v))
 	end
+	-- opts.onRelease: while the mouse holds the bar only the number follows; the change is made when
+	-- it lets go. For what moves the bar itself (the window's scale: rescaled under the cursor, the
+	-- bar would slide away and the value jump several steps).
 	s:SetScript("OnValueChanged", function(_, v)
 		if f.setting then return end
 		v = snap(v)
 		if v == f.current then return end
 		f.current = v
 		f.value:SetText(format(v))
+		if opts.onRelease and f.held then
+			f.pending = v
+			return
+		end
 		opts.onChange(v)
 	end)
+	if opts.onRelease then
+		s:SetScript("OnMouseDown", function() f.held = true end)
+		s:SetScript("OnMouseUp", function()
+			f.held = false
+			if f.pending ~= nil then
+				local v = f.pending
+				f.pending = nil
+				opts.onChange(v)
+			end
+		end)
+	end
 	return f
+end
+
+-- An icon framed the way the game frames its own (the user's pick, 2026-11-04): a 1px black line
+-- round it and a faint 1px light line just inside, so a dark-edged icon still shows its outline
+-- on a dark page, in either theme. Returns the icon texture; anchor that, the lines follow it.
+function Skin.FramedIcon(parent, size)
+	local icon = parent:CreateTexture(nil, "ARTWORK")
+	icon:SetSize(size, size)
+	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	local back = parent:CreateTexture(nil, "BORDER")
+	back:SetColorTexture(0, 0, 0, 1)
+	back:SetPoint("TOPLEFT", icon, "TOPLEFT", -1, 1)
+	back:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 1, -1)
+	-- the four edges: from one corner to the next, a line across (h) or down (v)
+	for _, edge in ipairs({ { "TOPLEFT", "TOPRIGHT", "h" }, { "BOTTOMLEFT", "BOTTOMRIGHT", "h" },
+		{ "TOPLEFT", "BOTTOMLEFT", "v" }, { "TOPRIGHT", "BOTTOMRIGHT", "v" } }) do
+		local t = parent:CreateTexture(nil, "OVERLAY")
+		t:SetColorTexture(1, 1, 1, 0.16)
+		t:SetPoint(edge[1], icon, edge[1])
+		t:SetPoint(edge[2], icon, edge[2])
+		if edge[3] == "h" then t:SetHeight(1) else t:SetWidth(1) end
+	end
+	return icon
 end
 
 -- A dim label in front of a control, bound to its locale key

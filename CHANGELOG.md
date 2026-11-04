@@ -102,3 +102,18 @@ First public release.
 - Loadout: a talent loadout the game refuses for now is waited for instead of given up after a few seconds. The game will not take out a talent that changes an ability's charges while that ability recharges (Tempered Soul while Soul Immolation recharges, say). The apply now says the game's reason once, the HUD reads *Waiting for cooldown* with the ability it waits for under it, counting down (*Soul Immolation (0:15)*), and the loadout is asked for again as soon as every charge of that ability is back (at one of two charges it is still refused), for up to three minutes; a click on the HUD meanwhile changes nothing. The game names only the talent; the ability is the one that talent's text names, else the next of your abilities to come back. Entering another scenario or changing spec by hand drops the wait.
 - Loadout: a loadout that is refused, or whose cast you interrupt, no longer stays half-picked in the talent tree, and a second click right after a refusal no longer brings up "You can't do that right now". When the game says talents cannot change at all, no loadout is asked for; the apply gives up with the game's reason.
 - Loadout: `/ckloadout log` shows what the game answered around each apply (kept in the saved variables). It is a debugging aid and off in the release (`/ckloadout debug on` turns it on).
+
+## 1.5.0 (2026-11-04)
+
+- **Reminder** (new, off until you tick it in the window that comes up after the update, or in Settings > Modules): an icon for each thing you are missing, out of combat.
+  - Your consumables: flask, food, augment rune, oil or a stone on each weapon, healthstone. Shown when you enter a dungeon or raid, until the first pull; in a raid again after every fight; anywhere during a ready check. In an arena or a battleground only a healthstone.
+  - Your class: the group buff you give, stance or form, shields, poisons, weapon imbues, a death knight's runes, your pet, what you put on a group member (Earth Shield, the beacons, Source of Magic, Soulstone), and a warlock's healthstone to make. Any time out of combat, in every scenario by default. Defensive Stance on Arms or Fury, a rune of your other spec or of PvP, and a demon that is not a Felguard for Demonology are shown in red.
+  - The group's feast or flask cauldron, the moment someone puts one down, counting down until you have taken from it.
+  - A click casts the spell or uses the item, the kind you used last in this spec, in PvE or PvP. Before you have used one, death knight runes and rogue poisons follow the guides (Icy Veins, Wowhead), and the class page shows each spec's recommendation.
+  - Where it shows is set per kind and scenario. Nothing in combat, in a capital city or an inn, in a running key or encounter. Icons with thin marching dashes, the same as rows on the HUD if you like, and a sound. Your own spell IDs too. `/ckreminder` says what it sees.
+- Settings: a switch for a single setting, a check box for one of a set. A slider shows its number beside its name and its ends under the bar; the mouse wheel steps it and the number can be typed over. A page taller than the window scrolls.
+- Settings: the window scale is applied when you let go of the slider, so dragging it below 100% no longer jumps several steps; typing a percentage into it no longer raises an error.
+- Themes: *Obsidian* (black-gold), the same as OneClickFish's and SmartVoidcore's, replaces *Dusk*. A saved Dusk falls back to Tide.
+- Range and Party CD: their settings laid out one per line, the Party CD spell icons as large as the Reminder's.
+- 繁體中文: 競技場 and 團本 instead of Arena and Raid.
+- Party CD: Smoke Bomb and Death Pact are seen. The game marks their auras as debuffs, so the team's buff slots never drew them.

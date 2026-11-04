@@ -853,7 +853,8 @@ for _, class in ipairs({ "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTE
 		local point = { c:GetPoint() }   -- ("TOPLEFT", x, y) as the page sets it
 		lowest = math.min(lowest, point[#point])
 	end
-	check(lowest >= -300, class .. ": the lowest ability at " .. lowest .. ", inside the window")
+	-- a page taller than the room scrolls; this only keeps the list from running away
+	check(lowest >= -500, class .. ": the lowest ability at " .. lowest .. ", a page that scrolls a little at most")
 end
 spells.class = "DEMONHUNTER"; CK.Options.Refresh()
 spells.class = "DRUID"; CK.Options.Refresh()
