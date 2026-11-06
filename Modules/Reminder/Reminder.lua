@@ -66,7 +66,9 @@ ns.CUSTOM_MAX = 10   -- custom reminders per class
 ns.defaults = {
 	-- the scenario keys each kind shows in: your consumables, your class's reminders (and your custom
 	-- ones), the group's feasts and cauldrons
-	consumablesWhere = { dungeon = true, raid = true, arena = true, bg = true },   -- PvP: a healthstone only
+	-- PvP: a healthstone only. Not in a battleground by default: a warlock is near in almost every one,
+	-- a Soulwell rarely is.
+	consumablesWhere = { dungeon = true, raid = true, arena = true, bg = false },
 	classWhere  = { dungeon = true, raid = true, delve = true, world = true, arena = true, bg = true },
 	sharedWhere = { dungeon = true, raid = true, bg = true },
 	consumables = { flask = true, food = true, rune = true, oil = true, healthstone = true },
@@ -109,8 +111,9 @@ end
 -- of the saved data: 2 made the icons half as large again (36 was the first default), 3 moved the row's
 -- default place up from the middle of the screen (the centre, 140 up, was the first), 4 keeps what you
 -- used per spec and PvE or PvP (it was per spec, which became PvE), 5 gives consumables and class
--- reminders a scenario list each (one list held both; dropped, the new lists start from their defaults)
-local VERSION = 5
+-- reminders a scenario list each (one list held both; dropped, the new lists start from their defaults),
+-- 6 turns the healthstone off in battlegrounds (on from 1.5.0's default, a day before)
+local VERSION = 6
 
 local function InitDB()
 	if type(CombatKitReminderDB) ~= "table" then CombatKitReminderDB = {} end
@@ -131,6 +134,7 @@ local function InitDB()
 		end
 	end
 	if was < 5 then saved.where = nil end
+	if not fresh and was < 6 then saved.consumablesWhere.bg = false end
 	-- 0 to 60 minutes (it was 0 to 15)
 	saved.expiring = math.max(0, math.min(60, tonumber(saved.expiring) or ns.defaults.expiring))
 	saved.version = VERSION
@@ -485,7 +489,7 @@ local function BuildChecks()
 	Add("healthstone", "consumable", FromBags(ns.HEALTHSTONE), L["Healthstone"], function()
 		if not ns.db.consumables.healthstone or ns.InBags(ns.HEALTHSTONE.items) then return nil end
 		if not ns.Known(ns.HEALTHSTONE.create) and ns.GroupHas("WARLOCK") then return true end
-	end)
+	end).note = L["TIP_SOULWELL"]
 
 	-- the player's class: its list is made once, then the other classes' lists go
 	local _, class = UnitClass("player")
@@ -790,7 +794,8 @@ end
 
 -- What one icon shows. `tip`: what its tooltip describes ({ kind=, id= }), whether or not a
 -- click uses it; none where the check names something else (a rune to put on).
--- `options`: the others a click could cast instead, for the chooser.
+-- `options`: the others a click could cast instead, for the chooser. `note`: what to do where a
+-- click does nothing (a healthstone is taken from the Soulwell).
 local function Entry(c, text, warn, label, icon)
 	local act = c.action and c.action() or nil
 	local tip = act
@@ -800,7 +805,7 @@ local function Entry(c, text, warn, label, icon)
 	end
 	local action = ns.db.click and act or nil
 	return { key = c.key, icon = icon or Value(c.icon), label = label or Value(c.label), text = text, warn = warn,
-		action = action, tip = tip, kind = c.kind or c.group,
+		action = action, tip = tip, kind = c.kind or c.group, note = c.note,
 		options = action and c.Options and c.Options(action.id) or nil }
 end
 

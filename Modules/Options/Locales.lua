@@ -24,6 +24,7 @@ CK.AddLocale("enUS", {
 	["LIST_SEP"]         = ", ",
 
 	["STATS_DESC"]      = "Show stats on the HUD.",
+	["STATS_COLOURS_TIP"] = "Values turn yellow to red as a secondary stat hits diminishing returns.\nRed when debuffed or slowed, green when faster than a run.",
 	["ANCHOR_TIP"]      = "The corner the box keeps. Lines are added downwards from a top corner and upwards from a bottom one, to the right from a left corner and to the left from a right one.",
 	["ANCHOR_TOPLEFT"]     = "Top left",
 	["ANCHOR_TOPRIGHT"]    = "Top right",
@@ -126,6 +127,10 @@ CK.AddLocale("zhTW", {
 	["ANCHOR_BOTTOMRIGHT"] = "右下",
 	["Decimals"]        = "小數位數",
 	["English on the HUD"] = "HUD 顯示英文",
+	["Coloured stats"]  = "屬性上色",
+	["STATS_COLOURS_TIP"] = "副屬性遞減越深，數值越紅。\n被減益或緩速時紅，加速時綠。",
+	["Number font"]     = "數字字型",
+	["Same as the HUD"] = "與 HUD 相同",
 
 	-- range page
 	["Show"]                        = "顯示",

@@ -2,8 +2,10 @@ local ADDON, ns = ...
 
 -- ===========================================================================
 -- Look: flat panels, 1px borders, one palette at a time. No Blizzard frame
--- templates and no texture or font files; everything is drawn with the white
--- 8x8 texture. Fonts stay the game's own so every locale keeps its glyphs.
+-- templates and no texture files; everything is drawn with the white 8x8
+-- texture. Texts stay in the game's fonts so every locale keeps its glyphs;
+-- the one font CombatKit brings (Skin.FONTS) is for numbers, which it can write
+-- in any language.
 --
 -- Only what frames on screen need lives here, plus the button and the check
 -- box; the other settings widgets are added to this table by CombatKit_Options.
@@ -49,6 +51,20 @@ Skin.THEMES = {
 		bad      = { 0.95, 0.35, 0.35 },
 	} },
 }
+
+-- The fonts CombatKit brings, for numbers: digits of one width, so a number that
+-- changes does not shake its line. The first is the default. They are also
+-- offered to other addons through LibSharedMedia, on clients whose language they
+-- can write (Latin letters only).
+Skin.FONTS = {
+	{ name = "Rethink Sans", file = [[Interface\AddOns\CombatKit\Fonts\RethinkSans-Medium.ttf]] },
+}
+do
+	local media = LibStub and LibStub("LibSharedMedia-3.0", true)
+	if media then
+		for _, font in ipairs(Skin.FONTS) do pcall(media.Register, media, "font", font.name, font.file, media.LOCALE_BIT_western) end
+	end
+end
 
 -- The palette in force, filled by Skin.SetTheme. The table stays the same, so
 -- a reference taken once keeps reading the current theme.

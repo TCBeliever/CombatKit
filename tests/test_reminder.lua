@@ -20,9 +20,9 @@ local RM = CK.modules.Reminder
 local L = CK.L
 check(RM and RM.enabled and RM.IsRunning(), "switched on: loaded and running")
 eq(RM.classes, nil, "the class lists are dropped once the player's is made")
-check(RM.db.consumablesWhere.dungeon and RM.db.consumablesWhere.raid and RM.db.consumablesWhere.arena and RM.db.consumablesWhere.bg
-	and not RM.db.consumablesWhere.world,
-	"consumables: dungeons, raids, and arenas and battlegrounds for a healthstone, by default")
+check(RM.db.consumablesWhere.dungeon and RM.db.consumablesWhere.raid and RM.db.consumablesWhere.arena
+	and not RM.db.consumablesWhere.bg and not RM.db.consumablesWhere.world,
+	"consumables: dungeons, raids, and arenas for a healthstone, by default; no battleground (no Soulwell there)")
 check(RM.db.classWhere.world and RM.db.classWhere.delve and RM.db.classWhere.arena and RM.db.classWhere.bg,
 	"class reminders: everywhere by default")
 check(RM.db.sharedWhere.bg and not RM.db.sharedWhere.arena, "feasts and cauldrons: battlegrounds too, no arena")
@@ -382,9 +382,9 @@ page.shared.cauldron:Click()
 
 go("where")
 local where = body.pages.where
-check(where:IsShown() and where.boxes.consumablesWhereraid:GetChecked() and where.boxes.consumablesWherebg:GetChecked()
+check(where:IsShown() and where.boxes.consumablesWhereraid:GetChecked() and not where.boxes.consumablesWherebg:GetChecked()
 	and where.boxes.classWhereworld:GetChecked() and where.boxes.sharedWherebg:GetChecked(),
-	"where: consumables in raids and battlegrounds, class reminders everywhere, the group's in battlegrounds too")
+	"where: consumables in raids, not in battlegrounds; class reminders everywhere; the group's in battlegrounds too")
 where.boxes.consumablesWhereraid:Click()
 eq(RM.db.consumablesWhere.raid, false, "unticked is saved as false, not as a missing key")
 check(not find(L["Flask"]), "consumables unticked for raids: no flask")

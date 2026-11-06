@@ -20,6 +20,7 @@ ignore:
   - TODO.md
   - deploy.bat
   - tests
+  - tools
   - docs
   - .gitignore
   - .pkgmeta

@@ -18,6 +18,8 @@ local Skin = ns.Skin
 --   { key=, order=, GetRows = function(force) -> rows, alert,
 --     OnClick = function(), OnTooltip = function(tooltip) }
 -- and a row is { icon=, label=, value=, right= } with texts already coloured.
+-- The label is dimmed unless the row gives tint= ("rrggbb"); font= is a font
+-- file for the value alone (numbers), at the rows' size.
 -- A row may give { fmt=, num= } instead of value: the game formats the number,
 -- which is the only way to show a "secret" one (12.x hands those out for the
 -- player's own stats in combat). Text set that way cannot be measured either,
@@ -34,7 +36,7 @@ ns.HUD = HUD
 local PAD_X, PAD_Y = 8, 6
 local ICON         = 14   -- one text line high
 local ICON_GAP     = 4    -- between an icon and its text
-local GAP          = 6
+local GAP          = 12   -- between the widest label and the widest value: a column apart, not a word apart
 local LINE_H       = 15
 local RULE_GAP     = 4    -- above and below the line between two sections
 local MIN_W, MAX_W = 120, 260
@@ -143,6 +145,20 @@ local function ApplyFont(fs)
 	fs:SetTextColor(Skin.Color("text"))   -- a font object brings its own colour along
 end
 
+-- A value in a font of its own (a row's font=), else in the HUD's. Set again only
+-- when it changes.
+local function ApplyValueFont(fs, file)
+	if fs.valueFont == file then return end
+	fs.valueFont = file
+	local object = _G[ROW_FONT]
+	if file and object and object.GetFont then
+		local _, size, flags = object:GetFont()
+		local ok, valid = pcall(fs.SetFont, fs, file, size or 12, flags or "")
+		if ok and valid ~= false and fs:GetFont() then return end
+	end
+	ApplyFont(fs)
+end
+
 function HUD.SetBackgroundAlpha(alpha)
 	alpha = math.max(0, math.min(1, alpha))
 	ns.db.hud.bgAlpha = math.floor(alpha * 10 + 0.5) / 10
@@ -162,6 +178,7 @@ function HUD.SetFont(file, name)
 		for _, section in pairs(frame.sections) do
 			for _, r in ipairs(section.rows) do
 				ApplyFont(r.label); ApplyFont(r.value); ApplyFont(r.right)
+				r.value.valueFont = nil   -- a row's own font goes on again with the refresh
 			end
 		end
 	end
@@ -332,7 +349,14 @@ function HUD.Refresh()
 			local r = RowWidgets(section, i)
 			r.icon:SetShown(row.icon ~= nil)
 			if row.icon then r.icon:SetTexture(row.icon) end
-			r.label:SetText(row.icon and "" or Skin.Text("dim", row.label or ""))
+			if row.icon then
+				r.label:SetText("")
+			elseif row.tint then
+				r.label:SetText("|cff" .. row.tint .. (row.label or "") .. "|r")
+			else
+				r.label:SetText(Skin.Text("dim", row.label or ""))
+			end
+			ApplyValueFont(r.value, row.font)
 			SetValue(r.value, row)
 			r.right:SetText(row.right or "")
 			r.label:Show(); r.value:Show(); r.right:Show()

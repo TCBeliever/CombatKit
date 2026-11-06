@@ -38,5 +38,38 @@ fire("SPELLS_CHANGED")
 by = items()
 check(by.aura and not by.aura.now and by.aura.label == "spell" .. DEVOTION, "no aura known: named after the first, not in use")
 
+-- ---------------------------------------------------------------- Holy: the beacons
+local LIGHT, FAITH = 53563, 156910
+W.specIndex = 1
+W.known = { [DEVOTION] = true, [LIGHT] = true, [FAITH] = true }
+W.inInstance, W.instanceType = true, "scenario"
+fire("PLAYER_SPECIALIZATION_CHANGED", "player")
+local function shown(label)
+	local frame, icons = RM.GetDisplay()
+	if not frame or not frame:IsShown() then return false end
+	for _, b in ipairs(icons) do
+		if b:IsShown() and b.label:GetText() == label then return true end
+	end
+	return false
+end
+check(not shown("spell" .. FAITH) and not shown("spell" .. LIGHT), "solo: no beacons")
+-- a delve with a follower: you and one other
+W.groupSize = 2
+W.units.party1 = { class = "ROGUE" }
+fire("GROUP_ROSTER_UPDATE")
+check(shown("spell" .. LIGHT), "one other: Beacon of Light on them")
+check(not shown("spell" .. FAITH), "one other: no second target for Beacon of Faith")
+W.unitAuras = { party1 = { [LIGHT] = { sourceUnit = "player", expirationTime = 0 } } }
+fire("UNIT_AURA", "party1")
+check(not shown("spell" .. LIGHT), "Light on them: fine")
+-- a dungeon group
+W.groupSize = 3
+W.units.party2 = { class = "WARRIOR" }
+fire("GROUP_ROSTER_UPDATE")
+check(shown("spell" .. FAITH), "two others: Beacon of Faith wanted")
+W.playerAuras[FAITH] = { sourceUnit = "player", expirationTime = 0 }
+fire("UNIT_AURA", "player")
+check(not shown("spell" .. FAITH), "Faith on yourself counts")
+
 T.releaseChat()
 return T.report("reminder paladin [" .. (LOCALE or "enUS") .. "]")

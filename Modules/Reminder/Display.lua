@@ -183,6 +183,7 @@ local function Tip(owner, r, clickable)
 	end
 	local status = Status(r)
 	if status then GameTooltip:AddLine(status, NAME[1], NAME[2], NAME[3]) end
+	if r.note then GameTooltip:AddLine(r.note, HINT[1], HINT[2], HINT[3], true) end
 	if clickable and r.action then
 		GameTooltip:AddLine(L[r.action.kind == "item" and "TIP_USE" or "TIP_CAST"], HINT[1], HINT[2], HINT[3])
 	end

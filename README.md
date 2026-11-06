@@ -9,7 +9,7 @@ A modular combat addon for World of Warcraft (Retail) with a small resource foot
 - **Reminder**: reminders of what is missing: flask, food, augment rune, weapon oil, healthstone, your class's buffs, and a feast or cauldron the group puts down.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
-Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No libraries, no texture or font files.
+Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No texture files. It brings one font, Rethink Sans, for the numbers on the HUD, and LibSharedMedia, so other addons can use that font too.
 
 [繁體中文](README.zhTW.md)
 
@@ -36,7 +36,7 @@ Crit                      23.4%
 Haste                     18.0%
 ```
 
-Right click: settings. Drag to move (unless locked), `Ctrl` + mouse wheel to resize. With nothing to show it is hidden. **Settings > HUD** hides it altogether and sets its scale, background opacity (down to none), border, font and anchor: the corner the box keeps while lines come and go, top left by default, so it grows down and to the right. Fonts: the game's own, plus whatever LibSharedMedia offers when another addon brought it along.
+Right click: settings. Drag to move (unless locked), `Ctrl` + mouse wheel to resize. With nothing to show it is hidden. **Settings > HUD** hides it altogether and sets its scale, background opacity (down to none), border, font and anchor: the corner the box keeps while lines come and go, top left by default, so it grows down and to the right. Fonts: the game's own, plus whatever other addons registered with LibSharedMedia.
 
 ## Loadout
 
@@ -60,7 +60,9 @@ Run one loadout switcher at a time: next to another addon that changes talents o
 
 Crit, haste, mastery, versatility by default; leech, avoidance, movement speed, primary stat, item level, armor, dodge, parry, block and gear durability can be added. Order and decimals are yours, and the HUD can use the English stat names whatever language the rest is in.
 
-Since patch 12.0.5 the game hides your own stat values from addons in combat ("secret values"): an addon may not compute with them, but may hand them to the game to be formatted. So the stats keep updating in combat. The exceptions need arithmetic: movement speed and the flat part of versatility show the last readable value until combat ends.
+*Coloured stats* (off by default) gives each stat's name a colour of its own, and a value changes colour when its state says something: green-yellow to red as a secondary stat runs into diminishing returns (from 30% of bonus from rating), red when a debuff lowers your primary stat or armor, red when you are slowed and green when you move faster than a run. The numbers are in Rethink Sans, whose digits are all one width, so a number that changes does not shake its line; Arial Narrow, the HUD's own font or any LibSharedMedia font can be picked instead.
+
+Since patch 12.0.5 the game hides your own stat values from addons in combat ("secret values"): an addon may not compute with them, but may hand them to the game to be formatted. So the stats keep updating in combat. The exceptions need arithmetic: movement speed and the flat part of versatility show the last readable value until combat ends. A value's colour is the one it had when it could last be read.
 
 ## Range
 
@@ -81,7 +83,7 @@ A row of icons, out of combat, in the scenarios you pick: one for each thing mis
 - **What the group puts down**: a feast or a flask cauldron. Its icon shows the moment someone puts one down and counts down while it stays (three and five minutes), until you have eaten or taken a flask; that is what everyone uses then, so your own food or flask reminder steps aside meanwhile. Seen in chat and from the cast of whoever puts it down.
 - **Custom**: any spell ID, on you or on the group, missing or present, up to ten per class.
 
-The settings have four pages: *Consumables* (yours, and the group's), *Your class* (each of your class's reminders on its own, under every spec or under the specs that have it, each with its icon; greyed when your spec or talents do not use it; and your own spell IDs), *Where* (a line per scenario, a column each for your consumables, your class reminders and the group's feasts and cauldrons; by default consumables in dungeons and raids, class reminders everywhere, the group's in dungeons, raids and battlegrounds) and *Display*. Flasks, food, runes and oils are for PvE: an arena or a battleground reminds of a healthstone only, and of no cauldron.
+The settings have four pages: *Consumables* (yours, and the group's), *Your class* (each of your class's reminders on its own, under every spec or under the specs that have it, each with its icon; greyed when your spec or talents do not use it; and your own spell IDs), *Where* (a line per scenario, a column each for your consumables, your class reminders and the group's feasts and cauldrons; by default consumables in dungeons, raids and arenas, class reminders everywhere, the group's in dungeons, raids and battlegrounds) and *Display*. Flasks, food, runes and oils are for PvE: an arena or a battleground reminds of a healthstone only, and of no cauldron.
 
 A click on an icon casts its spell or uses the flask, food, rune or oil from your bags (on the right weapon; a paladin's rite too); the right mouse button goes through, for the camera. It takes, per spec and PvE or PvP, the kind you used last (the flask by its buff, the oil by its enchant, the food by what you ate; a cauldron's fleeting flask first; a demon, a hunter's pet, a paladin's aura or rite, a shaman's shield by what you cast), and for a rogue a poison not on yet (the icon named for it), those of last time first, else what the guides recommend for the spec in PvE or PvP. Hold Alt over such an icon and the others show under it: click one to cast it, and the icon casts it from then on. Hovering an icon shows the spell or item, why it is up (the time left, how many in the group lack it) and what a click does. A weapon without a rune is told which one: yours of last time, else the guides'. The class page lists a hunter's or warlock's pet first (a warlock's Grimoire of Sacrifice with it), then what every spec has, then each spec with that spec's recommendation; a page of one group has no headings. Shaman imbues count on either hand, or as their buff. A rune of another setup of yours (your other spec, or this spec's PvP or PvE), still on, and in PvE a demon that is not a Felguard for Demonology with Summon Felguard, show in red. Where 12.1 hides auras from addons, each is asked for on its own: what the game hands back is there, what it will not say about is left alone rather than reported missing. The same can show as rows on the HUD, and a sound can mark a new one. Nothing shows in combat, while dead, in a resting area (a capital city or an inn), in a running key or encounter. `/ckreminder` prints what the module sees, check by check.
 

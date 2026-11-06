@@ -23,6 +23,7 @@ CK.AddLocale("enUS", {
 	["TIP_USE"]    = "Left click: use",
 	["TIP_CHOOSE"] = "Hold Alt: pick another",
 	["TIP_PICK"]   = "Left click: cast it. The icon casts it from now on.",
+	["TIP_SOULWELL"] = "Take one from a warlock's Soulwell.",
 })
 
 CK.AddLocale("zhTW", {
@@ -54,4 +55,5 @@ CK.AddLocale("zhTW", {
 	["TIP_USE"]           = "左鍵：使用",
 	["TIP_CHOOSE"]        = "按住 Alt：換一個",
 	["TIP_PICK"]          = "左鍵：施放。之後圖示改施放這個。",
+	["TIP_SOULWELL"]      = "到術士的靈魂之井拿一顆。",
 })

@@ -7,7 +7,7 @@ CombatKit is a modular combat addon with a small resource footprint. It bundles:
 - **Reminder**: an icon for each consumable or class buff you are missing, out of combat; a click casts or uses it.
 - **Extras**: a text on entering and leaving combat; right click disabled in combat.
 
-Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No libraries, no texture or font files. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
+Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No texture files; one font for the HUD's numbers (Rethink Sans), shared through LibSharedMedia. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
 
 **Loadout**
 
@@ -15,7 +15,7 @@ Switch spec, talents, PvP talents and gear automatically when you enter open wor
 
 **Stats**
 
-Crit, haste, mastery, versatility, leech, avoidance, movement speed, primary stat, item level, armor, dodge, parry, block and durability as lines on a compact HUD. Choose which to show, their order and the decimals. The lines keep updating in combat. English stat names can be used whatever the client language.
+Crit, haste, mastery, versatility, leech, avoidance, movement speed, primary stat, item level, armor, dodge, parry, block and durability as lines on a compact HUD. Choose which to show, their order and the decimals. Optionally, each stat's name in its own colour and a value that turns green to red as a secondary stat runs into diminishing returns, red when a debuff lowers it or you are slowed. The lines keep updating in combat. English stat names can be used whatever the client language.
 
 **Range**
 

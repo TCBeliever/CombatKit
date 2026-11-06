@@ -35,6 +35,9 @@ end
 
 local BASE_SPEED = BASE_MOVEMENT_SPEED or 7
 local CR_VERS = CR_VERSATILITY_DAMAGE_DONE or 29
+local CR_HASTE = CR_HASTE_MELEE or 18
+local CR_MASTERY_RATING = CR_MASTERY or 26
+local CR_CRIT = { melee = CR_CRIT_MELEE or 9, ranged = CR_CRIT_RANGED or 10, spell = CR_CRIT_SPELL or 11 }
 
 local critSource = "melee"   -- which crit was highest the last time all three could be read
 local CRIT = {
@@ -42,6 +45,53 @@ local CRIT = {
 	melee  = function() return Call(GetCritChance) end,
 	ranged = function() return Call(GetRangedCritChance) end,
 }
+
+-- ---------------------------------------------------------------------------
+-- Colours (the "colours" switch, off by default). A stat's name has a colour of
+-- its own, so a line is told at a glance; the value stays white unless its state
+-- says something: a secondary stat into diminishing returns, a primary stat or
+-- armor lowered by a debuff, movement slowed or quickened. Durability has its
+-- warning colours with the switch off too.
+-- ---------------------------------------------------------------------------
+
+local TANK = "c9a27a"
+ns.TINT = {
+	primary = "f2c14e", crit = "f25a5a", haste = "b5e655", mastery = "4c9bff", vers = "5ed9e8",
+	leech = "f07ab8", avoidance = "a9bcdb", speed = "5fe0b0", ilvl = "b266ff",
+	armor = TANK, dodge = TANK, parry = TANK, block = TANK,
+}
+
+-- Diminishing returns on a secondary stat's rating: up to 30% of bonus from rating
+-- counts in full; past that each step counts less (90%, 80%, 70%, 60%, then 50%).
+-- The value is coloured from the second step on, green-yellow to red.
+local DR_STEPS = { 30, 39, 47, 54, 66 }
+local DR_COLOURS = { "|cffb8d957", "|cffe8d14a", "warn", "|cffee7344", "bad" }
+local function DRColour(bonus)
+	for i, limit in ipairs(DR_STEPS) do
+		if bonus <= limit then
+			if i == 1 then return nil end
+			local c = DR_COLOURS[i - 1]
+			return c:sub(1, 2) == "|c" and c or CK.Skin.Hex(c)
+		end
+	end
+	return CK.Skin.Hex("bad")
+end
+ns.DRColour = DRColour
+
+-- The bonus a stat's rating gives, in percent: a number, nil, or a secret
+local function RatingBonus(cr) return Call(GetCombatRatingBonus, cr) end
+
+-- What a value's state says, as a colour code or nil, worked out while things can be read.
+-- nil from a check that cannot read right now; false: nothing to say.
+local function DRState(cr)
+	local bonus = RatingBonus(cr)
+	if bonus == nil or IsSecret(bonus) then return nil end
+	return DRColour(bonus) or false
+end
+local function Lowered(neg)
+	if neg == nil or IsSecret(neg) then return nil end
+	return neg < 0 and CK.Skin.Hex("bad") or false
+end
 
 -- Movement speed as a percentage of the normal run speed. While moving: how
 -- fast you are. Skyriding has its own source, GetUnitSpeed says 0 there. Standing
@@ -75,6 +125,8 @@ end
 
 -- key, percent?, read() -> number (possibly secret) or nil.
 -- `direct`: comes from one API untouched, so a secret can go to the HUD as it is.
+-- state() -> colour code, false (nothing to say) or nil (cannot tell now): what the
+-- value's state says, with the colours on; value is the number shown, when readable.
 ns.STATS = {
 	{ key = "crit", percent = true, direct = true, read = function()
 		local spell, melee, ranged = CRIT.spell(), CRIT.melee(), CRIT.ranged()
@@ -84,21 +136,32 @@ ns.STATS = {
 		if (ranged or 0) > best then best, source = ranged, "ranged" end
 		critSource = source
 		return best
-	end },
-	{ key = "haste",   percent = true, direct = true, read = function() return Call(GetHaste) end },
-	{ key = "mastery", percent = true, direct = true, read = function() return (Call(GetMasteryEffect)) end },
+	end, state = function() return DRState(CR_CRIT[critSource]) end },
+	{ key = "haste",   percent = true, direct = true, read = function() return Call(GetHaste) end,
+		state = function() return DRState(CR_HASTE) end },
+	{ key = "mastery", percent = true, direct = true, read = function() return (Call(GetMasteryEffect)) end,
+		state = function() return DRState(CR_MASTERY_RATING) end },
 	{ key = "vers", percent = true, direct = true, read = function()
 		local rating, flat = Call(GetCombatRatingBonus, CR_VERS), Call(GetVersatilityBonus, CR_VERS)
 		if IsSecret(rating) or IsSecret(flat) then return rating end   -- the sum cannot be made
 		return (rating or 0) + (flat or 0)
-	end },
+	end, state = function() return DRState(CR_VERS) end },
 	{ key = "leech",     percent = true, direct = true, read = function() return Call(GetLifesteal) end },
 	{ key = "avoidance", percent = true, direct = true, read = function() return Call(GetAvoidance) end },
-	{ key = "speed", percent = true, decimals = 0, read = SpeedPercent },
+	{ key = "speed", percent = true, decimals = 0, read = SpeedPercent, state = function(value)
+		if value == nil or IsSecret(value) then return nil end
+		if value < 99.5 then return CK.Skin.Hex("bad") elseif value > 100.5 then return CK.Skin.Hex("ok") end
+		return false
+	end },
 	{ key = "primary", decimals = 0, read = function()
 		local _, effective = Call(UnitStat, "player", PrimaryStatIndex())
 		return effective
-	end, direct = true },
+	end, direct = true, state = function()
+		if type(UnitStat) ~= "function" then return nil end
+		local ok, _, _, _, neg = pcall(UnitStat, "player", PrimaryStatIndex())
+		if not ok then return nil end
+		return Lowered(neg)
+	end },
 	{ key = "ilvl", decimals = 1, direct = true, read = function()
 		local _, equipped = Call(GetAverageItemLevel)
 		return equipped
@@ -106,6 +169,11 @@ ns.STATS = {
 	{ key = "armor", decimals = 0, direct = true, read = function()
 		local _, effective = Call(UnitArmor, "player")
 		return effective
+	end, state = function()
+		if type(UnitArmor) ~= "function" then return nil end
+		local ok, _, _, _, _, neg = pcall(UnitArmor, "player")
+		if not ok then return nil end
+		return Lowered(neg)
 	end },
 	{ key = "dodge", percent = true, direct = true, read = function() return Call(GetDodgeChance) end },
 	{ key = "parry", percent = true, direct = true, read = function() return Call(GetParryChance) end },
@@ -154,7 +222,9 @@ end
 -- ---------------------------------------------------------------------------
 -- Saved data (CombatKitStatsDB, account-wide)
 --   { order = { "crit", "haste", ... every key }, shown = { crit = true, ... }, decimals = 1,
---     english = true: English stat names on the HUD }
+--     english = true: English stat names on the HUD, colours = true: names and values coloured (off by default),
+--     font = the values' font file, or "hud" for the HUD's own (absent = CombatKit's first),
+--     fontName = what the settings call it }
 -- ---------------------------------------------------------------------------
 
 local DEFAULT_SHOWN = { crit = true, haste = true, mastery = true, vers = true }
@@ -195,7 +265,29 @@ end
 -- The HUD section
 -- ---------------------------------------------------------------------------
 
+-- The values' font: a file, or nil for the HUD's own
+function ns.NumberFont()
+	local font = ns.db.font
+	if font == "hud" then return nil end
+	return font or CK.Skin.FONTS[1].file
+end
+
+-- What the settings call it; nil when it is the HUD's own
+function ns.NumberFontName()
+	if ns.db.font == "hud" then return nil end
+	return ns.db.font and ns.db.fontName or CK.Skin.FONTS[1].name
+end
+
+-- file: a font file, "hud" for the HUD's own, or nil for CombatKit's first
+function ns.SetNumberFont(file, name)
+	ns.db.font = file
+	ns.db.fontName = (file and file ~= "hud") and name or nil
+	CK.HUD.Refresh()
+end
+
 local lastText = {}   -- key -> what was shown the last time the value could be read
+local lastPlain = {}  -- key -> the same, without colour
+local lastState = {}  -- key -> the colour the value's state called for, the last time it could be told
 local fromMemory = {} -- key -> true while the HUD shows that remembered text, dimmed
 
 local function Format(stat)
@@ -203,29 +295,44 @@ local function Format(stat)
 	return "%." .. decimals .. "f" .. (stat.percent and "%%" or "")
 end
 
+-- The colour of a value's state, with the colours on: told now when it can be,
+-- else the last one told (in combat, while the numbers behind it are secret)
+local function StateColour(stat, value)
+	if not (ns.db.colours and stat.state) then return nil end
+	local state = stat.state(value)
+	if state ~= nil then lastState[stat.key] = state end
+	return lastState[stat.key] or nil
+end
+
 local section = {
 	key = "stats",
 	order = 20,
 	GetRows = function()
 		local rows = {}
+		local font = ns.NumberFont()
 		for _, key in ipairs(ns.db.order) do
 			local stat = ns.STAT_BY_KEY[key]
 			if ns.db.shown[key] then
 				local value = stat.read()
-				local row = { label = ns.StatLabel(key, true) }
+				local row = { label = ns.StatLabel(key, true), font = font,
+					tint = ns.db.colours and ns.TINT[key] or nil }
 				if value == nil then
 					row.value = lastText[key] or "-"
 				elseif IsSecret(value) then
 					if stat.direct then
-						row.fmt, row.num, row.value, row.width = Format(stat), value, lastText[key], 44
+						local colour = StateColour(stat)
+						local fmt = Format(stat)
+						row.fmt, row.num, row.value, row.width = colour and (colour .. fmt .. "|r") or fmt, value, lastText[key], 44
 					else
-						row.value = CK.Skin.Text("dim", lastText[key] or "-")   -- from memory
+						row.value = CK.Skin.Text("dim", lastPlain[key] or "-")   -- from memory
 						fromMemory[key] = true
 					end
 				else
 					local text = string.format(Format(stat), value)
-					local colour = stat.colour and stat.colour(value)
-					lastText[key] = colour and CK.Skin.Text(colour, text) or text
+					local warning = stat.colour and stat.colour(value)
+					local colour = warning and CK.Skin.Hex(warning) or StateColour(stat, value)
+					lastPlain[key] = text
+					lastText[key] = colour and (colour .. text .. "|r") or text
 					fromMemory[key] = nil
 					row.value = lastText[key]
 				end
@@ -267,7 +374,7 @@ local function SpeedTick(mine)
 	if ns.db.shown.speed and not queued then
 		local value = SpeedPercent()
 		if value ~= nil and not IsSecret(value)
-			and (fromMemory.speed or string.format(Format(ns.STAT_BY_KEY.speed), value) ~= lastText.speed) then
+			and (fromMemory.speed or string.format(Format(ns.STAT_BY_KEY.speed), value) ~= lastPlain.speed) then
 			CK.HUD.Refresh()
 		end
 	end

@@ -99,6 +99,8 @@ en_keys, zh_keys, used, prefixes = set(), set(), set(), set()
 code_files = []
 for addon in addons.values():
     for f in addon["files"]:
+        if "Libs" in f.relative_to(ROOT).parts:
+            continue   # embedded libraries are other people's code: no locale keys, their own look
         src = f.read_text(encoding="utf-8")
         if f.name == "Locales.lua":
             current = None

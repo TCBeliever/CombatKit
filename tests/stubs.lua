@@ -34,6 +34,22 @@ function GetLocale() return LOCALE or "enUS" end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 tinsert = table.insert
+-- what the embedded libraries (LibStub, CallbackHandler, LibSharedMedia) use
+strmatch = string.match
+bit = bit or { band = function(a, b)
+	local r, p = 0, 1
+	while a > 0 and b > 0 do
+		if a % 2 == 1 and b % 2 == 1 then r = r + p end
+		a, b, p = math.floor(a / 2), math.floor(b / 2), p * 2
+	end
+	return r
+end }
+function geterrorhandler() return function(msg) error(msg, 2) end end
+function securecallfunction(fn, ...) return fn(...) end
+-- a file is there unless a test said it is gone (W.badFonts)
+-- the font object the HUD rows use
+GameFontHighlightSmall = { GetFont = function() return "Fonts\\FRIZQT__.TTF", 10, "" end }
+C_UIFileAsset = { IsKnownFile = function(file) return not (W.badFonts and W.badFonts[file]) end }
 function IsInInstance() return W.inInstance, W.instanceType end
 function GetInstanceInfo() return "X", W.instanceType, W.difficultyID end
 function InCombatLockdown() return W.combat end
@@ -98,10 +114,24 @@ local function Stat(name, second)
 end
 GetCritChance, GetSpellCritChance, GetRangedCritChance = Stat("crit"), Stat("spellcrit"), Stat("rangedcrit")
 GetHaste, GetMasteryEffect = Stat("haste"), Stat("mastery")
-GetCombatRatingBonus, GetVersatilityBonus = Stat("versRating"), Stat("versFlat")
+GetVersatilityBonus = Stat("versFlat")
+-- W.ratingBonus[cr]: the bonus from that rating; the rest give versatility's
+function GetCombatRatingBonus(cr)
+	if W.secretStats then return T.SECRET end
+	return W.ratingBonus and W.ratingBonus[cr] or W.stats.versRating
+end
 GetLifesteal, GetAvoidance = Stat("leech"), Stat("avoidance")
 GetDodgeChance, GetParryChance, GetBlockChance = Stat("dodge"), Stat("parry"), Stat("block")
-UnitStat, GetAverageItemLevel, UnitArmor = Stat("primary", true), Stat("ilvl", true), Stat("armor", true)
+GetAverageItemLevel = Stat("ilvl", true)
+-- W.lowered.primary / .armor: how much a debuff takes off (negative)
+function UnitStat()
+	if W.secretStats then return T.SECRET, T.SECRET, T.SECRET, T.SECRET end
+	return 0, W.stats.primary, 0, W.lowered and W.lowered.primary or 0
+end
+function UnitArmor()
+	if W.secretStats then return T.SECRET, T.SECRET, T.SECRET, T.SECRET, T.SECRET end
+	return 0, W.stats.armor, W.stats.armor, 0, W.lowered and W.lowered.armor or 0
+end
 -- current, run, flight, swim. Skyriding (W.gliding = yards per second) is not in it, as in the game.
 function GetUnitSpeed(unit)
 	if W.secretStats then return T.SECRET, T.SECRET, T.SECRET, T.SECRET end

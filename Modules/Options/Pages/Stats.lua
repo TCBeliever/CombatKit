@@ -26,6 +26,28 @@ local function PlaceList(p)
 	end
 end
 
+-- Fonts for the values: CombatKit's own, the game's Arial Narrow (on every client,
+-- narrow digits of one width), the HUD's font, then whatever LibSharedMedia lists.
+-- Digits are in every font, so none is left out for the client's language.
+local ARIAL_NARROW = [[Fonts\ARIALN.TTF]]
+local function NumberFontItems()
+	local items, seen = {}, {}
+	local function Add(label, value)
+		local k = value and value:lower() or ""
+		if seen[k] then return end
+		seen[k] = true
+		items[#items + 1] = { label = label, value = value }
+	end
+	for _, font in ipairs(Skin.FONTS) do Add(font.name, font.file) end
+	Add("Arial Narrow", ARIAL_NARROW)
+	Add(L["Same as the HUD"], "hud")
+	local media = LibStub and LibStub("LibSharedMedia-3.0", true)
+	if media then
+		for _, name in ipairs(media:List("font")) do Add(name, media:Fetch("font", name)) end
+	end
+	return items
+end
+
 local function Build(p)
 	p.decimals = Skin.Slider(p, "Decimals", { min = 0, max = 2, onChange = function(v) ST.db.decimals = v; Changed() end })
 	p.decimals:SetPoint("TOPLEFT", 0, 0)
@@ -35,6 +57,21 @@ local function Build(p)
 		Changed()
 	end), "English on the HUD")
 	p.english:SetPoint("TOPLEFT", 0, -(Skin.SLIDER_H + 10))
+
+	p.colours = CK.Bind(Skin.Switch(p, "", function(checked)
+		ST.db.colours = checked or nil
+		Changed()
+	end), "Coloured stats")
+	p.colours:SetPoint("TOPLEFT", 0, -(Skin.SLIDER_H + 10 + 28))
+	Skin.Tooltip(p.colours, "Coloured stats", "STATS_COLOURS_TIP")
+
+	local y = -(Skin.SLIDER_H + 10 + 28 + 32)
+	Skin.Field(p, "Number font", 0, y)
+	p.font = Skin.Dropdown(p, 160, NumberFontItems, function(_, item)
+		ST.SetNumberFont(item.value, item.label)
+		Changed()
+	end)
+	p.font:SetPoint("TOPLEFT", O.FIELD_X, y)
 
 	p.rows = {}
 	for i = 1, #ST.STATS do
@@ -55,6 +92,8 @@ end
 local function Refresh(p)
 	p.decimals:SetValue(ST.db.decimals)
 	p.english:SetChecked(ST.db.english)
+	p.colours:SetChecked(ST.db.colours)
+	p.font:SetValueText(ST.NumberFontName() or L["Same as the HUD"])
 	for i, key in ipairs(ST.db.order) do
 		local r = p.rows[i]
 		r.key = key

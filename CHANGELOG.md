@@ -119,3 +119,12 @@ First public release.
 - 繁體中文: 競技場 and 團本 instead of Arena and Raid.
 - The window that offers modules (after an update, and the first time): opens once the loading screen is over (at login it could close again unseen), larger text on a slightly see-through ground, a switch per module, and *Go to settings* to take the choices and look around.
 - Party CD: Smoke Bomb and Death Pact are seen. The game marks their auras as debuffs, so the team's buff slots never drew them.
+
+## 1.5.1 (2026-11-07)
+
+- Reminder: the healthstone is no longer reminded of in battlegrounds by default. A warlock is near in almost every one, a Soulwell rarely is; tick it again on the *Where* page if you want it. Hovering the icon now says to take one from a warlock's Soulwell (a click does nothing there).
+- Reminder: Beacon of Faith is no longer reminded of with only one other in the group (a delve with a follower), where Beacon of Light already takes that one. On yourself it counts.
+- Stats: *Coloured stats* on the Stats page (off by default) gives each stat's name a colour of its own, and a value changes colour when its state says something: green-yellow to red as a secondary stat runs into diminishing returns, red when a debuff lowers your primary stat or armor, red when you are slowed and green when you move faster than a run. In combat a value keeps the colour it had last.
+- Stats: the numbers are in Rethink Sans, whose digits are all one width, so a number that changes no longer shakes its line. *Number font* on the Stats page picks Arial Narrow, the HUD's own font or any LibSharedMedia font instead.
+- CombatKit now brings LibSharedMedia (with LibStub and CallbackHandler) and one font, Rethink Sans (SIL Open Font License). Other addons that use LibSharedMedia can pick the font too, on clients in a language with Latin letters.
+- HUD: more room between the names and the values.

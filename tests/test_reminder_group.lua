@@ -15,6 +15,7 @@ W.inInstance, W.instanceType, W.difficultyID = true, "party", 23
 CombatKitReminderDB = { size = 36, sound = "", point = "CENTER", relPoint = "CENTER", x = 0, y = 140,
 	used = { [266] = { flask = 1235111 } },   -- kept per spec, before PvE and PvP were told apart
 	where = { dungeon = true, raid = true, world = true },   -- one list for consumables and class reminders
+	consumablesWhere = { bg = true },   -- a healthstone in battlegrounds, as 1.5.0's default had it
 	expiring = 99 }   -- past the end of the range
 
 local CK = T.boot()
@@ -27,9 +28,10 @@ eq(RM.db.used["266/pve"] and RM.db.used["266/pve"].flask, 1235111, "what was kep
 eq(RM.db.used[266], nil, "and no longer under the spec alone")
 eq(RM.db.where, nil, "the one scenario list is dropped")
 check(not RM.db.consumablesWhere.world and RM.db.classWhere.world, "the new lists start from their defaults")
+eq(RM.db.consumablesWhere.bg, false, "no healthstone in battlegrounds, whatever 1.5.0 saved")
 eq(RM.db.expiring, 60, "a value past the end of the range comes back to it")
 RM.db.expiring = 5   -- the default, for what follows
-eq(RM.db.version, 5, "and is marked as done")
+eq(RM.db.version, 6, "and is marked as done")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = true }
 fire("PLAYER_ENTERING_WORLD")
 
@@ -39,7 +41,7 @@ local function shown()
 	if not frame or not frame:IsShown() then return list end
 	for i, b in ipairs(icons) do
 		if b:IsShown() then
-			list[#list + 1] = { label = b.label:GetText(), text = b.text:GetText(), button = buttons[i] }
+			list[#list + 1] = { label = b.label:GetText(), text = b.text:GetText(), button = buttons[i], icon = b }
 		end
 	end
 	return list
@@ -129,6 +131,12 @@ fire("GROUP_ROSTER_UPDATE")
 hs = find(L["Healthstone"])
 check(hs, "a warlock in the group: take one")
 check(not (hs and hs.button and hs.button:IsShown()), "nothing to click: it is in the Soulwell")
+local lines = {}
+function GameTooltip:SetOwner() lines = {} end
+function GameTooltip:SetText(text) lines[#lines + 1] = text end
+function GameTooltip:AddLine(text) lines[#lines + 1] = text end
+hs.icon:GetScript("OnEnter")(hs.icon)
+eq(table.concat(lines, " | "), L["Healthstone"] .. " | " .. L["TIP_SOULWELL"], "its tooltip says where to take one")
 
 -- ---------------------------------------------------------------- Demonology: a Felguard
 W.known[SACRIFICE], W.known[30146] = nil, true

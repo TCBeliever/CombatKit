@@ -17,6 +17,8 @@ local hud = CK.HUD.GetFrame()
 local function rows() return hud.sections.stats.rows end
 local function text(i) return rows()[i].value:GetText() end
 local function label(i) return rows()[i].label:GetText() end
+-- a value without its colour
+local function plain(i) return (text(i):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 
 -- ---------------------------------------------------------------- readable values
 check(hud.sections.loadout:IsShown() and hud.sections.stats:IsShown(), "Loadout and Stats share the HUD")
@@ -34,21 +36,21 @@ eq(text(2), "25.6%", "an event refreshes it")
 -- ---------------------------------------------------------------- order, which stats, precision
 ST.db.shown.speed = true; ST.db.shown.ilvl = true
 W.speed = 9.8; CK.HUD.Refresh()
-eq(text(5), "140%", "movement speed as a percentage of run speed, no decimals")
+eq(plain(5), "140%", "movement speed as a percentage of run speed, no decimals")
 eq(text(6), "702.6", "item level keeps one decimal, no percent sign")
 -- no event says the speed changed: the module looks for itself
 W.speed = 3.5; flush()
-eq(text(5), "50%", "slowed: the HUD follows without any event")
+eq(plain(5), "50%", "slowed: the HUD follows without any event")
 W.speed = 0; W.runSpeed = 9.1; flush()
-eq(text(5), "130%", "standing still: the speed you would run at, as on the character sheet")
+eq(plain(5), "130%", "standing still: the speed you would run at, as on the character sheet")
 W.swimming = true; flush()
-eq(text(5), "67%", "in water: the swim speed")
+eq(plain(5), "67%", "in water: the swim speed")
 W.swimming = false; W.gliding = 54.9; flush()   -- GetUnitSpeed says 0 while skyriding
-eq(text(5), "784%", "skyriding: the glide speed")
+eq(plain(5), "784%", "skyriding: the glide speed")
 W.gliding = nil; W.vehicleSpeed = 14; flush()
-eq(text(5), "200%", "in a vehicle: the vehicle's speed")
+eq(plain(5), "200%", "in a vehicle: the vehicle's speed")
 W.vehicleSpeed = nil; W.runSpeed = nil; W.speed = 9.8; flush()
-eq(text(5), "140%", "running again")
+eq(plain(5), "140%", "running again")
 eq(ST.StatLabel("primary"), CK.L["STAT_primary_1"], "the primary stat goes by its own name")
 
 -- durability: everything worn, taken together
@@ -70,7 +72,54 @@ ST.Move("crit", -1); CK.HUD.Refresh()
 check(label(1):find(CK.L["STAT_crit"], 1, true), "the first cannot move further up")
 ST.db.decimals = 0; CK.HUD.Refresh()
 eq(text(1), "30%", "decimals are a setting")
-ST.db.decimals = 1
+ST.db.decimals = 1; CK.HUD.Refresh()
+
+-- ---------------------------------------------------------------- colours
+-- rows now: crit, haste, mastery, vers, item level, speed
+eq(ST.db.colours, nil, "colours: off by default")
+check(label(1):find(CK.Skin.Hex("dim"), 1, true), "off: names dimmed")
+ST.db.colours = true; CK.HUD.Refresh()
+check(label(1):find("|cff" .. ST.TINT.crit, 1, true), "each stat's name in a colour of its own: crit")
+check(label(2):find("|cff" .. ST.TINT.haste, 1, true), "haste in another")
+eq(text(2), "25.6%", "a stat short of diminishing returns: the value stays white")
+local MASTERY_RATING = 26
+W.ratingBonus = { [MASTERY_RATING] = 41 }; fire("MASTERY_UPDATE")
+check(text(3):find("41.5%", 1, true) and text(3):find("|cffe8d14a", 1, true), "mastery's rating bonus at 41%: counted at 80%, yellow")
+W.ratingBonus = { [MASTERY_RATING] = 70 }; fire("MASTERY_UPDATE")
+check(text(3):find(CK.Skin.Hex("bad"), 1, true), "past 66%: counted at half, red")
+check(text(6):find(CK.Skin.Hex("ok"), 1, true), "moving faster than a run: green")
+W.speed = 3.5; flush()
+check(text(6):find(CK.Skin.Hex("bad"), 1, true), "slowed: red")
+W.speed = 9.8; flush()
+ST.db.shown.primary = true; W.lowered = { primary = -500 }; CK.HUD.Refresh()
+check(label(7):find("|cff" .. ST.TINT.primary, 1, true), "the primary stat's name: gold")
+check(text(7):find("12345", 1, true) and text(7):find(CK.Skin.Hex("bad"), 1, true), "lowered by a debuff: red")
+W.lowered = nil; CK.HUD.Refresh()
+eq(text(7), "12345", "the debuff gone: white again")
+ST.db.shown.primary = nil
+-- in combat the rating behind the colour is secret: the last colour told stays
+W.secretStats = true; fire("COMBAT_RATING_UPDATE")
+check(text(3):find("99.9%", 1, true) and text(3):find(CK.Skin.Hex("bad"), 1, true), "combat: still live, still red")
+W.secretStats = false; W.ratingBonus = nil; fire("PLAYER_REGEN_ENABLED")
+eq(text(3), "41.5%", "readable again: back to white")
+ST.db.colours = false; CK.HUD.Refresh()
+check(label(1):find(CK.Skin.Hex("dim"), 1, true), "colours off: names dimmed, as before")
+eq(text(6), "140%", "and values white")
+ST.db.colours = true; CK.HUD.Refresh()
+
+-- the values in CombatKit's own font, the labels in the HUD's
+eq(rows()[1].value:GetFont(), CK.Skin.FONTS[1].file, "numbers: CombatKit's font by default")
+eq(rows()[1].label:GetFont(), nil, "the names keep the HUD's")
+ST.SetNumberFont("hud")
+eq(rows()[1].value:GetFont(), nil, "the HUD's own font, when picked")
+ST.SetNumberFont([[Fonts\ARIALN.TTF]], "Arial Narrow")
+eq(rows()[1].value:GetFont(), [[Fonts\ARIALN.TTF]], "or another")
+W.badFonts = { [ [[Fonts\ARIALN.TTF]] ] = true }
+rows()[1].value.valueFont = nil; CK.HUD.Refresh()
+eq(rows()[1].value:GetFont(), nil, "a font file that is gone: the HUD's own")
+W.badFonts = nil
+ST.SetNumberFont(nil)
+eq(ST.NumberFontName(), "Rethink Sans", "back to the default")
 
 -- ---------------------------------------------------------------- combat: secret values
 W.secretStats = true
@@ -81,7 +130,7 @@ eq(text(1), "99.9%", "crit falls back to the source that was highest before")
 check(text(6):find("140%", 1, true) and text(6):find(CK.Skin.Hex("dim"), 1, true), "what needs arithmetic is shown from memory, dimmed")
 check(hud:IsShown(), "and the HUD still lays itself out, without measuring secret text")
 W.secretStats = false; flush()
-eq(text(6), "140%", "readable again: the speed comes back on its own, no longer dimmed")
+eq(plain(6), "140%", "readable again: the speed comes back on its own, no longer dimmed")
 fire("PLAYER_REGEN_ENABLED")
 eq(text(2), "25.6%", "readable again after combat")
 
@@ -111,6 +160,12 @@ else
 end
 local listX = page.rows[1].up.__point[2]
 check(listX > page.english.__point[2] + page.english:GetWidth(), "the list is the right column, clear of the fields on the left")
+check(listX > page.font.__point[2] + page.font:GetWidth(), "and clear of the number font list")
+check(page.colours:GetChecked(), "the colours switch shows them on")
+eq(page.font.text:GetText(), "Rethink Sans", "the number font: CombatKit's own")
+page.colours:Click()
+check(ST.db.colours == nil and label(1):find(CK.Skin.Hex("dim"), 1, true), "switched off from the page: the HUD follows")
+page.colours:Click()
 local listRight = listX + 18 + 2 + 18 + 10 + page.rows[1].check:GetWidth()
 check(listRight < CK.Options.PageWidth(), "a margin from the page's right edge")
 
