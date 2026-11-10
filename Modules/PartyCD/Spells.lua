@@ -24,10 +24,11 @@ local ADDON, ns = ...
 --
 -- What it is for (`tags`, a string of one or more words, the main one first):
 --
---   defense   keeps someone alive: damage taken down, an immunity, a healing
---             cooldown, a way out of a stun, a fear or a silence (not out of a
---             root or a slow)
---   burst     more damage, the caster's or a teammate's
+--   defense   keeps someone alive: damage taken down, an immunity, a save for
+--             oneself or one teammate (Desperate Prayer, Life Cocoon), a way
+--             out of a stun, a fear or a silence (not out of a root or a slow)
+--   burst     more damage or more healing, the caster's or a teammate's: a
+--             healer's big healing cooldown is one (Divine Hymn, Tranquility)
 --   control   an opponent who cannot act or cannot hit: stun, fear,
 --             polymorph, silence, disarm
 --   other     whatever is none of the three
@@ -35,8 +36,7 @@ local ADDON, ns = ...
 -- The spells page groups by the main tag (defense, burst, control, other); the
 -- halo's colour follows it too, yellow instead for `big` (an immunity or a
 -- large external). Every ability tagged burst is `noLearn` as well (a burst
--- cooldown is often cut or reset by what the player does); a healing cooldown
--- that was one before keeps it by hand.
+-- cooldown is often cut or reset by what the player does).
 --
 -- The key: every entry is keyed by `id`, the spell the player casts (the
 -- button), never by the aura it leaves. The cooldown, the talents that change
@@ -180,14 +180,14 @@ ns.SPELLS = {
 	DRUID = {
 		Caster(22812, 60, "defense"),           -- Barkskin
 		Caster(61336, 180, "defense", { extraCharge = true, specs = set(103, 104) }),  -- Survival Instincts: a second charge from the guardian passive or a talent
-		Caster(740, 180, "defense", { specs = set(105) }),  -- Tranquility
-		Caster(33891, 180, "defense", { window = 30, defaultOff = true, specs = set(105) }),  -- Incarnation: Tree of Life: for 30 s the druid may shift in and out of the form, one use (off by default: the user's call)
-		Caster(473909, 90, "defense", { replaces = 33891, specs = set(105) }),  -- Ancient of Lore (PvP talent): takes Tree of Life's button
+		Caster(473909, 90, "defense", { replaces = 33891, specs = set(105) }),  -- Ancient of Lore (PvP talent): takes Tree of Life's button; a form that takes 30% less damage and cannot be controlled, so a defensive
 		Ally(102342, 90, "defense", { specs = set(105) }),  -- Ironbark
 		Caster(194223, 180, "burst", { auras = { 194223, 102560, 383410, 390414 }, casts = { 102560, 383410, 390414 }, specs = set(102) }),  -- Celestial Alignment, or Incarnation; Orbital Strike turns them into 383410 and 390414
 		Caster(106951, 180, "burst", { auras = { 106951, 102543 }, casts = { 102543 }, specs = set(103) }),  -- Berserk, or Incarnation
 		Caster(5217, 30, "burst", { specs = set(103) }),  -- Tiger's Fury
 		Caster(50334, 180, "burst", { auras = { 50334, 102558 }, casts = { 102558 }, specs = set(104) }),  -- Berserk (Guardian), or Incarnation, which replaces it
+		Caster(740, 180, "burst", { specs = set(105) }),  -- Tranquility: a healing cooldown, a burst
+		Caster(33891, 180, "burst", { window = 30, defaultOff = true, specs = set(105) }),  -- Incarnation: Tree of Life: a healing cooldown; for 30 s the druid may shift in and out of the form, one use (off by default: the user's call)
 		Caster(391528, 120, "burst", { specs = set(102, 103, 104, 105) }),  -- Convoke the Spirits
 		Enemy(5211, 60, "control"),             -- Mighty Bash
 		Enemy(99, 30, "control"),               -- Incapacitating Roar
@@ -198,14 +198,14 @@ ns.SPELLS = {
 	},
 	EVOKER = {
 		Caster(363916, 90, "defense", { defaultOff = true, extraCharge = true }),  -- Obsidian Scales (off by default: the user's call)
-		Caster(370960, 180, "defense", { specs = set(1468) }),  -- Emerald Communion (PvP talent)
-		Caster(359816, 120, "defense", { specs = set(1468) }),  -- Dream Flight
 		Ally(357170, 60, "defense", { defaultOff = true, extraCharge = true, specs = set(1468) }),  -- Time Dilation (off by default: the user's call)
 		Ally(378441, 45, "defense", { defaultOn = true }),  -- Time Stop (PvP talent; on by default though short: the user's call)
 		Allies(374227, 120, 8, "defense", { defaultOff = true }),  -- Zephyr (off by default: the user's call)
-		Allies(363534, 240, 1, "defense", { specs = set(1468) }),  -- Rewind
 		Caster(375087, 120, "burst", { specs = set(1467) }),  -- Dragonrage
 		Caster(357210, 120, "burst", { specs = set(1467, 1468) }),  -- Deep Breath (Augmentation's is replaced by Breath of Eons)
+		Caster(359816, 120, "burst", { specs = set(1468) }),  -- Dream Flight: a healing cooldown, a burst
+		Caster(370960, 180, "burst", { specs = set(1468) }),  -- Emerald Communion (PvP talent): a healing cooldown, a burst like Preservation's others, though it heals the evoker first (the user's call)
+		Allies(363534, 240, 1, "burst", { specs = set(1468) }),  -- Rewind: heals back what the team took, a burst (the user's call)
 	},
 	HUNTER = {
 		Caster(186265, 180, "defense", { big = true }),  -- Aspect of the Turtle
@@ -242,11 +242,11 @@ ns.SPELLS = {
 		Caster(122470, 90, "defense", { aura = 125174, specs = set(269) }),  -- Touch of Karma
 		Caster(354540, 90, "defense", { specs = set(268) }),  -- Nimble Brew (PvP talent)
 		Caster(132578, 120, "defense", { specs = set(268) }),  -- Invoke Niuzao, the Black Ox
-		Caster(322118, 120, "defense", { specs = set(270) }),  -- Invoke Yu'lon, the Jade Serpent
-		Caster(325197, 120, "defense", { auras = { 325197, 343818 }, noLearn = true, specs = set(270) }),  -- Invoke Chi-Ji, the Red Crane
 		Ally(116849, 120, "defense", { big = true, specs = set(270) }),  -- Life Cocoon
 		Caster(1249625, 90, "burst", { charges = 2, specs = set(269) }),  -- Zenith
 		Caster(123904, 120, "burst", { defaultOff = true, specs = set(269) }),  -- Invoke Xuen, the White Tiger: a Conduit of the Celestials hero talent (off by default: the user's call)
+		Caster(322118, 120, "burst", { specs = set(270) }),  -- Invoke Yu'lon, the Jade Serpent: a healing cooldown, a burst
+		Caster(325197, 120, "burst", { auras = { 325197, 343818 }, specs = set(270) }),  -- Invoke Chi-Ji, the Red Crane: a healing cooldown, a burst
 		Enemy(119381, 60, "control"),           -- Leg Sweep
 		Enemy(115078, 45, "control"),           -- Paralysis
 		Enemy(198898, 30, "control", { aura = 198909 }),  -- Song of Chi-Ji: the disorient is 198909
@@ -261,11 +261,11 @@ ns.SPELLS = {
 		Caster(31821, 180, "defense", { defaultOff = true, specs = set(65) }),  -- Aura Mastery: the aura on the paladin (off by default: the user's call)
 		Caster(389539, 120, "defense", { specs = set(66) }),  -- Sentinel
 		Caster(228049, 240, "defense", { defaultOff = true, big = true, specs = set(66) }),  -- Guardian of the Forgotten Queen (PvP talent): the aura on the paladin; the ally's to confirm in game (off by default: the user's call)
-		Caster(216331, 60, "defense burst", { defaultOff = true, specs = set(65) }),  -- Avenging Crusader (off by default: the user's call)
 		Ally(1022, 300, "defense", { auras = { 1022, 204018 }, big = true }),  -- Blessing of Protection, or of Spellwarding
 		Ally(210256, 60, "defense", { specs = set(70) }),  -- Blessing of Sanctuary (PvP talent)
 		OtherAlly(6940, 120, "defense", { auras = { 6940, 199448 }, casts = { 199448 } }),  -- Blessing of Sacrifice; Ultimate Sacrifice (PvP talent) turns it into 199448
 		Caster(31884, 120, "burst", { defaultOff = true }),  -- Avenging Wrath (off by default: the user's call)
+		Caster(216331, 60, "burst", { defaultOff = true, specs = set(65) }),  -- Avenging Crusader: Holy's healing and damage form, a burst (off by default: the user's call)
 		Enemy(343527, 60, "burst", { defaultOff = true, specs = set(70) }),  -- Execution Sentence: the mark on the opponent (off by default: the user's call)
 		Enemy(853, 45, "control"),              -- Hammer of Justice
 		Enemy(115750, 90, "control", { defaultOff = true, aura = 105421 }),  -- Blinding Light (off by default: the user's call)
@@ -273,14 +273,14 @@ ns.SPELLS = {
 	PRIEST = {
 		Caster(47585, 120, "defense", { big = true, specs = set(258) }),  -- Dispersion
 		Caster(19236, 90, "defense"),           -- Desperate Prayer
-		Caster(64843, 180, "defense", { specs = set(257) }),  -- Divine Hymn: the channel on the priest
-		Caster(421453, 240, "defense", { specs = set(256) }),  -- Ultimate Penitence
-		Caster(200183, 120, "defense", { noLearn = true, specs = set(257) }),  -- Apotheosis
 		Caster(15286, 120, "defense", { defaultOff = true, specs = set(258) }),  -- Vampiric Embrace (off by default: the user's call)
 		Ally(33206, 180, "defense", { big = true, extraCharge = true, underControl = true, cutBy = { [373035] = 1 / 1.3 }, specs = set(256) }),  -- Pain Suppression: castable while stunned (its tooltip, confirmed in game; the data does not flag it). Protector of the Frail: every Power Word: Shield (7.5 s cooldown) takes 3 s off; shields at 75% of their cooldown make 180 s about 138 s
 		Ally(47788, 180, "defense", { big = true, specs = set(257) }),  -- Guardian Spirit
 		Allies(62618, 180, 10, "defense", { defaultOff = true, aura = 81782, specs = set(256) }),  -- Power Word: Barrier (off by default: the user's call)
 		Caster(228260, 120, "burst", { aura = 194249, specs = set(258) }),  -- Voidform
+		Caster(64843, 180, "burst", { specs = set(257) }),  -- Divine Hymn: the channel on the priest; a healing cooldown, a burst
+		Caster(200183, 120, "burst", { specs = set(257) }),  -- Apotheosis: a healing cooldown, a burst
+		Caster(421453, 240, "burst defense", { specs = set(256) }),  -- Ultimate Penitence: a healing cooldown, a burst; the priest is shielded and out of control's reach meanwhile
 		Ally(10060, 120, "burst", { defaultOff = true }),  -- Power Infusion (off by default: the user's call)
 		Enemy(8122, 40, "control"),             -- Psychic Scream
 		Enemy(15487, 30, "control", { specs = set(258) }),  -- Silence
@@ -301,10 +301,10 @@ ns.SPELLS = {
 	},
 	SHAMAN = {
 		Caster(108271, 120, "defense"),         -- Astral Shift
-		Caster(108280, 180, "defense", { specs = set(264) }),  -- Healing Tide Totem
 		Caster(409293, 120, "defense"),         -- Burrow (PvP talent)
 		Allies(98008, 180, 6, "defense", { aura = 325174, specs = set(264) }),  -- Spirit Link Totem
-		Caster(114052, 180, "burst defense", { specs = set(264) }),  -- Ascendance (Restoration): a healing cooldown, filed under burst so the spells page gives the three Ascendances one box (the user's call)
+		Caster(114052, 180, "burst", { specs = set(264) }),  -- Ascendance (Restoration): a healing cooldown, a burst; the spells page gives the three Ascendances one box
+		Caster(108280, 180, "burst", { specs = set(264) }),  -- Healing Tide Totem: a healing cooldown, a burst
 		Caster(114050, 180, "burst", { specs = set(262) }),  -- Ascendance (Elemental)
 		Caster(114051, 180, "burst", { specs = set(263) }),  -- Ascendance (Enhancement)
 		Caster(191634, 60, "burst", { specs = set(262) }),  -- Stormkeeper

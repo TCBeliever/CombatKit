@@ -53,7 +53,16 @@ for _, list in pairs(AR.SPELLS) do
 	end
 end
 check(def(200183).noLearn and def(325197).noLearn and def(114052).noLearn and def(1122).noLearn,
-	"healing cooldowns that were bursts stay unlearned; Summon Infernal, a burst now, too")
+	"healing cooldowns are bursts, never learned from; Summon Infernal too")
+-- a healer's big healing cooldown is a burst; a save on oneself or one
+-- teammate and a group's damage reduction stay defensives
+for _, id in ipairs({ 64843, 200183, 421453, 740, 33891, 108280, 114052, 359816, 370960, 363534, 322118, 325197, 216331 }) do
+	check(def(id).tag == "burst" and def(id).noLearn and AR.UI.GlowOf(def(id)) == "burst", id .. ": a healing cooldown, a burst")
+end
+for _, id in ipairs({ 473909, 102342, 33206, 47788, 116849, 357170, 98008, 62618, 31821, 19236 }) do
+	check(def(id).tag == "defense", id .. ": a defensive")
+end
+check(AR.HasTag(def(421453), "defense"), "Ultimate Penitence: a burst that shields the priest as well")
 local druidAll = 0
 for _, d in ipairs(AR.SPELLS.DRUID) do druidAll = druidAll + 1 end
 check(#AR.SpellsFor("DRUID", true) < druidAll, "the short druid cooldowns are not watched until ticked")

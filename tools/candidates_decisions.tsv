@@ -85,7 +85,7 @@
 1261870	out	off-role boost, the aura does not say which role it boosts, 120 s
 99	in	control: incapacitate around the druid, 30 s
 102560	in	burst: Balance's Incarnation, listed in Spells.lua as a cast of Celestial Alignment 194223, 180 s
-33891	in	defense: Restoration's healing form, 180 s; Spells.lua watches its PvP replacement Ancient of Lore 473909 only (proposed: Tree of Life itself as well)
+33891	in	burst: Restoration's healing form, 180 s; Spells.lua watches its PvP replacement Ancient of Lore 473909 only (proposed: Tree of Life itself as well)
 29166	in	other: mana for a healer, 180 s
 102342	in	defense: 20% less damage on an ally, 90 s
 204066	out	tank's damage and healing area, 60 s
@@ -100,7 +100,7 @@
 1253799	out	tank's damage cooldown, the aura says nothing an opponent feels, 60 s
 61336	in	defense: 50% less damage, 180 s
 5217	in	burst: Feral's energy and damage, 30 s
-740	in	defense: Restoration's channelled group heal, 180 s
+740	in	burst: Restoration's channelled group heal, 180 s
 132469	out	knockback and slow only, 30 s
 102793	out	pull back and slow only, 60 s
 88747	out	rotational damage, 30 s with charges
@@ -112,10 +112,10 @@
 357210	in	burst: Deep Breath, 120 s; Augmentation's Breath of Eons 403631 takes its button
 375087	in	burst: Devastation's main damage cooldown, 120 s
 355936	out	rotational healing, 30 s
-359816	in	defense: Preservation's large group heal, 120 s (proposed)
+359816	in	burst: Preservation's large group heal, 120 s (proposed)
 377509	out	minor PvP talent heal, 60 s
 395152	out	Augmentation's rotational buff, 30 s
-370960	in	defense: Preservation's channelled heal (PvP talent), 180 s
+370960	in	burst: Preservation's channelled heal (PvP talent), 180 s
 359073	out	rotational damage, 30 s
 357208	out	rotational damage, 30 s
 390386	out	group haste once per fight (Exhaustion), not a row's concern
@@ -125,7 +125,7 @@
 372048	out	lengthens other control, no control of its own, 120 s
 406971	out	lengthens other control, no control of its own, 120 s
 370665	out	movement: carries an ally, 60 s
-363534	in	defense: Preservation's group heal back over time, 240 s
+363534	in	burst: Preservation's group heal back over time, 240 s
 406732	out	casting while moving, utility, 180 s
 382731	out	rotational healing, 30 s
 370537	out	stores heals for later, utility, 90 s
@@ -212,10 +212,10 @@
 101545	out	movement only (Slicing Winds, its version, the same), 30 s
 115203	in	defense: more health and 20% less damage, 360 s
 233759	in	control: disarm (PvP talent), 45 s
-325197	in	defense: Mistweaver's healing celestial, 120 s
+325197	in	burst: Mistweaver's healing celestial, 120 s
 132578	in	defense: Brewmaster's celestial, 120 s
 123904	in	burst: Windwalker's celestial, 120 s (proposed)
-322118	in	defense: Mistweaver's healing celestial, 120 s
+322118	in	burst: Mistweaver's healing celestial, 120 s
 119381	in	control: stun around the monk, 60 s
 116849	in	defense: large absorb on an ally, 120 s
 354540	in	defense: breaks stuns and fears (PvP talent), 90 s
@@ -234,7 +234,7 @@
 # Paladin
 31850	in	defense: 30% less damage and a cheat death, 90 s
 31821	in	defense: Holy's group aura, 180 s
-216331	in	defense burst: Holy's healing and damage form, 60 s
+216331	in	burst: Holy's healing and damage form, 60 s
 31884	in	burst: Avenging Wrath, 120 s; Protection's Sentinel 389539 takes its button
 1044	out	frees from roots and slows, under 30 s (25 s)
 1022	in	defense: immune to physical damage on an ally, 300 s
@@ -256,10 +256,10 @@
 
 # Priest
 121536	out	movement only, under 30 s (20 s)
-200183	in	defense: Holy's healing cooldown, 120 s
+200183	in	burst: Holy's healing cooldown, 120 s
 19236	in	defense: a large self heal, 90 s
 47585	in	defense: 75% less damage, 120 s
-64843	in	defense: Holy's channelled group heal, 180 s
+64843	in	burst: Holy's channelled group heal, 180 s
 205364	out	control: mind control, 30 s; not watched (user, 2026-10-14)
 472433	out	extends healing over time already out (Discipline), a ramp tool, 90 s
 586	out	threat drop and small reduction, 30 s
@@ -278,7 +278,7 @@
 211522	out	a summon whose fear comes later from the pet; the data shows no fear aura from the cast, 45 s
 15487	in	control: silence, 30 s
 20711	out	the form after death (Holy), no cast to plan around
-421453	in	defense: Discipline's healing channel, immune to control, 240 s
+421453	in	burst defense: Discipline's healing channel, immune to control, 240 s
 15286	in	defense: Shadow's group heal from its damage, 120 s (proposed)
 263165	out	rotational damage channel, 30 s
 228260	in	burst: Shadow's main damage cooldown, 120 s
@@ -315,7 +315,7 @@
 # Shaman
 443454	out	makes one cast instant, minor, 30 s
 114050	in	burst: Elemental's Ascendance, 180 s
-114052	in	defense: Restoration's Ascendance, a healing cooldown, 180 s
+114052	in	burst: Restoration's Ascendance, a healing cooldown, 180 s
 556	out	teleport utility, 600 s
 108271	in	defense: 40% less damage, 120 s
 2825	out	group haste once per fight (Sated), not a row's concern
@@ -325,7 +325,7 @@
 384352	in	burst: Enhancement's Ascendance 114051 takes this button (talent); Doom Winds itself is a damage window, 60 s
 198103	out	summons a guardian that taunts creatures; nothing an opponent feels, 180 s
 204336	out	absorbs one spell, the aura is on the totem's area, 30 s
-108280	in	defense: Restoration's healing totem, 180 s
+108280	in	burst: Restoration's healing totem, 180 s
 32182	out	group haste once per fight (Exhaustion), not a row's concern
 51514	in	control: polymorph, 30 s
 305483	in	control: stun channel (PvP talent), 45 s

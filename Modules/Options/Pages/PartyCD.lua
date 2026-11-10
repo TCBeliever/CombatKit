@@ -224,7 +224,7 @@ end
 local ROW_H = 24   -- a row with a 20px icon
 local GAP = 6         -- under a category
 local COL_MIN = 290   -- the second column starts at half the page, never closer than this
-local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Offensive cooldowns" }, { "control", "Crowd control" },
+local CATEGORIES = { { "defense", "Defensive" }, { "burst", "Burst cooldowns" }, { "control", "Crowd control" },
 	{ "other", "Other" } }
 
 -- how many of the categories go in the first column, given each one's height

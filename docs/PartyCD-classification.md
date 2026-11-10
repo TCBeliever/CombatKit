@@ -32,8 +32,8 @@
 
 | 標籤 | 定義 |
 |---|---|
-| `defense` | 讓人不死：減傷、免疫、治療冷卻、解除或擋下讓人無法行動的控制（暈、恐懼、變形、沉默；**不含**定身與緩速） |
-| `burst` | 提高自己或隊友的傷害 |
+| `defense` | 讓人不死：減傷、免疫、救自己或救一個隊友（Desperate Prayer、Life Cocoon）、解除或擋下讓人無法行動的控制（暈、恐懼、變形、沉默；**不含**定身與緩速） |
+| `burst` | 提高自己或隊友的傷害或治療：補師的治療大招算爆發（Divine Hymn、Tranquility） |
 | `control` | 讓對手無法行動或無法出手（暈、恐懼、變形、沉默、繳械） |
 | `other` | **剩下的**：不屬於以上三種就是 other，不另外挑 |
 
@@ -42,7 +42,8 @@
 - 光暈顏色由標籤推出，`glow` 欄位刪掉：有 `big` 是黃色，否則依主標籤：defense 綠、burst 紅、control 紫、other 藍。
 - 設定頁依主標籤分組，順序 defense → burst → control → other；名稱「減傷／爆發／控場／其他」。
 - 預設勾選規則不變：基礎冷卻 ≥ 60 秒。
-- 帶 burst 標籤的自動 `noLearn`（爆發冷卻常被玩家的動作縮短或重置）。原本是爆發、改成 defense 的治療冷卻（Apotheosis、Invoke Chi-Ji、恢復的 Ascendance）手動保留 `noLearn`。
+- 帶 burst 標籤的自動 `noLearn`（爆發冷卻常被玩家的動作縮短或重置）。
+- 2026-11-07（使用者）：補師的治療大招從 defense 改成 burst。PartyCD 看的是隊友的技能，但對補師自己來說這些是爆發。外部減傷、群體減傷、救自己的技能留在 defense；Emerald Communion 雖然先補自己，也算爆發，不另立特例。設定頁英文標題由 Offensive cooldowns 改成 Burst cooldowns。
 
 寫法示意：`Caster(48792, 120, "defense")`、`Allies(51052, 240, 8, "defense", { aura = 145629 })`、`EnemyLater(1122, 120, 2, "burst control", { aura = 22703 })`。
 
@@ -63,15 +64,15 @@
 - enemyLater 3：Sigil of Misery（control）
 
 **德魯伊**
-- caster：Barkskin、Survival Instincts、Tranquility、Ancient of Lore（defense）；Celestial Alignment、Berserk 野性、Tiger's Fury、Berserk 守護（burst）
+- caster：Barkskin、Survival Instincts、Ancient of Lore（defense：減傷 30%＋免控的形態）；Celestial Alignment、Berserk 野性、Tiger's Fury、Berserk 守護、**Tranquility、Incarnation: Tree of Life（burst）**：治療大招、Convoke the Spirits（burst）
 - ally：Ironbark（defense）；Innervate（other）
 - enemy：Mighty Bash、Incapacitating Roar、Maim、Faerie Swarm（control）
 - enemies 8：Solar Beam（control）
 
 **喚能師**
-- caster：Obsidian Scales、Emerald Communion（defense）；Dragonrage、Deep Breath（burst）
+- caster：Obsidian Scales（defense）；Dragonrage、Deep Breath、**Dream Flight、Emerald Communion（burst）**：治療大招（Emerald Communion 先補自己，跟其他治療大招一起算爆發，不另立特例）
 - ally：Time Dilation、Time Stop（defense；資料沒有「排除施法者」屬性，可對自己放，遊戲內確認見 park_lot）
-- allies 1：Rewind（defense；資料目標是範圍內所有隊友，同時落下）
+- allies 1：**Rewind（burst）**：補回隊友受到的傷害（資料目標是範圍內所有隊友，同時落下）
 - allies 8：Zephyr（defense）
 
 **獵人**
@@ -88,18 +89,18 @@
 - enemyLater 6：Snowdrift（control）
 
 **武僧**
-- caster：Fortifying Brew、Touch of Karma、Nimble Brew、Invoke Niuzao、Invoke Yu'lon（defense）；**Invoke Chi-Ji（defense）**：治療冷卻；Zenith（burst）
+- caster：Fortifying Brew、Touch of Karma、Nimble Brew、Invoke Niuzao（defense）；Zenith、Invoke Xuen（burst）；**Invoke Yu'lon、Invoke Chi-Ji（burst）**：治療大招
 - ally：Life Cocoon（defense big）；Tiger's Lust（other）：只解定身與緩速
 - enemy：Leg Sweep、Paralysis、Song of Chi-Ji、Grapple Weapon（control）
 
 **聖騎士**
-- caster：Divine Shield（defense big）、Divine Protection、Ardent Defender、Guardian of Ancient Kings、Aura Mastery、Sentinel、Guardian of the Forgotten Queen（defense big）；Avenging Wrath（burst）；**Avenging Crusader（defense burst）**：神聖專精的治療冷卻
+- caster：Divine Shield（defense big）、Divine Protection、Ardent Defender、Guardian of Ancient Kings、Aura Mastery、Sentinel、Guardian of the Forgotten Queen（defense big）；Avenging Wrath（burst）；**Avenging Crusader（burst）**：神聖專精的治療大招
 - ally：Blessing of Protection（defense big）、Blessing of Sanctuary（defense）：解除控制
 - otherAlly：Blessing of Sacrifice（defense；PvP 天賦 Ultimate Sacrifice 換成 199448，列在 auras 與 casts）
 - enemy：Hammer of Justice、Blinding Light（control）
 
 **牧師**
-- caster：Dispersion（defense big）、Desperate Prayer、Divine Hymn、Ultimate Penitence（defense）；Voidform（burst）；**Apotheosis（defense）**：治療冷卻
+- caster：Dispersion（defense big）、Desperate Prayer、Vampiric Embrace（defense）；Voidform（burst）；**Divine Hymn、Apotheosis（burst）、Ultimate Penitence（burst defense）**：治療大招（Ultimate Penitence 同時給自己護盾、免控）
 - ally：Pain Suppression、Guardian Spirit（defense big）；Power Infusion（burst）
 - allies 10：Power Word: Barrier（defense）
 - enemy：Psychic Scream、Silence、Holy Word: Chastise（control）
@@ -109,7 +110,7 @@
 - enemy：Kidney Shot、Blind、Dismantle（control）；Deathmark、Kingsbane（burst）
 
 **薩滿**
-- caster：Astral Shift、Healing Tide Totem、Burrow（defense）；**Spiritwalker's Grace（other）**：移動施法；Ascendance 元素、增強、Stormkeeper（burst）；**Ascendance 恢復（defense）**：治療冷卻
+- caster：Astral Shift、Burrow（defense）；**Spiritwalker's Grace（other）**：移動施法；Ascendance 元素、增強、Stormkeeper（burst）；**Ascendance 恢復、Healing Tide Totem（burst）**：治療大招
 - allies 6：Spirit Link Totem（defense）
 - enemy：Hex、Pulverize、Lightning Lasso（control）
 - enemyLater 3：Capacitor Totem（control）
