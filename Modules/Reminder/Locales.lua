@@ -13,6 +13,8 @@ CK.AddLocale("enUS", {
 	-- tooltips over an icon: why it shows, what a click does
 	["Pet health low"] = "Pet low HP",
 	["Pet %d"]     = "Pet %d",
+	-- above the icon, for a spell whose own name is too long: Blessing of the Bronze
+	["Blessing"]   = "Blessing",
 	["Summon demon (%s)"] = "Summon demon (%s)",
 	["Summon pet (%s)"]   = "Summon pet (%s)",
 	["TIP_LEFT"]   = "%s left",
@@ -46,6 +48,7 @@ CK.AddLocale("zhTW", {
 	["Summon demon (%s)"] = "召喚惡魔（%s）",
 	["Summon pet (%s)"]   = "召喚寵物（%s）",
 	["Water Elemental"]   = "水元素",
+	["Blessing"]          = "祝福",
 	["Pet health low"]    = "寵物低血",
 	["TIP_LEFT"]          = "剩 %s",
 	["TIP_MIN"]           = "剩 %d 分鐘",

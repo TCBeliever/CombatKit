@@ -36,7 +36,7 @@ A row of icons out of combat, one for each thing you are missing, in the scenari
 - The group's feast or flask cauldron, the moment someone puts one down.
 - Any spell ID of your own.
 
-A click casts the spell or uses the item from your bags: the kind you used last in this spec, in PvE or PvP. Before that, rogue poisons and death knight runes follow the guides. Hold Alt over an icon to pick another; hover it to see why it is up. A hunter's or warlock's pet low on health gets a warning of its own, in combat too, that works where the game keeps the pet's health secret. Nothing shows in combat, in a capital city or an inn, or in a running key or encounter.
+A click casts the spell or uses the item from your bags: the kind you used last in this spec, in PvE or PvP. Before that, rogue poisons and death knight runes follow the guides. Hold Alt over an icon to pick another; hover it to see why it is up. A hunter's or warlock's pet low on health gets a warning of its own, in combat too, that works where the game keeps the pet's health secret. Nothing shows in combat or in a running key or encounter. In a battleground, only before the start and once after each death; in a capital city or an inn, only a death knight's runes.
 
 **Extras**
 

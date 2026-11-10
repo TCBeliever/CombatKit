@@ -28,7 +28,7 @@ check(RM.db.classWhere.world and RM.db.classWhere.delve and RM.db.classWhere.are
 check(RM.db.sharedWhere.bg and not RM.db.sharedWhere.arena, "feasts and cauldrons: battlegrounds too, no arena")
 eq(RM.db.size, 54, "icons half as large again as the first default")
 eq(RM.db.glow, true, "the glow on by default")
-check(RM.db.relPoint == "TOP" and RM.db.x == 0 and RM.db.y == -80, "the row's place: centred, 80 below the top edge")
+check(RM.db.relPoint == "TOP" and RM.db.x == 0 and RM.db.y == -140, "the row's place: centred, 140 below the top edge, clear of a battleground's score")
 
 local function shown()
 	local frame, icons = RM.GetDisplay()
@@ -348,6 +348,9 @@ eq(#shaman[2].auras(), 4, "without Elemental Orbit, Earth Shield on yourself cou
 W.known[383010] = true
 eq(#shaman[2].auras(), 2, "with it, only Lightning or Water Shield")
 W.known = { [1459] = true, [31687] = true }
+local bronze = fake.classes.EVOKER()[1]
+check(bronze.spell == 364342 and bronze.short == "Blessing" and L["Blessing"] ~= nil,
+	"Blessing of the Bronze: a short name above the icon, the spell's own would take two lines")
 
 -- ---------------------------------------------------------------- settings pages
 SlashCmdList.COMBATKIT("")
@@ -428,7 +431,7 @@ local _, testIcons = RM.GetDisplay()
 check(testIcons[1].glow and testIcons[1].glow.tex:IsShown(), "with the glow, by default")
 local row = RM.GetDisplay()
 local point, _, relPoint, x, y = unpack(row.__point)
-check(point == "CENTER" and relPoint == "TOP" and x == 0 and y == -80, "it stands there")
+check(point == "CENTER" and relPoint == "TOP" and x == 0 and y == -140, "it stands there")
 go("consumables")
 check(#shown() == 4 and find(L["Flask"]) and find(L["Feast"]), "the consumables page: the consumables")
 go("class")

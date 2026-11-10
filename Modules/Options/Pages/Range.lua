@@ -30,6 +30,18 @@ local function Build(p)
 		y = y - Skin.SLIDER_H - 10
 		return s
 	end
+	-- first, since placing the boxes is what a new user does first: unlocked, the boxes show a sample
+	-- number and can be dragged; closing the window locks them again
+	Skin.Field(p, "Position", 0, y)
+	p.unlock = CK.Bind(Skin.Switch(p, "", function(checked)
+		RG.SetLocked(not checked)
+		O.Refresh()
+	end), "Unlock")
+	p.unlock:SetPoint("TOPLEFT", X, y - 1)
+	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() RG.ResetPositions() end), "Reset position")
+	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
+	y = y - 32 - 6
+
 	p.units = {}
 	for _, unit in ipairs(RG.UNITS) do
 		local c = CK.Bind(Skin.Checkbox(p, "", function(checked)
@@ -69,17 +81,6 @@ local function Build(p)
 		Changed()
 	end)
 	p.outline:SetPoint("TOPLEFT", X, y)
-	y = y - 32
-
-	-- unlocked, the boxes show a sample number and can be dragged; closing the window locks them again
-	Skin.Field(p, "Position", 0, y)
-	p.unlock = CK.Bind(Skin.Switch(p, "", function(checked)
-		RG.SetLocked(not checked)
-		O.Refresh()
-	end), "Unlock")
-	p.unlock:SetPoint("TOPLEFT", X, y - 1)
-	local reset = CK.Bind(Skin.Button(p, "", 90, 20, function() RG.ResetPositions() end), "Reset position")
-	reset:SetPoint("LEFT", p.unlock, "RIGHT", 16, 0)
 
 	-- the boxes switched on, with a sample number where they stand, without unlocking: a button by the page's title
 	p.test = O.TitleButton(p, 70, function()

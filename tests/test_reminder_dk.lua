@@ -110,5 +110,12 @@ RM.db.used = {}
 fire("PLAYER_EQUIPMENT_CHANGED")
 check(find("spell327082"), "Unholy: Apocalypse")
 
+-- a city or an inn hides every other reminder, not the runes: they are put on there
+W.resting = true
+fire("PLAYER_UPDATE_RESTING")
+check(find("spell327082"), "in a resting area: the rune still shows")
+W.resting = nil
+fire("PLAYER_UPDATE_RESTING")
+
 T.releaseChat()
 return T.report("reminder dk [" .. (LOCALE or "enUS") .. "]")

@@ -12,12 +12,13 @@ CK.NewModule("Reminder", ns)
 -- whenever combat ends (a boss down, a buff run out); a ready check brings
 -- them back anywhere while it runs. A Mythic+ run needs nothing more: once
 -- the key runs nothing shows. Your class's reminders, each switched on its
--- own, and your own spell IDs (custom) whenever they are missing. A buff with
+-- own, and your own spell IDs (custom) whenever they are missing; in a
+-- battleground only until the first fight, and again after each death. A buff with
 -- less than a few minutes left counts as missing. What the group puts down
 -- (a feast, a flask cauldron) is Shared.lua's. Nothing in combat, while dead,
--- in a vehicle or on a flight, in a resting area, in a running key or
--- encounter, or right after a loading screen; only in the scenarios the
--- player picked.
+-- in a vehicle or on a flight, in a running key or encounter, or right after
+-- a loading screen; in a resting area only a death knight's runes; only in
+-- the scenarios the player picked.
 --
 -- A class list (Classes/*.lua) holds entries:
 --   { key = what its switch is saved under,
@@ -86,9 +87,9 @@ ns.defaults = {
 	glow        = true,   -- thin dashes running round each icon
 	sound       = "",     -- a SOUNDKIT key played when a reminder appears; "" = none
 	size        = 54,
-	-- centred, 80 below the top edge: where the user put it on 2026-11-03 (480 above the middle of
-	-- their screen, 1113 high at UI scale 0.69), kept from the top so a shorter screen has it too
-	point = "CENTER", relPoint = "TOP", x = 0, y = -80,
+	-- centred, 140 below the top edge, kept from the top so a shorter screen has it too: clear of the
+	-- score at the top of a battleground (80, where the user put it on 2026-11-03, sat on it)
+	point = "CENTER", relPoint = "TOP", x = 0, y = -140,
 	-- a hunter's or warlock's pet below `below` percent: a line of its own, in combat too: the icon
 	-- (if asked) and the text beside it, the text as large as `fontSize`. Where the user dragged it
 	-- on 2026-11-04, rounded: 370 above the middle of the screen.
@@ -112,8 +113,9 @@ end
 -- default place up from the middle of the screen (the centre, 140 up, was the first), 4 keeps what you
 -- used per spec and PvE or PvP (it was per spec, which became PvE), 5 gives consumables and class
 -- reminders a scenario list each (one list held both; dropped, the new lists start from their defaults),
--- 6 turns the healthstone off in battlegrounds (on from 1.5.0's default, a day before)
-local VERSION = 6
+-- 6 turns the healthstone off in battlegrounds (on from 1.5.0's default, a day before), 7 moves the
+-- row's default place down, clear of a battleground's score (80 below the top was the default)
+local VERSION = 7
 
 local function InitDB()
 	if type(CombatKitReminderDB) ~= "table" then CombatKitReminderDB = {} end
@@ -135,6 +137,9 @@ local function InitDB()
 	end
 	if was < 5 then saved.where = nil end
 	if not fresh and was < 6 then saved.consumablesWhere.bg = false end
+	if not fresh and was < 7 and saved.point == "CENTER" and saved.relPoint == "TOP" and saved.x == 0 and saved.y == -80 then
+		saved.y = ns.defaults.y
+	end
 	-- 0 to 60 minutes (it was 0 to 15)
 	saved.expiring = math.max(0, math.min(60, tonumber(saved.expiring) or ns.defaults.expiring))
 	saved.version = VERSION
@@ -527,6 +532,7 @@ local function BuildChecks()
 			end or nil,
 			function() return (Applies(e)) end)
 		check.warn = e.kind == "avoid"
+		check.short = e.short and L[e.short]   -- the name above the icon, where the spell's is too long
 		check.spec = e.spec
 		check.kind = e.kind
 		check.withPet = e.kind == "pet" or e.withPet   -- the settings page's pet section, where a class has one
@@ -735,13 +741,18 @@ local function Blocked()
 	if InCombatLockdown() or UnitAffectingCombat("player") then return "combat" end
 	if UnitIsDeadOrGhost("player") then return "dead" end
 	if (UnitInVehicle and UnitInVehicle("player")) or (UnitOnTaxi and UnitOnTaxi("player")) then return "vehicle or flight" end
-	if IsResting() then return "resting area" end
 	if IsFlying and IsFlying() then return "flying" end
 	if encounter then return "encounter" end
 	if C_ChallengeMode and CK.Flag(C_ChallengeMode.IsChallengeModeActive) then return "key running" end
 	if CK.Flag(IsEncounterInProgress) then return "encounter" end
+	-- last: a resting area hides all but what belongs there (RESTING)
+	if IsResting() then return "resting area" end
 	return nil
 end
+
+-- What still shows in a resting area (a city, an inn): a death knight's runes, which
+-- are put on at leisure, out of any fight, and last until changed
+local RESTING = { runeforge = true }
 
 local driver = CreateFrame("Frame")
 
@@ -804,7 +815,7 @@ local function Entry(c, text, warn, label, icon)
 		tip = spell and { kind = "spell", id = spell } or nil
 	end
 	local action = ns.db.click and act or nil
-	return { key = c.key, icon = icon or Value(c.icon), label = label or Value(c.label), text = text, warn = warn,
+	return { key = c.key, icon = icon or Value(c.icon), label = label or c.short or Value(c.label), text = text, warn = warn,
 		action = action, tip = tip, kind = c.kind or c.group, note = c.note,
 		options = action and c.Options and c.Options(action.id) or nil }
 end
@@ -819,10 +830,21 @@ local function Evaluate()
 	local shared = db.sharedWhere[key] and (db.shared.feast or db.shared.cauldron) and true or false
 	Watch((consumablesHere or classHere or shared) and not InCombatLockdown())
 	due = nil
-	if Blocked() then
+	local blocked = Blocked()
+	local resting = blocked == "resting area"
+	if blocked and not (resting and classHere) then
 		Plan()
 		ns.ShowReminders({}, true)   -- hidden for now, not gone: no sound when they come back
 		return
+	end
+	if resting then
+		-- only what belongs in a city or an inn
+		consumablesHere, shared = false, false
+	end
+	if key == "bg" and pulled then
+		-- a battleground: before the gates open and once after each death, until the next fight;
+		-- the group's feast or cauldron still the moment it goes down
+		consumablesHere, classHere = false, false
 	end
 	-- the group's feast or cauldron first: that is where to go now
 	local list, up = {}, {}
@@ -836,13 +858,14 @@ local function Evaluate()
 			-- your own food or flask steps aside while the group's is down
 			local aside = (c.key == "food" and up.feast) or (c.key == "flask" and up.cauldron)
 			local here = c.group == "consumable" and consumables or c.group == "class" and classHere
+			if resting and not RESTING[c.kind] then here = false end
 			if here and ForHere(c, side) and not aside then
 				local show, text, warn, label, icon = c.Get(c.group == "consumable" and consumable or soon)
 				if show then list[#list + 1] = Entry(c, text, warn, label, icon) end
 			end
 		end
-		-- custom reminders sit on the class page, and follow its scenarios
-		for _, c in ipairs(classHere and ns.CustomList() or {}) do
+		-- custom reminders sit on the class page, and follow its scenarios (not in a resting area)
+		for _, c in ipairs(classHere and not resting and ns.CustomList() or {}) do
 			local show, text, warn = Custom(c, soon)
 			if show then
 				list[#list + 1] = { key = "custom" .. c.id, icon = ns.SpellIcon(c.id), label = ns.SpellName(c.id),
@@ -986,6 +1009,12 @@ function handlers.PLAYER_REGEN_DISABLED()
 	Watch(false)
 	ns.ClearClicks()             -- still allowed here: combat lockdown starts right after
 	ns.ShowReminders({}, true)   -- at once: nothing shows in combat
+end
+
+-- back from a battleground's graveyard: one more look, until the next fight
+function handlers.PLAYER_DEAD()
+	if ns.Scenario() == "bg" then pulled = false end
+	ns.Queue(0.5)
 end
 
 function handlers.PLAYER_REGEN_ENABLED()

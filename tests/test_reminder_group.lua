@@ -23,7 +23,7 @@ CK.SetModuleEnabled("Reminder", true)
 local RM = CK.modules.Reminder
 local L = CK.L
 eq(RM.db.size, 54, "a save with the first default size takes the new one")
-check(RM.db.relPoint == "TOP" and RM.db.y == -80, "and the first default place the new one")
+check(RM.db.relPoint == "TOP" and RM.db.y == -140, "and the first default place the new one, lowered since")
 eq(RM.db.used["266/pve"] and RM.db.used["266/pve"].flask, 1235111, "what was kept per spec is now PvE's")
 eq(RM.db.used[266], nil, "and no longer under the spec alone")
 eq(RM.db.where, nil, "the one scenario list is dropped")
@@ -31,7 +31,7 @@ check(not RM.db.consumablesWhere.world and RM.db.classWhere.world, "the new list
 eq(RM.db.consumablesWhere.bg, false, "no healthstone in battlegrounds, whatever 1.5.0 saved")
 eq(RM.db.expiring, 60, "a value past the end of the range comes back to it")
 RM.db.expiring = 5   -- the default, for what follows
-eq(RM.db.version, 6, "and is marked as done")
+eq(RM.db.version, 7, "and is marked as done")
 RM.db.consumables = { flask = false, food = false, rune = false, oil = false, healthstone = true }
 fire("PLAYER_ENTERING_WORLD")
 
@@ -157,6 +157,27 @@ fire("PLAYER_ENTERING_WORLD")
 W.specIndex = 1
 fire("PLAYER_SPECIALIZATION_CHANGED", "player")
 check(not find(L["Felguard"]), "an imp as Affliction: fine")
+
+-- ---------------------------------------------------------------- a battleground
+-- before the gates open, and once after each death: not whenever a fight ends
+W.instanceType = "pvp"
+fire("PLAYER_ENTERING_WORLD")
+check(find(STONE), "a battleground, before the start: the Soulstone reminder")
+W.combat = true; fire("PLAYER_REGEN_DISABLED")
+W.combat = false; fire("PLAYER_REGEN_ENABLED")
+check(not find(STONE), "after the first fight: quiet, though still no Soulstone out")
+W.units.player.dead = true; fire("PLAYER_DEAD")
+check(not find(STONE), "dead: nothing")
+W.units.player.dead = nil; fire("PLAYER_UNGHOST")
+check(find(STONE), "back from the graveyard: once more")
+W.combat = true; fire("PLAYER_REGEN_DISABLED")
+W.combat = false; fire("PLAYER_REGEN_ENABLED")
+check(not find(STONE), "and quiet again after the next fight")
+W.instanceType = "party"
+fire("PLAYER_ENTERING_WORLD")
+W.combat = true; fire("PLAYER_REGEN_DISABLED")
+W.combat = false; fire("PLAYER_REGEN_ENABLED")
+check(find(STONE), "a dungeon: class reminders whenever a fight ends, as before")
 
 T.releaseChat()
 return T.report("reminder group [" .. (LOCALE or "enUS") .. "]")

@@ -128,3 +128,11 @@ First public release.
 - Stats: the numbers are in Rethink Sans, whose digits are all one width, so a number that changes no longer shakes its line. *Number font* on the Stats page picks Arial Narrow, the HUD's own font or any LibSharedMedia font instead.
 - CombatKit now brings LibSharedMedia (with LibStub and CallbackHandler) and one font, Rethink Sans (SIL Open Font License). Other addons that use LibSharedMedia can pick the font too, on clients in a language with Latin letters.
 - HUD: more room between the names and the values.
+
+## 1.5.2 (unreleased)
+
+- Reminder: a death knight's runes are reminded of in a capital city or an inn too, where they are put on. Everything else stays hidden there.
+- Reminder: in a battleground the reminders show before the start and once after each death, until the next fight; no longer whenever a fight ends.
+- Reminder: the row's default place is lower, clear of a battleground's score at the top of the screen. A row you dragged stays where it is.
+- Reminder: Blessing of the Bronze is labelled "Blessing" above its icon, on one line.
+- Range: the settings page opens with Unlock and Reset position, before the units.
