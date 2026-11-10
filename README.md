@@ -7,7 +7,7 @@ A modular combat addon for World of Warcraft (Retail) with a small resource foot
 - **Range**: distance to your target, focus and mouseover.
 - **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their frames.
 - **Reminder**: reminders of what is missing: flask, food, augment rune, weapon oil, healthstone, your class's buffs, and a feast or cauldron the group puts down.
-- **Extras**: a text on entering and leaving combat; right click disabled in combat.
+- **Extras**: a text on entering and leaving combat; right click disabled in combat; for rogues, the Sap icon on enemy players you can Sap in arenas and battlegrounds.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory, not even its saved settings. No texture files. It brings one font, Rethink Sans, for the numbers on the HUD, and LibSharedMedia, so other addons can use that font too.
 
@@ -95,6 +95,7 @@ Small things that do not deserve an addon of their own. One with settings has a 
 
 - **Combat alert**: a text in the middle of the screen when combat starts and ends. Both texts, the font size and the position are yours, and it can float up as it fades; *Test* plays it.
 - **Disable right click in combat**: while you are in combat and a unit is under the cursor, right click only turns the camera. Corpses count as units, so right click on them is held back too; left click (with the game's *interact on left click*) and the interact key still reach them. Ore, herbs, chests and doors are not units and are never affected. Back to normal when combat ends.
+- **Mark sappable enemy players** (rogues only; other classes do not see it): in arenas and battlegrounds, the Sap icon above the nameplate of every enemy player out of combat, the one thing Sap asks of a player. The AI opponents of a training battleground count as players; pets and other NPCs get none. Its size and its offset X and Y from the top of the nameplate are yours (Y below zero puts it on the health bar), and *Preview* puts it on every nameplate on screen, anywhere, until you close the window. It hangs on the nameplate itself, so it shows whichever addon draws your nameplates; with enemy nameplates off there is nothing to hang it on. Nothing runs in the open world or in PvE instances.
 
 ## Look and weight
 

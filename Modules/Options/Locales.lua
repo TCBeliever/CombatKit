@@ -13,6 +13,7 @@ CK.AddLocale("enUS", {
 
 	["FEATDESC_RightClick"]  = "In combat, right click no longer interacts with or targets the unit under the cursor, so turning the camera never switches your target. Back to normal when combat ends.",
 	["FEATDESC_CombatAlert"] = "A short text when you enter and leave combat.",
+	["FEATDESC_SapIcon"]     = "Rogues only. Shown on nameplates in arenas and battlegrounds.",
 
 	-- loadout pages: only what the name does not already say; none at all is fine
 	["SCN_DESC_world"]   = "Outside instances, story scenarios included.",
@@ -94,6 +95,7 @@ CK.AddLocale("zhTW", {
 
 	["FEATDESC_RightClick"]  = "關閉戰鬥中右鍵互動選取目標，避免轉視角時切換目標，離開戰鬥恢復。",
 	["FEATDESC_CombatAlert"] = "進出戰鬥時用文字提醒。",
+	["FEATDESC_SapIcon"]     = "盜賊限定，只在競技場和戰場的名條上顯示。",
 
 	["Language"]       = "語言",
 	["Theme"]          = "主題色",
@@ -152,6 +154,11 @@ CK.AddLocale("zhTW", {
 	["Float up"]           = "往上飄散",
 	["Test"]               = "測試",
 	["Stop test"]          = "結束測試",
+	-- sap icon page
+	["Offset X"]                    = "偏移 X",
+	["Offset Y"]                    = "偏移 Y",
+	["Preview"]                     = "預覽",
+	["On every nameplate"]          = "所有名條都顯示",
 
 	["Status"]        = "狀態",
 

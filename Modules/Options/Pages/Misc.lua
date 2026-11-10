@@ -7,7 +7,7 @@ local L, Skin, O = CK.L, CK.Skin, CK.Options
 -- share the last page, "Misc".
 
 local X = O.FIELD_X + 20
-local HAS_PAGE = { CombatAlert = true }
+local HAS_PAGE = { CombatAlert = true, SapIcon = true }
 local MI        -- the module; nil while no feature is on
 local current   -- the feature whose page is open
 
@@ -74,6 +74,33 @@ local function BuildAlert(p, a)
 	p.play:SetPoint("TOPLEFT", X, -192)
 end
 
+-- Sap icon: its size and its offset from the top of the nameplate, and a preview that
+-- puts it on every nameplate on screen to set them anywhere (until the window closes)
+local function SapChanged()
+	MI.ApplySapIcon()
+	O.Changed()
+end
+
+local function BuildSap(p, a)
+	local step = Skin.SLIDER_H + 10
+	p.sapSize = Skin.Slider(a, "Icon size", { min = 12, max = 64,
+		onChange = function(v) MI.SapSettings().size = v; SapChanged() end })
+	p.sapSize:SetPoint("TOPLEFT", 0, 0)
+	p.sapX = Skin.Slider(a, "Offset X", { min = -60, max = 60,
+		onChange = function(v) MI.SapSettings().x = v; SapChanged() end })
+	p.sapX:SetPoint("TOPLEFT", 0, -step)
+	p.sapY = Skin.Slider(a, "Offset Y", { min = -40, max = 60,
+		onChange = function(v) MI.SapSettings().y = v; SapChanged() end })
+	p.sapY:SetPoint("TOPLEFT", 0, -2 * step)
+
+	Skin.Field(a, "Preview", 0, -3 * step)
+	p.sapPreview = CK.Bind(Skin.Switch(a, "", function(checked)
+		MI.SetSapPreview(checked)
+		O.Refresh()
+	end), "On every nameplate")
+	p.sapPreview:SetPoint("TOPLEFT", X, -3 * step - 1)
+end
+
 local function Build(p)
 	p.enable = CK.Bind(Skin.Switch(p, "", function(checked)
 		CK.SetFeatureEnabled("Misc", current, checked)   -- refreshes the window
@@ -87,13 +114,18 @@ local function Build(p)
 	p.alert:SetPoint("BOTTOMRIGHT")
 	BuildAlert(p, p.alert)
 
+	p.sap = CreateFrame("Frame", nil, p)
+	p.sap:SetPoint("TOPLEFT", 0, -34)
+	p.sap:SetPoint("BOTTOMRIGHT")
+	BuildSap(p, p.sap)
+
 	-- "Misc": a switch and a line of explanation per feature, one under the other
 	p.misc = CreateFrame("Frame", nil, p)
 	p.misc:SetAllPoints()
 	p.simple = {}
 	local above
 	for _, feature in ipairs(CK.MODULE_BY_NAME.Misc.features) do
-		if not HAS_PAGE[feature] then
+		if not HAS_PAGE[feature] and CK.IsFeatureAvailable("Misc", feature) then
 			local row = { feature = feature }
 			row.check = CK.Bind(Skin.Checkbox(p.misc, "", function(checked)
 				CK.SetFeatureEnabled("Misc", feature, checked)   -- refreshes the window
@@ -125,6 +157,7 @@ local function Refresh(node, p)
 	if misc then
 		current = nil
 		p.alert:Hide()
+		p.sap:Hide()
 		for _, row in ipairs(p.simple) do
 			local on = CK.IsFeatureEnabled("Misc", row.feature)
 			row.check:SetChecked(on)
@@ -138,7 +171,19 @@ local function Refresh(node, p)
 	p.enable:SetChecked(on)
 	p.state:SetText(StateText(node, on))
 
-	local showAlert = node == "CombatAlert" and on and MI ~= nil and MI.enabled
+	-- a feature's settings wait for its switch
+	local running = on and MI ~= nil and MI.enabled
+	local showSap = node == "SapIcon" and running
+	p.sap:SetShown(showSap and true or false)
+	if showSap then
+		local s = MI.SapSettings()
+		p.sapSize:SetValue(s.size)
+		p.sapX:SetValue(s.x)
+		p.sapY:SetValue(s.y)
+		p.sapPreview:SetChecked(MI.IsSapPreview())
+	end
+
+	local showAlert = node == "CombatAlert" and running
 	p.alert:SetShown(showAlert and true or false)
 	if not showAlert then return end
 	p.enter:SetText(MI.AlertText("enter"))
@@ -157,7 +202,9 @@ O.AddSection({
 		local nodes, anySimpleOn = {}, false
 		for _, feature in ipairs(CK.MODULE_BY_NAME.Misc.features) do
 			local on = CK.IsFeatureEnabled("Misc", feature)
-			if HAS_PAGE[feature] then
+			if not CK.IsFeatureAvailable("Misc", feature) then
+				-- another class's (the sap icon on a warrior): not offered
+			elseif HAS_PAGE[feature] then
 				nodes[#nodes + 1] = { key = feature, label = L["FEAT_" .. feature], here = on }
 			elseif on then
 				anySimpleOn = true
@@ -175,5 +222,6 @@ O.AddSection({
 	OnWindowHide = function()
 		local module = CK.modules.Misc
 		if module and module.IsAlertTesting() then module.SetAlertTesting(false) end
+		if module and module.IsSapPreview() then module.SetSapPreview(false) end
 	end,
 })

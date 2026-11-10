@@ -137,3 +137,4 @@ First public release.
 - Reminder: Blessing of the Bronze is labelled "Blessing" above its icon, on one line.
 - Range: the settings page opens with Unlock and Reset position, before the units.
 - Party CD: a healer's big healing cooldowns (Tranquility, Divine Hymn, Healing Tide Totem, Rewind and the like) count as burst, with the red border. Their settings group is now called "Burst cooldowns".
+- Extras: *Mark sappable enemy players*, for rogues (other classes do not see it; off by default). In arenas and battlegrounds, the Sap icon above the nameplate of every enemy player out of combat (a training battleground's AI opponents too). Its size and offset X and Y from the nameplate are on its page, with a preview on every nameplate to set them anywhere. Shows with any nameplate addon; nothing runs anywhere else.

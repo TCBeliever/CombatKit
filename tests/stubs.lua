@@ -164,6 +164,8 @@ function UnitIsUnit(a, b) return a == b end
 function UnitCanAttack(_, unit) return W.units[unit] and not W.units[unit].friendly or false end
 function UnitCanAssist(_, unit) return W.units[unit] ~= nil and W.units[unit].friendly == true end
 function UnitIsPlayer(unit) local u = W.units[unit]; return u ~= nil and not u.npc end
+-- an NPC standing in for a player (a training battleground's AI opponents): W.units[unit].npcAsPlayer
+function UnitIsNPCAsPlayer(unit) local u = W.units[unit]; return u ~= nil and u.npcAsPlayer == true end
 function UnitIsDeadOrGhost(unit) local u = W.units[unit]; return u ~= nil and u.dead == true end
 function GetCursorPosition() return 500, 400 end
 -- Trinkets. W.gear[slot] = { pvp = bool, named = bool }: a PvP item's tooltip
@@ -361,7 +363,12 @@ C_SpellBook.IsSpellKnown = function(id) return W.known and W.known[id] or false 
 function GetShapeshiftForm() return W.form or 0 end
 function GetShapeshiftFormInfo(i) if i == W.form then return 132349, true, true, W.formSpell end end
 function IsEncounterInProgress() return W.encounter or false end
-function UnitAffectingCombat() return W.combat end
+-- a unit's own combat state is W.units[unit].combat; without one, the player's
+function UnitAffectingCombat(unit)
+	local u = unit and W.units[unit]
+	if u and u.combat ~= nil then return u.combat end
+	return W.combat
+end
 function UnitInVehicle() return false end
 function UnitOnTaxi() return false end
 function IsInRaid() return W.inRaid or false end
@@ -606,6 +613,7 @@ local function Mock(kind, name)
 		SetBackdropColor = function(self, r, g, b, a) self.__bg = { r, g, b, a } end,
 		SetBackdropBorderColor = function(self, r, g, b, a) self.__border = { r, g, b, a } end,
 		SetPoint = function(self, ...) self.__point = { ... } end,
+		SetSize = function(self, w, h) self.__size = { w, h } end,
 		SetAttribute = function(self, k, v) self.__attributes = self.__attributes or {}; self.__attributes[k] = v end,
 		GetAttribute = function(self, k) return self.__attributes and self.__attributes[k] end,
 		-- animation groups
@@ -622,6 +630,25 @@ local function Mock(kind, name)
 	end })
 end
 T.Mock = Mock
+
+-- Nameplates: W.plates[unit] is the nameplate frame a unit token has; T.plate gives
+-- one (or hands a reused frame to another unit, as the game does).
+W.plates = {}
+C_NamePlate = {
+	GetNamePlateForUnit = function(unit) return W.plates[unit] end,
+	GetNamePlates = function()
+		local list = {}
+		for _, plate in pairs(W.plates) do list[#list + 1] = plate end
+		return list
+	end,
+}
+function T.plate(unit, frame)
+	frame = frame or Mock("Frame")
+	for other, f in pairs(W.plates) do if f == frame then W.plates[other] = nil end end
+	frame.namePlateUnitToken = unit
+	W.plates[unit] = frame
+	return frame
+end
 
 function CreateFrame(kind, name, parent, template)
 	local f = Mock(kind, name)

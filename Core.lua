@@ -22,6 +22,9 @@ function ns.Msg(fmt, ...) print(PREFIX .. string.format(fmt, ...)) end
 -- Things too small to deserve an addon of their own share one ("Misc"): such a
 -- module lists `features`, each switched on its own, and is loaded only while
 -- at least one of them is on. It also provides ns.SetFeature(feature, on).
+-- A feature for one class only (featureClass) is neither offered nor counted
+-- for any other: the flags are saved for the account, so a rogue's switch
+-- must not load the module on a warrior.
 -- ---------------------------------------------------------------------------
 
 -- Static so the settings can list modules that are not loaded.
@@ -31,7 +34,7 @@ ns.MODULES = {
 	{ name = "Range",   default = false },
 	{ name = "PartyCD", default = false },
 	{ name = "Reminder", default = false },
-	{ name = "Misc",    features = { "RightClick", "CombatAlert" } },
+	{ name = "Misc",    features = { "RightClick", "CombatAlert", "SapIcon" }, featureClass = { SapIcon = "ROGUE" } },
 }
 ns.MODULE_BY_NAME = {}
 for _, m in ipairs(ns.MODULES) do
@@ -52,9 +55,18 @@ local function Wanted(def)
 	local saved = ns.db.modules[def.name]
 	if not def.features then return saved and true or false end
 	for _, feature in ipairs(def.features) do
-		if saved[feature] then return true end
+		if saved[feature] and ns.IsFeatureAvailable(def.name, feature) then return true end
 	end
 	return false
+end
+
+-- Is this feature for the player's class? (Only a featureClass narrows it.)
+function ns.IsFeatureAvailable(name, feature)
+	local def = ns.MODULE_BY_NAME[name]
+	local class = def and def.featureClass and def.featureClass[feature]
+	if not class then return true end
+	local _, own = UnitClass("player")
+	return own == class
 end
 
 function ns.IsModuleEnabled(name)
@@ -63,7 +75,7 @@ end
 
 function ns.IsFeatureEnabled(name, feature)
 	local saved = ns.db.modules[name]
-	return type(saved) == "table" and saved[feature] and true or false
+	return type(saved) == "table" and saved[feature] and ns.IsFeatureAvailable(name, feature) or false
 end
 
 -- "on" | "off" | "stale" (off, but its code stays loaded until a reload) | "missing" (not installed)
@@ -134,7 +146,7 @@ end
 
 function ns.SetFeatureEnabled(name, feature, on)
 	local def = ns.MODULE_BY_NAME[name]
-	if not def or not def.features then return end
+	if not def or not def.features or not ns.IsFeatureAvailable(name, feature) then return end
 	ns.db.modules[name][feature] = on and true or false
 	if Wanted(def) then
 		local module = StartModule(def)   -- a fresh start reads every feature flag itself

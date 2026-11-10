@@ -5,7 +5,7 @@ CombatKit is a modular combat addon with a small resource footprint. It bundles:
 - **Range**: distance to your target, focus and mouseover.
 - **Party CD** (beta): your arena teammates' defensives, burst cooldowns and crowd control as icons by their party frames.
 - **Reminder**: an icon for each consumable or class buff you are missing, out of combat; a click casts or uses it.
-- **Extras**: a text on entering and leaving combat; right click disabled in combat.
+- **Extras**: a text on entering and leaving combat; right click disabled in combat; for rogues, the enemy players you can Sap marked in arenas and battlegrounds.
 
 Every module is a load-on-demand addon of its own: a disabled module is never loaded and uses no memory. No texture files; one font for the HUD's numbers (Rethink Sans), shared through LibSharedMedia. Supports World of Warcraft Retail (Midnight). [繁體中文說明](https://github.com/TCBeliever/CombatKit/blob/main/README.zhTW.md)
 
@@ -40,7 +40,7 @@ A click casts the spell or uses the item from your bags: the kind you used last 
 
 **Extras**
 
-Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident.
+Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident. Mark sappable enemy players (rogues only, off by default): in arenas and battlegrounds, the Sap icon above every enemy player out of combat, on any nameplate addon, with its size and offset yours.
 
 **HUD**
 
