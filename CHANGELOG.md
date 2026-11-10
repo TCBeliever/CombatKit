@@ -129,7 +129,7 @@ First public release.
 - CombatKit now brings LibSharedMedia (with LibStub and CallbackHandler) and one font, Rethink Sans (SIL Open Font License). Other addons that use LibSharedMedia can pick the font too, on clients in a language with Latin letters.
 - HUD: more room between the names and the values.
 
-## 1.5.2 (unreleased)
+## 1.5.2 (2026-11-10)
 
 - Reminder: a death knight's runes are reminded of in a capital city or an inn too, where they are put on. Everything else stays hidden there.
 - Reminder: in a battleground the reminders show before the start and once after each death, until the next fight; no longer whenever a fight ends.
