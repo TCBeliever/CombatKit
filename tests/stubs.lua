@@ -632,7 +632,9 @@ end
 T.Mock = Mock
 
 -- Nameplates: W.plates[unit] is the nameplate frame a unit token has; T.plate gives
--- one (or hands a reused frame to another unit, as the game does).
+-- one (or hands a reused frame to another unit, as the game does). The frame keeps
+-- its unit in unitToken, as 12.0's NamePlateBaseMixin:SetUnit does (the older
+-- namePlateUnitToken is gone: reading it found no unit, 2026-11-11).
 W.plates = {}
 C_NamePlate = {
 	GetNamePlateForUnit = function(unit) return W.plates[unit] end,
@@ -645,7 +647,7 @@ C_NamePlate = {
 function T.plate(unit, frame)
 	frame = frame or Mock("Frame")
 	for other, f in pairs(W.plates) do if f == frame then W.plates[other] = nil end end
-	frame.namePlateUnitToken = unit
+	frame.unitToken = unit
 	W.plates[unit] = frame
 	return frame
 end

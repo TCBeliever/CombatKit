@@ -117,6 +117,12 @@ local function InPvP()
 	return kind == "arena" or kind == "pvp"
 end
 
+-- The unit a nameplate frame shows. 12.0's NamePlateBaseMixin:SetUnit keeps it in
+-- unitToken; namePlateUnitToken is the name it had before.
+local function PlateUnit(plate)
+	return plate.unitToken or plate.namePlateUnitToken
+end
+
 local driver = CreateFrame("Frame")
 
 local function SetActive(on)
@@ -126,7 +132,8 @@ local function SetActive(on)
 		for _, event in ipairs(UNIT_EVENTS) do driver:RegisterEvent(event) end
 		-- the nameplates already up (switched on inside a match, or a preview)
 		for _, plate in ipairs(C_NamePlate.GetNamePlates()) do
-			if plate.namePlateUnitToken then Added(plate.namePlateUnitToken) end
+			local unit = PlateUnit(plate)
+			if unit then Added(unit) end
 		end
 	else
 		for _, event in ipairs(UNIT_EVENTS) do driver:UnregisterEvent(event) end
