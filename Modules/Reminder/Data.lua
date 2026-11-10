@@ -1,7 +1,7 @@
 local ADDON, ns = ...
 
 -- ===========================================================================
--- The consumables, as the game's data has them (DB2, build 12.1.5.70688).
+-- The consumables, as the game's data has them (DB2, build 12.1.5.70783).
 -- Several addons' lists gave the candidates; every ID here is one the data
 -- puts in its category, and the current expansion's whole range is taken, not
 -- what one list happened to carry. Items are ordered best first: the icon of

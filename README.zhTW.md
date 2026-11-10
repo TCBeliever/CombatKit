@@ -102,7 +102,7 @@
 
 ## 開發
 
-`tests/run_tests.py`（Python + `lupa`）會編譯每個檔案、確認核心的 `.toc` 不會載入任何模組、檢查語言字串有無缺漏與發佈用的中繼資料，並在兩種語言下用 WoW API 替身跑行為測試。`deploy.bat` 把核心和 `Modules/` 底下每個資料夾複製到 AddOns；打包時由 `.pkgmeta` 做同樣的事。推送 `v*` 標籤就會發佈，見 `.github/workflows/release.yml`。`tools/talentdata.py` 透過 wago.tools 從遊戲資料檔重新產生 `Modules/PartyCD/TalentData.lua`（基礎冷卻、充能，以及會改變它們的天賦）；改版後跑一次，並看一下它印出的審核清單；下載的原始資料按 build 存在 `../wago-cache`。
+`tests/run_tests.py`（Python + `lupa`）會編譯每個檔案、確認核心的 `.toc` 不會載入任何模組、檢查語言字串有無缺漏與發佈用的中繼資料，並在兩種語言下用 WoW API 替身跑行為測試。`deploy.bat` 把核心和 `Modules/` 底下每個資料夾複製到 AddOns；打包時由 `.pkgmeta` 做同樣的事。推送 `v*` 標籤就會發佈，見 `.github/workflows/release.yml`。`tools/talentdata.py` 透過 wago.tools 從遊戲資料檔重新產生 `Modules/PartyCD/TalentData.lua`（基礎冷卻、充能，以及會改變它們的天賦）；改版後跑一次，並看一下它印出的審核清單。資料表讀自 `../wago-cache`，用 `../wago-cache/CURRENT` 寫的那個 build，透過 AuraLab 的 `tools/wago.py` 讀取（所以這些工具需要 AuraLab 放在這個 repo 旁邊）；只有 AuraLab 的 `tools/wago_sync.py` 會下載：它下載新 build、更新 `CURRENT`，也會列出哪些產生的檔案落後了。
 
 ## 授權
 

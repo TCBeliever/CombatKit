@@ -1,15 +1,16 @@
 """Check the auras Modules/PartyCD/Spells.lua watches against the game's own data
 files (DB2, as exported by wago.tools), and look up abilities not watched yet.
 
-    python tools/auradata.py                          # the latest live build
+    python tools/auradata.py                          # the build ../wago-cache/CURRENT names
     python tools/auradata.py 12.1.0.69933
     python tools/auradata.py 12.1.0.69933 370960 363534 @more.txt
 
 Extra arguments are spell IDs to look up as well (or @file: IDs anywhere in it).
 Seven whole tables are downloaded once per build (SpellEffect, SpellName,
 SpellCooldowns, SpellCategories, SpellCategory, SpellClassOptions, SpellMisc;
-about 100 MB) into talentdata.py's cache (../wago-cache/<build>); everything
-else is local.
+about 100 MB) from the shared cache (../wago-cache/<build>, kept current by AuraLab's
+tools/wago_sync.py and read through its tools/wago.py; a missing table stops the run with the
+command that fetches it); everything else is local.
 
 For every spell, from SpellEffect:
   the auras it puts on someone itself (an apply-aura effect), and on whom;
@@ -31,7 +32,8 @@ import csv, os, re, sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from talentdata import DB2, SPELLS, fetch, latest_build, num   # noqa: E402
+from talentdata import DB2, SPELLS, current_build, num   # noqa: E402
+from wago import require                                # noqa: E402  (AuraLab's reader; talentdata put it on the path)
 
 # SpellEffect.Effect: the ones that put an aura on someone, and the ones that cast another spell
 APPLY_AURA = {6: "aura", 27: "area aura", 35: "party aura", 65: "raid aura", 119: "pet aura",
@@ -67,21 +69,9 @@ def watched():
         out.append((sid, kind, auras, debuff, m.group(5).strip()))
     return out
 
-def full_table(db, table):
-    """the path of a whole table, downloaded once per build (one request)"""
-    path = os.path.join(db.cache, table + ".csv")
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
-        url = "https://wago.tools/db2/%s/csv?build=%s" % (table, db.build)
-        sys.stderr.write("  fetching %s (the whole table)\n" % table)
-        data = fetch(url)
-        with open(path + ".part", "wb") as f:
-            f.write(data)
-        os.replace(path + ".part", path)
-    return path
-
 def read(db, table, cols):
     """the rows of a whole table, only these columns, as tuples of ints (strings for a name)"""
-    with open(full_table(db, table), encoding="utf-8", newline="") as f:
+    with open(require(db.build, table), encoding="utf-8", newline="") as f:
         r = csv.reader(f)
         head = next(r)
         idx = [head.index(c) for c in cols]
@@ -241,7 +231,7 @@ def look(d, sid, listed=None, kind=None, debuff=False):
 
 def main():
     args = sys.argv[1:]
-    build = args.pop(0) if args and re.match(r"^\d+\.\d+\.\d+\.\d+$", args[0]) else latest_build()
+    build = args.pop(0) if args and re.match(r"^\d+\.\d+\.\d+\.\d+$", args[0]) else current_build()
     extra = []
     for a in args:
         if a.startswith("@"):

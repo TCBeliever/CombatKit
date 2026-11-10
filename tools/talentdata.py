@@ -1,7 +1,7 @@
 """Generate Modules/PartyCD/TalentData.lua from the game's own data files (DB2), as
 exported by wago.tools, for the abilities Modules/PartyCD/Spells.lua watches.
 
-    python tools/talentdata.py            # the latest live build
+    python tools/talentdata.py            # the build ../wago-cache/CURRENT names
     python tools/talentdata.py 12.1.0.69933
 
 What it writes, per watched ability:
@@ -28,17 +28,24 @@ on the ability's charge category.
 
 It also prints, for a human to look over: the base values that differ from
 Spells.lua, the specializations the data gives an ability against the `specs`
-written in Spells.lua, and every modifier it found. Each table is downloaded whole, once per build (a few requests, never one per
-spell), and kept in F:/project/littles/wago-cache (../wago-cache
-next to the repository; the WAGO_CACHE environment variable overrides it).
+written in Spells.lua, and every modifier it found. The tables are read from
+F:/project/littles/wago-cache/<build> (../wago-cache next to the repository; the WAGO_CACHE
+environment variable overrides it) through AuraLab's tools/wago.py; AuraLab's tools/wago_sync.py
+keeps the cache current (after a patch it fetches the new build and points wago-cache/CURRENT at
+it) and is the only thing that downloads. A table missing there stops the run with the command
+that fetches it. Needs AuraLab next to this repository.
 """
-import csv, io, json, os, re, sys, tempfile, urllib.parse, urllib.request
+import io, json, os, re, sys
 from collections import defaultdict
 from datetime import date
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPELLS = os.path.join(ROOT, "Modules", "PartyCD", "Spells.lua")
 OUT = os.path.join(ROOT, "Modules", "PartyCD", "TalentData.lua")
+
+# the shared tables: AuraLab's reader (DB2 is the name these tools have always used for it)
+sys.path.insert(0, os.path.join(os.path.dirname(ROOT), "AuraLab", "tools"))
+from wago import Tables as DB2, current_build   # noqa: E402,F401  (both used by the other tools too)
 
 COOLDOWN_OP = 11          # SpellModOp: cooldown (charged abilities included)
 # the spell modifiers: by class mask (107, 108) or by spell label (219, 218); 379 and 380
@@ -48,63 +55,6 @@ CHARGE_RECOVERY = 453   # milliseconds added to a charge category's recharge (Ef
 CHARGE_RECOVERY_PCT = 454   # percent added to a charge category's recharge
 CATEGORY_COOLDOWN = 341     # milliseconds added to a cooldown category's cooldown (EffectMiscValue_0)
 UNDER_CONTROL = 0x8 | 0x20000 | 0x40000   # SpellMisc.Attributes_5: usable while stunned, feared, disoriented
-
-# ---------------------------------------------------------------------------
-# wago.tools
-# ---------------------------------------------------------------------------
-
-def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "CombatKit talentdata (github.com/Venser)"})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        return r.read()
-
-def latest_build():
-    data = json.loads(fetch("https://wago.tools/api/builds"))
-    for b in data["wow"]:
-        if not b.get("is_bgdl"):
-            return b["version"]
-    raise SystemExit("no live build listed")
-
-class DB2:
-    def __init__(self, build):
-        self.build = build
-        self.cache = os.path.join(os.environ.get("WAGO_CACHE") or os.path.join(os.path.dirname(ROOT), "wago-cache"), build)
-        os.makedirs(self.cache, exist_ok=True)
-        self.tables = {}   # table -> its rows
-        self.index = {}    # (table, column) -> value -> rows
-
-    def table(self, table):
-        """every row of a table: downloaded whole once per build (one request), read once per run"""
-        if table not in self.tables:
-            path = os.path.join(self.cache, table + ".csv")
-            if not os.path.exists(path) or os.path.getsize(path) == 0:
-                url = "https://wago.tools/db2/%s/csv?%s" % (table, urllib.parse.urlencode({"build": self.build}))
-                sys.stderr.write("  fetching %s (the whole table)\n" % table)
-                data = fetch(url)   # fetched first: a failed request leaves no file behind
-                with open(path + ".part", "wb") as f:
-                    f.write(data)
-                os.replace(path + ".part", path)
-            with open(path, encoding="utf-8", newline="") as f:
-                self.tables[table] = list(csv.DictReader(f))
-        return self.tables[table]
-
-    def rows(self, table, **filters):
-        """the rows whose columns equal the filters, looked up in the whole table:
-        no request per spell, an index per column built on first use"""
-        rows = self.table(table)
-        if not filters:
-            return rows
-        (col, value), *rest = sorted(filters.items())
-        index = self.index.get((table, col))
-        if index is None:
-            index = defaultdict(list)
-            for r in rows:
-                index[r.get(col)].append(r)
-            self.index[(table, col)] = index
-        out = index.get(str(value), [])
-        for col, value in rest:
-            out = [r for r in out if r.get(col) == str(value)]
-        return out
 
 # ---------------------------------------------------------------------------
 # What is watched
@@ -138,7 +88,7 @@ def num(s, default=0):
         return default
 
 def main():
-    build = sys.argv[1] if len(sys.argv) > 1 else latest_build()
+    build = sys.argv[1] if len(sys.argv) > 1 else current_build()
     db = DB2(build)
     watched = watched_defs()
     print("build %s, %d watched abilities" % (build, len(watched)))

@@ -2,7 +2,7 @@
 (DB2, as exported by wago.tools) and nothing else, and keep the reason each one is in
 or out of Modules/PartyCD/Spells.lua.
 
-    python tools/candidates.py                  # the build TalentData.lua was made from
+    python tools/candidates.py                  # the build ../wago-cache/CURRENT names
     python tools/candidates.py 12.1.0.69933
 
 Why: the module's list of abilities has to be derived from the game's data, not from
@@ -32,19 +32,19 @@ reason for each one it keeps (tools/candidates_decisions.tsv).
    `in` that Spells.lua lacks, and the Spells.lua entries marked `out`.
 
 Exits 1 when a candidate has no decision, so the file stays complete. The tables come
-from talentdata.py's cache (../wago-cache/<build>, WAGO_CACHE overrides it); a table
-missing there is downloaded whole, once.
+from the shared cache (../wago-cache/<build>, WAGO_CACHE overrides it), kept current by
+AuraLab's tools/wago_sync.py and read through its tools/wago.py; a table missing there stops
+the run with the command that fetches it.
 """
 import os, re, sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from talentdata import DATE_MARK, DB2, ROOT, SPELLS, LiveTalents, num, write_dated   # noqa: E402
+from talentdata import DATE_MARK, DB2, ROOT, SPELLS, LiveTalents, current_build, num, write_dated   # noqa: E402
 from auradata import APPLY_AURA, TRIGGERS, Data, read           # noqa: E402
 
 DECISIONS = os.path.join(ROOT, "tools", "candidates_decisions.tsv")
 REPORT = os.path.join(ROOT, "docs", "PartyCD-candidates.md")
-TALENT_DATA = os.path.join(ROOT, "Modules", "PartyCD", "TalentData.lua")
 
 MIN_COOLDOWN = 20   # seconds; shorter ones are rotation, not something a row should show
 
@@ -474,12 +474,6 @@ def decisions():
         out[sid] = (parts[1], parts[2].strip())
     return out
 
-def default_build():
-    m = re.search(r'build\s*=\s*"([\d.]+)"', open(TALENT_DATA, encoding="utf-8").read())
-    if not m:
-        raise SystemExit("no build in TalentData.lua: name one")
-    return m.group(1)
-
 # ---------------------------------------------------------------------------
 # 4. The report
 # ---------------------------------------------------------------------------
@@ -657,7 +651,7 @@ def write_report(build, game, uni, cands, decided, entries):
 # ---------------------------------------------------------------------------
 
 def main():
-    build = sys.argv[1] if len(sys.argv) > 1 else default_build()
+    build = sys.argv[1] if len(sys.argv) > 1 else current_build()
     db = DB2(build)
     game = Game(db)
     uni = Universe(db, game)
