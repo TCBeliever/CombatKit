@@ -139,6 +139,6 @@ First public release.
 - Party CD: a healer's big healing cooldowns (Tranquility, Divine Hymn, Healing Tide Totem, Rewind and the like) count as burst, with the red border. Their settings group is now called "Burst cooldowns".
 - Extras: *Mark sappable enemy players*, for rogues (other classes do not see it; off by default). In arenas and battlegrounds, the Sap icon above the nameplate of every enemy player out of combat (a training battleground's AI opponents too). Its size and offset X and Y from the nameplate are on its page, with a preview on every nameplate to set them anywhere. Shows with any nameplate addon; nothing runs anywhere else.
 
-## 1.5.3 (unreleased)
+## 1.5.3 (2026-11-11)
 
 - Extras: the Sap icon shows at once on the nameplates already on screen, when you switch the preview on or enter an arena or battleground. In 1.5.2 it only came up on nameplates that appeared afterwards: 12.0 renamed the field that tells a nameplate's unit.

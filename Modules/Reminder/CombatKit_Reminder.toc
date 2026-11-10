@@ -3,7 +3,7 @@
 ## Notes: CombatKit module. Icons for what is missing before a pull: flask, food, augment rune, weapon oil, your class's buffs, a feast put down nearby. Loaded by CombatKit when the module is on.
 ## Notes-zhTW: CombatKit 模組。開怪前缺什麼就顯示圖示：精煉藥劑、食物、增強符文、武器油、你職業的 buff，還有附近放下的大餐。模組啟用時由 CombatKit 載入。
 ## Author: Venser
-## Version: 1.5.2
+## Version: 1.5.3
 ## LoadOnDemand: 1
 ## RequiredDeps: CombatKit
 ## SavedVariables: CombatKitReminderDB
