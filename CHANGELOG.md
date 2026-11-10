@@ -136,3 +136,4 @@ First public release.
 - Reminder: the row's default place is lower, clear of a battleground's score at the top of the screen. A row you dragged stays where it is.
 - Reminder: Blessing of the Bronze is labelled "Blessing" above its icon, on one line.
 - Range: the settings page opens with Unlock and Reset position, before the units.
+- Party CD: a healer's big healing cooldowns (Tranquility, Divine Hymn, Healing Tide Totem, Rewind and the like) count as burst, with the red border. Their settings group is now called "Burst cooldowns".

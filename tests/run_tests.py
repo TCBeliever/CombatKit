@@ -75,16 +75,27 @@ for name, addon in addons.items():
         fail(f"{name}.toc is not in Modules/{name.split('_', 1)[1]}")
 
 # 2b. release metadata: one version everywhere, and the changelog ends with it (the release
-# workflow publishes the last section of CHANGELOG.md and refuses a tag that does not match)
+# workflow publishes the last section of CHANGELOG.md and refuses a tag that does not match).
+# Notes for the next release may follow it in one last section headed "(unreleased)"; when the
+# .toc files move to that version for the release, the heading must get its date.
 versions = {name: a["meta"].get("Version") for name, a in addons.items()}
 if len(set(versions.values())) != 1:
     fail(f"the .toc files disagree about the version: {versions}")
 interfaces = {a["meta"].get("Interface") for a in addons.values()}
 if len(interfaces) != 1:
     fail(f"the .toc files disagree about the Interface: {interfaces}")
-sections = re.findall(r"^## (\S+)", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
-if not sections or sections[-1] != versions[CORE]:
-    fail(f"CHANGELOG.md must end with the section for {versions[CORE]} (it ends with {sections[-1] if sections else 'nothing'})")
+sections = re.findall(r"^## (\S+)(.*)$", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
+version = versions[CORE]
+if not sections:
+    fail("CHANGELOG.md has no section")
+elif "unreleased" in sections[-1][1]:
+    if sections[-1][0] == version:
+        fail(f"CHANGELOG.md: the section for {version} still says unreleased: give it its date for the release")
+    elif len(sections) < 2 or sections[-2][0] != version:
+        fail(f"CHANGELOG.md must end with the section for {version}, then at most the unreleased one "
+             f"(before it: {sections[-2][0] if len(sections) > 1 else 'nothing'})")
+elif sections[-1][0] != version:
+    fail(f"CHANGELOG.md must end with the section for {version} (it ends with {sections[-1][0]})")
 notes = addons[CORE]["meta"].get("Notes", "")
 if len(notes) > 256:
     fail(f"the toc Notes double as the CurseForge summary, which takes 256 characters: {len(notes)}")
