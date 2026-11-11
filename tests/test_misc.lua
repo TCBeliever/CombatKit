@@ -21,7 +21,7 @@ check(T.loaded.CombatKit_Misc ~= nil, "the first feature switched on loads the a
 local MI = CK.modules.Misc
 eq(MI.GetFeatureState("CombatAlert"), "on", "combat alert: on")
 eq(MI.GetFeatureState("RightClick"), "off", "right click: still off, although its code is loaded")
-eq(W.drivers.mov, nil, "so nothing of it is set up")
+check(WorldFrame.__hooks.OnMouseUp == nil, "so nothing of it is set up")
 
 local alert = T.frames.CombatKitCombatAlert
 W.combat = true; fire("PLAYER_REGEN_DISABLED")
@@ -34,31 +34,42 @@ eq(MI.AlertText("enter"), "PULL", "the player's own text wins")
 MI.AlertSettings().enterText = nil
 eq(MI.AlertText("enter"), "<Entering Combat>", "without one, the built-in text")
 
--- ---------------------------------------------------------------- right click: secure, so never in combat
+-- ---------------------------------------------------------------- right click: the game's binding stays
+-- The right button stays the game's "turn or action", so holding both buttons
+-- still runs. Its release over the world, in combat with a unit under the
+-- cursor, stops mouselook first: the game no longer takes it for a click.
+local function released(button)
+	W.log = {}
+	T.worldMouse("OnMouseUp", button or "RightButton")
+	return logged("mouselook:stop")
+end
 W.log = {}
 W.combat = true
 CK.SetFeatureEnabled("Misc", "RightClick", true)
-eq(MI.GetFeatureState("RightClick"), "waiting", "switched on in combat: it waits")
-check(not logged("driver:on"), "nothing protected is touched in combat")
-check(T.said(CK.L["FEAT_RightClick"]), "and the chat says it will start later")
-W.combat = false; fire("PLAYER_REGEN_ENABLED")
-eq(MI.GetFeatureState("RightClick"), "on", "started when combat ended")
-eq(W.drivers.mov, "[combat,@mouseover,exists]1;0", "the state driver watches combat + mouseover")
-local state = T.frames.CombatKitRightClickState
-check(state.__attributes["_onstate-mov"]:find("CombatKitMouselookButton", 1, true), "and binds right click to the mouselook button")
-local button = T.frames.CombatKitMouselookButton
-button:GetScript("OnClick")(button, "RightButton", true)
-button:GetScript("OnClick")(button, "RightButton", false)
-check(logged("mouselook:start") and logged("mouselook:stop"), "which turns the camera while held")
+eq(MI.GetFeatureState("RightClick"), "on", "switched on in combat: at once, nothing protected to wait for")
+check(not logged("driver:on") and W.drivers.mov == nil, "no binding is replaced, so both buttons still run")
+check(#WorldFrame.__hooks.OnMouseUp == 1, "a hook on the world's mouse up")
 
-W.log = {}
+W.units.mouseover = { friendly = false }
+check(released(), "in combat, released over a unit: mouselook stops, so no target, no interaction")
+W.units.mouseover = { friendly = true, dead = true }
+check(released(), "a corpse or a friend too")
+check(not released("LeftButton"), "the left button is never touched")
+W.units.mouseover = nil
+check(not released(), "nothing under the cursor (turning the camera over the ground): left alone")
+W.units.mouseover = { friendly = false }
+W.combat = false
+check(not released(), "out of combat: a right click targets as always")
+
 W.combat = true
 CK.SetFeatureEnabled("Misc", "RightClick", false)
-eq(MI.GetFeatureState("RightClick"), "waiting", "switched off in combat: it waits too")
-check(not logged("driver:off"), "still nothing protected is touched")
-W.combat = false; fire("PLAYER_REGEN_ENABLED")
-check(logged("driver:off") and logged("bindings:cleared"), "stopped and unbound when combat ended")
-eq(MI.GetFeatureState("RightClick"), "off", "off")
+eq(MI.GetFeatureState("RightClick"), "off", "switched off in combat: at once too")
+check(not released(), "the hook stays (it cannot be taken back) but does nothing")
+CK.SetFeatureEnabled("Misc", "RightClick", true)
+check(#WorldFrame.__hooks.OnMouseUp == 1 and released(), "on again: the same hook, not a second one")
+CK.SetFeatureEnabled("Misc", "RightClick", false)
+W.combat = false
+W.units.mouseover = nil
 
 -- ---------------------------------------------------------------- sap icon: a rogue's, arenas and battlegrounds only
 local function where(kind)
@@ -188,7 +199,6 @@ eq(rc.desc:GetText(), CK.L["FEATDESC_RightClick"], "with the details underneath"
 rc.check:Click()
 eq(MI.GetFeatureState("RightClick"), "on", "ticked: switched on from the Misc page")
 check(rc.check:GetChecked(), "and the box stays ticked")
-eq(W.drivers.mov, "[combat,@mouseover,exists]1;0", "every unit under the cursor is covered, corpses included")
 rc.check:Click()
 eq(MI.GetFeatureState("RightClick"), "off", "and off again")
 

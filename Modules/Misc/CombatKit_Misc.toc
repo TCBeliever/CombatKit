@@ -10,7 +10,6 @@
 ## Category: venMOD
 ## X-License: All Rights Reserved: you are free to fork and modify on GitHub, please ask about anything else.
 
-Locales.lua
 Misc.lua
 RightClick.lua
 CombatAlert.lua

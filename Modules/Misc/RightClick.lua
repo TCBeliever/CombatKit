@@ -1,51 +1,43 @@
 local ADDON, ns = ...
 
 -- ===========================================================================
--- In combat, right-clicking a unit under the cursor turns the camera instead
--- of targeting it.
+-- In combat, a right click on a unit no longer targets or interacts with it.
+-- Holding the button still turns the camera, and holding both buttons still
+-- runs forward.
 --
--- A secure state driver watches "[combat,@mouseover,exists]". While that holds,
--- the right mouse button is bound to a button that starts and stops mouselook,
--- which is what a right click on empty ground does anyway. Outside combat, or
--- with nothing under the cursor, the binding is gone and right click is normal.
+-- The right button keeps the game's own binding ("turn or action"). Replacing
+-- it with an override binding, as this feature first did, also takes away
+-- running with both buttons: the game only runs while both of its own mouse
+-- bindings are held. Instead, when the right button comes up over the world in
+-- combat with a unit under the cursor, mouselook is stopped first, and the game
+-- no longer takes the release for a click on that unit (the technique Right
+-- Click Modifier uses).
 --
--- Only the right button is touched. "Unit" includes corpses, on purpose: a pull
--- leaves them all over the floor. Left click (the game's "interact on left
--- click") and the interact key still reach them. Ore, herbs, chests and doors
--- are objects, not units, and are never affected.
+-- No protected frame is touched, so it switches on and off in combat too.
+-- "Unit" includes corpses, on purpose: a pull leaves them all over the floor.
+-- Left click (the game's "interact on left click") and the interact key still
+-- reach them. Ore, herbs, chests and doors are objects, not units, and are
+-- never affected.
 -- ===========================================================================
 
-local BUTTON = "CombatKitMouselookButton"
-local button, state
+local on, hooked = false, false
 
-local function Create()
-	button = CreateFrame("Button", BUTTON)
-	button:RegisterForClicks("AnyDown", "AnyUp")
-	button:SetScript("OnClick", function(_, _, down)
-		if down then MouselookStart() else MouselookStop() end
-	end)
-
-	-- without this the driver does not notice the mouseover changing
-	SecureStateDriverManager:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-
-	state = CreateFrame("Frame", "CombatKitRightClickState", nil, "SecureHandlerStateTemplate")
-	state:SetAttribute("_onstate-mov", [[
-		if newstate == 1 then
-			self:SetBindingClick(1, "BUTTON2", "]] .. BUTTON .. [[")
-		else
-			self:ClearBindings()
-		end
-	]])
+local function OnMouseUp(_, button)
+	if on and button == "RightButton" and InCombatLockdown() and UnitExists("mouseover") then
+		MouselookStop()
+	end
 end
 
 ns.AddFeature("RightClick", {
-	secure = true,   -- protected frames: started and stopped out of combat only
 	Start = function()
-		if not state then Create() end
-		RegisterStateDriver(state, "mov", "[combat,@mouseover,exists]1;0")
+		on = true
+		-- a hook cannot be taken back: it stays, idle while the feature is off
+		if not hooked then
+			WorldFrame:HookScript("OnMouseUp", OnMouseUp)
+			hooked = true
+		end
 	end,
 	Stop = function()
-		UnregisterStateDriver(state, "mov")
-		ClearOverrideBindings(state)
+		on = false
 	end,
 })

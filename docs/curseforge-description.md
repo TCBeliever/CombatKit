@@ -40,7 +40,7 @@ A click casts the spell or uses the item from your bags: the kind you used last 
 
 **Extras**
 
-Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: with a unit under the cursor, right click only turns the camera, so you never switch target by accident. Mark sappable enemy players (rogues only, off by default): in arenas and battlegrounds, the Sap icon above every enemy player out of combat, on any nameplate addon, with its size and offset yours.
+Combat alert: a text in the middle of the screen when combat starts and ends, with your own texts, size and position, floating up if you like. Disable right click in combat: a right click on a unit no longer targets it, so you never switch target by accident; holding it still turns the camera, and both buttons still run. Mark sappable enemy players (rogues only, off by default): in arenas and battlegrounds, the Sap icon above every enemy player out of combat, on any nameplate addon, with its size and offset yours.
 
 **HUD**
 

@@ -9,7 +9,6 @@ CK.AddLocale("enUS", {
 	["RELOAD_NOTE"]   = "Reload the UI to free the memory.",
 	["STATE_missing"] = "not installed",
 	["STATE_stale"]   = "reload needed",
-	["STATE_waiting"] = "changes when combat ends",
 
 	["FEATDESC_RightClick"]  = "In combat, right click no longer interacts with or targets the unit under the cursor, so turning the camera never switches your target. Back to normal when combat ends.",
 	["FEATDESC_CombatAlert"] = "A short text when you enter and leave combat.",
@@ -91,7 +90,6 @@ CK.AddLocale("zhTW", {
 	["Reload UI"]      = "重新載入介面",
 	["STATE_missing"]  = "未安裝",
 	["STATE_stale"]    = "需重新載入介面",
-	["STATE_waiting"]  = "戰鬥結束後生效",
 
 	["FEATDESC_RightClick"]  = "關閉戰鬥中右鍵互動選取目標，避免轉視角時切換目標，離開戰鬥恢復。",
 	["FEATDESC_CombatAlert"] = "進出戰鬥時用文字提醒。",

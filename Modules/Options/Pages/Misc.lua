@@ -15,8 +15,6 @@ local current   -- the feature whose page is open
 local function StateText(feature, on)
 	if CK.GetModuleState("Misc") == "missing" then
 		return Skin.Text("bad", L["STATE_missing"])
-	elseif MI and MI.GetFeatureState(feature) == "waiting" then
-		return Skin.Text("warn", L["STATE_waiting"])   -- a secure feature, switched in combat
 	elseif not on and CK.GetModuleState("Misc") == "stale" then
 		return Skin.Text("warn", L["STATE_stale"])     -- the last feature went off: its code leaves with a reload
 	end

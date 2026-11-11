@@ -223,12 +223,10 @@ C_SpellBook = {
 	IsSpellBookItemPassive = function() return false end,
 }
 
--- secure state drivers (the RightClick feature)
+-- secure state drivers (Reminder's click buttons)
 W.drivers = {}
-SecureStateDriverManager = { RegisterEvent = function() end }
 function RegisterStateDriver(frame, state, condition) W.drivers[state] = condition; log("driver:on") end
 function UnregisterStateDriver(frame, state) W.drivers[state] = nil; log("driver:off") end
-function ClearOverrideBindings() log("bindings:cleared") end
 function MouselookStart() log("mouselook:start") end
 function MouselookStop() log("mouselook:stop") end
 
@@ -668,6 +666,15 @@ function CreateFrame(kind, name, parent, template)
 end
 UIParent = Mock("Frame", "UIParent")
 WorldFrame = Mock("Frame", "WorldFrame")
+-- scripts hooked on the world (the right click feature); T.worldMouse("OnMouseUp", "RightButton") runs them
+WorldFrame.__hooks = {}
+function WorldFrame:HookScript(name, fn)
+	self.__hooks[name] = self.__hooks[name] or {}
+	table.insert(self.__hooks[name], fn)
+end
+function T.worldMouse(script, button)
+	for _, fn in ipairs(WorldFrame.__hooks[script] or {}) do fn(WorldFrame, button) end
+end
 GameTooltip = Mock("GameTooltip", "GameTooltip")
 
 -- Every frame listening to `event` hears it, then the short timers run.
