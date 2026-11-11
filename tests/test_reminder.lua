@@ -42,6 +42,7 @@ end
 local function find(label)
 	for _, r in ipairs(shown()) do if r.label == label then return r end end
 end
+local function watched() return RM.Watching() end   -- whose auras UNIT_AURA is listened to for
 local AI, ELEMENTAL = "spell1459", L["Water Elemental"]
 
 -- ---------------------------------------------------------------- where and when
@@ -59,6 +60,44 @@ check(find(L["Flask"]) and find(L["Food"]) and find(L["Weapon oil"]), "a dungeon
 check(find(AI) and find(ELEMENTAL), "the group buff and the Water Elemental")
 check(not find(L["Augment rune"]), "no augment rune in the bags: not reminded")
 check(not find(L["Off-hand oil"]), "no off hand: no off-hand oil")
+
+-- an instance far below you plays as the open world
+W.legacyLoot = true
+fire("LEGACY_LOOT_RULES_CHANGED", true)
+check(not find(L["Flask"]) and not find(L["Food"]) and find(AI) and find(ELEMENTAL),
+	"an old dungeon, legacy loot: the open world, class reminders and no consumables")
+RM.db.classWhere.world = false
+RM.Refresh()
+check(not find(AI), "the open world's ticks: class reminders off there, off here")
+RM.db.classWhere.world = true
+W.difficultyID = 24
+fire("PLAYER_ENTERING_WORLD")
+check(find(L["Flask"]), "Timewalking is scaled up to you: a dungeon, whatever the loot rules say")
+W.difficultyID = 23
+fire("PLAYER_ENTERING_WORLD")
+check(find(L["Flask"]), "a Mythic dungeon (the season's keys take old ones too): a dungeon")
+W.instanceType, W.difficultyID = "raid", 14
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]) and find(AI), "an old raid, legacy loot: the open world")
+W.instanceType, W.difficultyID, W.legacyLoot = "party", 2, nil
+W.level = 84
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]) and find(AI), "levelling: any dungeon plays as the open world")
+W.difficultyID = 24
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]), "Timewalking too, while you level")
+W.instanceType, W.difficultyID = "raid", 14
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]), "and any raid")
+W.instanceType, W.difficultyID = "party", 2
+W.level = 90
+fire("PLAYER_LEVEL_UP", 90)
+check(find(L["Flask"]), "the top level reached in there: a dungeon again")
+W.maxLevel = 80
+W.level = 80
+fire("PLAYER_LEVEL_UP", 80)
+check(find(L["Flask"]), "the top an account without the expansion reaches counts as the top")
+W.maxLevel, W.level = nil, nil
 eq(find(L["Flask"]).icon, "itemicon" .. RM.FLASK.items[1], "no flask in the bags: the first flask's icon")
 W.bags = { [245931] = 2, [259085] = 1 }
 fire("BAG_UPDATE_DELAYED")
@@ -159,7 +198,16 @@ W.groupSize = 3
 W.units.party1, W.units.party2 = {}, {}
 W.unitAuras = { party1 = { [1459] = { expirationTime = W.now + 3000 } } }
 fire("GROUP_ROSTER_UPDATE")
-eq(find(AI) and find(AI).text, "1", "one of three lacks it: the icon says 1")
+check(not find(AI), "a heroic dungeon, one of three without it: on you is enough")
+eq(watched(), "player", "and only your own auras are listened to")
+W.playerAuras[1459].expirationTime = W.now + 200
+fire("UNIT_AURA", "player")
+eq(find(AI) and find(AI).text, "4m", "running out on you: back, with the time")
+W.playerAuras[1459].expirationTime = W.now + 3000
+W.difficultyID = 23
+fire("PLAYER_ENTERING_WORLD")
+eq(find(AI) and find(AI).text, "1", "a Mythic dungeon (keys): everyone counts, the icon says 1")
+eq(watched(), "group", "the group's auras listened to")
 W.units.party2.far = true
 fire("UNIT_AURA", "party2")
 check(not find(AI), "out of reach: not counted")
@@ -167,6 +215,21 @@ W.units.party2.far = nil
 RM.SetClassItem("intellect", false)
 check(not find(AI), "the group buff switched off on its own")
 RM.SetClassItem("intellect", true)
+W.difficultyID = 8
+fire("PLAYER_ENTERING_WORLD")
+eq(find(AI) and find(AI).text, "1", "a key's own difficulty, once it has ended: everyone still")
+W.difficultyID, W.keystone = 2, true
+fire("PLAYER_ENTERING_WORLD")
+eq(find(AI) and find(AI).text, "1", "a keystone slotted: everyone")
+W.keystone = nil
+W.instanceType = "raid"
+fire("PLAYER_ENTERING_WORLD")
+eq(find(AI) and find(AI).text, "1", "a raid: everyone")
+W.inInstance, W.instanceType = false, "none"
+fire("PLAYER_ENTERING_WORLD")
+check(not find(AI), "the open world: on you is enough")
+W.inInstance, W.instanceType = true, "party"
+fire("PLAYER_ENTERING_WORLD")
 W.unitAuras.party2 = { [1459] = { expirationTime = W.now + 3000 } }
 RM.Refresh()
 eq(#shown(), 0, "everything in place: no row")
@@ -517,6 +580,16 @@ check(red, "in red: something to undo")
 RM.db.hud = false
 RM.AddCustom(55555, "missing", "group")
 eq(find("spell55555") and find("spell55555").text, "3", "on the group: everyone near lacks it")
+W.instanceType, W.difficultyID = "party", 2
+fire("PLAYER_ENTERING_WORLD")
+check(find("spell55555") and (find("spell55555").text or "") == "", "a heroic dungeon: judged on you alone, no count")
+W.playerAuras[55555] = { expirationTime = W.now + 3000 }
+fire("UNIT_AURA", "player")
+check(not find("spell55555"), "on you: enough there")
+W.playerAuras[55555] = nil
+W.instanceType, W.difficultyID = "raid", 14
+fire("PLAYER_ENTERING_WORLD")
+eq(find("spell55555") and find("spell55555").text, "3", "back in the raid: everyone again")
 SlashCmdList.COMBATKIT("")
 main.tabs.Reminder:Click()
 go("class")
@@ -538,6 +611,8 @@ main:Hide()
 SlashCmdList.CKREMINDER("")
 check(T.said("scenario raid") and T.said("temporary enchant on slot 16: 8052") and T.said("last feast or cauldron cast: by party1"),
 	"/ckreminder says what the module sees, and how a feast or cauldron was seen")
+check(T.said("group buffs wanted on: everyone") and T.said("levelling no (level 90 of 90), legacy loot no"),
+	"and whom a group buff is wanted on, and why an instance would count as far below you")
 
 -- ---------------------------------------------------------------- off
 CK.SetModuleEnabled("Reminder", false)

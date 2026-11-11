@@ -142,3 +142,9 @@ First public release.
 ## 1.5.3 (2026-11-11)
 
 - Extras: the Sap icon shows at once on the nameplates already on screen, when you switch the preview on or enter an arena or battleground. In 1.5.2 it only came up on nameplates that appeared afterwards: 12.0 renamed the field that tells a nameplate's unit.
+
+## 1.5.4 (unreleased)
+
+- Reminder: a group buff (Arcane Intellect, Battle Shout and the like) counts the whole group only in a raid or Mythic+. Anywhere else it is enough that you have it, so one player without it no longer keeps the icon up. A custom reminder missing on the group follows the same rule.
+- Reminder: a dungeon or raid far below you counts as the open world: no consumables, no feasts or cauldrons, class reminders as you set them for the open world. That covers old instances with legacy loot (Dragonflight and earlier, once you outlevel them) and any dungeon or raid while you are below max level. Timewalking and Mythic dungeons are scaled up to you and are reminded of as before.
+- Reminder: icons without a click action between ones with a click no longer cause a Lua error when the row gets shorter, and no click area stays behind once the icons are gone.

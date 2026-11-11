@@ -349,7 +349,8 @@ end
 function ns.ClearClicks()
 	if InCombatLockdown() then return end
 	CloseChooser()
-	for _, b in ipairs(buttons) do b:Hide() end
+	-- made only where an icon had a click: the list can have gaps
+	for _, b in pairs(buttons) do b:Hide() end
 end
 
 local function PlaceClicks(list, width, size)
@@ -372,7 +373,9 @@ local function PlaceClicks(list, width, size)
 			buttons[i]:Hide()
 		end
 	end
-	for i = #list + 1, #buttons do buttons[i]:Hide() end
+	for i, b in pairs(buttons) do
+		if i > #list then b:Hide() end
+	end
 	if clicks then
 		clicks:ClearAllPoints()
 		clicks:SetPoint(Anchor())

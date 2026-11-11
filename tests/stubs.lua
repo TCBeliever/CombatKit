@@ -52,6 +52,11 @@ GameFontHighlightSmall = { GetFont = function() return "Fonts\\FRIZQT__.TTF", 10
 C_UIFileAsset = { IsKnownFile = function(file) return not (W.badFonts and W.badFonts[file]) end }
 function IsInInstance() return W.inInstance, W.instanceType end
 function GetInstanceInfo() return "X", W.instanceType, W.difficultyID end
+-- W.level: the player's level, W.maxLevel: the top one the account reaches (90 both by default);
+-- W.legacyLoot: the game's legacy loot rules in force here (an old instance, outlevelled)
+function UnitLevel(unit) return unit == "player" and (W.level or 90) or 90 end
+function GetMaxLevelForPlayerExpansion() return W.maxLevel or 90 end
+C_Loot = { IsLegacyLootModeEnabled = function() return W.legacyLoot and true or false end }
 function InCombatLockdown() return W.combat end
 function GetTime() return W.now end
 function date(fmt) return "2026-01-01 00:00:00" end

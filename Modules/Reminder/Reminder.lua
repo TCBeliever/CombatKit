@@ -18,7 +18,8 @@ CK.NewModule("Reminder", ns)
 -- (a feast, a flask cauldron) is Shared.lua's. Nothing in combat, while dead,
 -- in a vehicle or on a flight, in a running key or encounter, or right after
 -- a loading screen; in a resting area only a death knight's runes; only in
--- the scenarios the player picked.
+-- the scenarios the player picked. A dungeon or raid far below you (legacy
+-- loot, or you are levelling) plays as the open world.
 --
 -- A class list (Classes/*.lua) holds entries:
 --   { key = what its switch is saved under,
@@ -46,7 +47,8 @@ CK.NewModule("Reminder", ns)
 --             runeSpells = { [enchant] = the spell that puts it on }),
 --     slot = slot or function() -> slot, enchants = { [enchantID] = true } (imbue, runeforge),
 --     label = locale key, for a reminder that stands for several spells }
--- "group": your buff on everyone near. "buff": on yourself. "ally": yours on
+-- "group": your buff on everyone near in a raid or Mythic+, on you anywhere
+-- else. "buff": on yourself. "ally": yours on
 -- someone else in the group. "avoid": a buff to drop (its name in red). "pet":
 -- a pet out. "imbue": a temporary enchant of yours on a weapon (the weapon oil
 -- reminder leaves that slot alone). "runeforge": a permanent enchant (a rune
@@ -57,6 +59,7 @@ local SETTLE = 4     -- seconds after a loading screen before anything is judged
 local KEY_RUN = 35 * 60   -- at a Mythic entrance, a consumable that would not last a key run counts as running out
 local FOREVER = math.huge
 local MYTHIC = 23    -- the Mythic dungeon difficulty, where keys are run
+local KEYSTONE = 8   -- a key's own difficulty, still in force once it ends
 local DEMONOLOGY = 266
 ns.CUSTOM_MAX = 10   -- custom reminders per class
 
@@ -262,10 +265,28 @@ local function Chosen(e)
 	if mine and ns.Known(mine) then return mine end
 end
 
+-- Does a buff for the whole group have to be on everyone here? In a raid and in Mythic+ (a
+-- Mythic dungeon, a key slotted or run) yes; anywhere else yours on you is enough: the buff was
+-- put up, and whoever joined or died since is not worth an icon.
+local function WholeGroup()
+	local key = ns.Scenario()
+	if key == "raid" then return true end
+	if key ~= "dungeon" then return false end
+	local _, _, difficultyID = GetInstanceInfo()
+	if difficultyID == MYTHIC or difficultyID == KEYSTONE then return true end
+	return C_ChallengeMode and CK.Flag(C_ChallengeMode.HasSlottedKeystone) or false
+end
+ns.WholeGroup = WholeGroup
+
 local KINDS = {}
 
 function KINDS.group(e, soon)
-	local missing, total = ns.GroupMissing(Value(e.auras), soon)
+	local auras = Value(e.auras)
+	if not WholeGroup() then
+		local count, left = ns.PlayerAnyAura(auras)
+		return Judge(count, 1, left, soon)
+	end
+	local missing, total = ns.GroupMissing(auras, soon)
 	if not missing or missing == 0 then return nil end
 	return true, total > 1 and tostring(missing) or nil
 end
@@ -683,7 +704,8 @@ end
 -- show, text, warn for one custom reminder
 local function Custom(c, soon)
 	local ids = { c.id }
-	if c.who == "group" then
+	-- one missing on the group follows the class's group buffs: everyone only in a raid or Mythic+
+	if c.who == "group" and (c.when == "present" or WholeGroup()) then
 		local missing, total = ns.GroupMissing(ids, c.when == "missing" and soon or 0)
 		if missing == nil then return nil end
 		if c.when == "missing" then
@@ -701,9 +723,9 @@ local function Custom(c, soon)
 	return Judge(count, 1, least, soon)
 end
 
-local function CustomGroup()
+local function CustomGroup(whole)
 	for _, c in ipairs(ns.CustomList()) do
-		if c.who == "group" then return true end
+		if c.who == "group" and (whole or c.when == "present") then return true end
 	end
 	return false
 end
@@ -723,15 +745,39 @@ local plan = 0             -- the timer of the next look by itself; a newer one 
 local watching             -- what UNIT_AURA is registered for: nil, "player", "group"
 
 function ns.IsRunning() return running end
+function ns.Watching() return watching end
+
+-- Instances scaled up to you whatever their age: Timewalking, a Mythic dungeon (the season's
+-- keys take old dungeons too), a key (DifficultyUtil.ID)
+local SCALED = { [MYTHIC] = true, [KEYSTONE] = true, [24] = true, [33] = true }
+
+-- Below the top level the account reaches (levelling)? The level and the top, for /ckreminder
+local function Levelling()
+	local level = UnitLevel and UnitLevel("player")
+	local top = GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()
+	if type(level) ~= "number" or type(top) ~= "number" or ns.Secret(level) or ns.Secret(top) then return false end
+	return level > 0 and level < top, level, top
+end
+
+-- A dungeon or raid far below you: any of them while you level, or one the game gives legacy
+-- loot in (two expansions back or more, outlevelled) unless it is scaled up to you
+local function Low()
+	if Levelling() then return true end
+	local _, _, difficultyID = GetInstanceInfo()
+	if SCALED[difficultyID] then return false end
+	return C_Loot and CK.Flag(C_Loot.IsLegacyLootModeEnabled) or false
+end
 
 -- The kit's scenario; grouped players in the 12.x hub cities read as being in
--- a dungeon of difficulty 0, which is no dungeon
+-- a dungeon of difficulty 0, which is no dungeon. A dungeon or raid far below
+-- you plays as the open world: no consumables, the class reminders as there.
 function ns.Scenario()
 	local key = CK.DetectScenario()
 	if key == "dungeon" then
 		local _, _, difficultyID = GetInstanceInfo()
 		if not difficultyID or difficultyID == 0 then return "world" end
 	end
+	if (key == "dungeon" or key == "raid") and Low() then return "world" end
 	return key
 end
 
@@ -756,13 +802,15 @@ local RESTING = { runeforge = true }
 
 local driver = CreateFrame("Frame")
 
--- Everyone's auras matter for a group buff, a buff put on others, a custom one on the group
+-- Everyone's auras matter for a buff put on others, a custom one present on the group, and,
+-- where it has to be on everyone, a group buff or a custom one missing on the group
 local function GroupAuras()
 	local db = ns.db
+	local whole = WholeGroup()
 	for _, e in ipairs(classEntries) do
-		if (e.kind == "group" or e.kind == "ally") and not db.off[e.key] then return true end
+		if (e.kind == "ally" or (e.kind == "group" and whole)) and not db.off[e.key] then return true end
 	end
-	return CustomGroup()
+	return CustomGroup(whole)
 end
 
 -- UNIT_AURA only while there is something to look at: in a scenario that
@@ -915,6 +963,10 @@ function ns.Report()
 	say("hidden by: %s; first combat seen: %s; ready check: %s; consumables now: %s; consumables running out within %d min",
 		Blocked() or "nothing", Yes(pulled), Yes(readyCheck),
 		Yes(not pulled or readyCheck or key == "raid"), math.floor(select(2, Soon(key)) / 60))
+	say("group buffs wanted on: %s; auras listened to: %s", WholeGroup() and "everyone" or "you", tostring(watching or "none"))
+	local levelling, level, top = Levelling()
+	say("far below you (plays as the open world): levelling %s (level %s of %s), legacy loot %s",
+		Yes(levelling), tostring(level), tostring(top), Yes(C_Loot and CK.Flag(C_Loot.IsLegacyLootModeEnabled)))
 	say("auras secret as a whole: %s; per spell (%s): flask %s, Well Fed %s", Yes(ns.AurasHidden()),
 		(C_Secrets and C_Secrets.ShouldSpellAuraBeSecret) and "asked" or "no such API",
 		Yes(ns.SpellHidden(ns.FLASK.auras[1])), Yes(ns.SpellHidden(ns.WELL_FED[1])))
@@ -987,6 +1039,8 @@ local EVENTS = {
 	"CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED", "ENCOUNTER_START", "ENCOUNTER_END",
 	"UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE", "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED",
 	"PLAYER_MOUNT_DISPLAY_CHANGED",
+	-- what makes an instance far below you: the top level reached, legacy loot rules coming in late
+	"PLAYER_LEVEL_UP", "LEGACY_LOOT_RULES_CHANGED",
 }
 
 local handlers = {}

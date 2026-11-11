@@ -78,6 +78,24 @@ function ns.PlayerAuras(ids)
 	return count, least
 end
 
+-- One of `ids` on the player, any of them doing: 1 and the most time left on one (FOREVER when
+-- its time is hidden), or 0; nil when none is there and one of them cannot be told
+function ns.PlayerAnyAura(ids)
+	local best, unknown = nil, false
+	for _, id in ipairs(ids) do
+		local aura = PlayerAura(id)
+		if aura == nil then
+			unknown = true
+		elseif aura then
+			local left = Left(aura) or FOREVER
+			best = best and math.max(best, left) or left
+		end
+	end
+	if best then return 1, best end
+	if unknown then return nil end
+	return 0
+end
+
 local EATING = {}
 for _, id in ipairs(ns.EATING) do EATING[id] = true end
 
