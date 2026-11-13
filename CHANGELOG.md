@@ -150,6 +150,6 @@ First public release.
 - Reminder: icons without a click action between ones with a click no longer cause a Lua error when the row gets shorter, and no click area stays behind once the icons are gone.
 - Extras: with *Disable right click in combat* on, holding both mouse buttons runs forward again. The right button keeps the game's own binding; the click on a unit is cancelled as you let go (the technique Right Click Modifier uses) instead of the button being rebound. It also switches on and off in combat now, without waiting for combat to end.
 
-## 1.5.5 (unreleased)
+## 1.5.5 (2026-11-13)
 
 - Loadout: *Recommend loadouts by name* on the Options page (off by default). Where no talent loadout is set, the one whose name says the scenario is used: "M+" or "Dungeon" in dungeons, "Raid" in raids, "Delve" in delves, "Arena", "BG" and then "PvP" in PvP, "PvE" anywhere in PvE, and the Chinese names too (大秘, 團本, 探究, 競技場, 戰場). The loadout field shows it as "Recommended: …"; picking *Not set* there switches no talents at all. A loadout you pick yourself always wins. Once it is on, settings that switch only gear switch talents too, when a loadout's name matches.
