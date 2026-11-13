@@ -49,6 +49,11 @@ local OWN_CAST_WINDOW = 0.5      -- a buff this soon after the player's cast is 
 local SELF_TEST_WINDOW = 0.5     -- the player's own slot must light up within this
 local SELF_TEST_STRIKES = 2      -- consecutive misses before detection is called broken
 local CONTROL_GRACE = 0.3        -- controlled at least this long before a sighting: did not cast it
+-- an aura back on the same unit this soon after it went is the same aura, not
+-- a new use: the slot redraws it once more as it runs out (Kingsbane, Leg
+-- Sweep, Ironbark, Pain Suppression: back 0.00 to 0.01 s after expiring) or
+-- after a drop (Kingsbane, 0.05 s). PartyCD's log, read 2026-11-14.
+local FLICKER = 0.5
 
 local function now() return GetTime() end
 
@@ -202,7 +207,11 @@ local function AddUse(e, at, trusted)
 	Settle(e, at)
 	local last = e.uses[#e.uses]
 	if last and at - last < SameUseWindow(e.def) then return false end
-	if last and at - last < e.cd and CanCorrect(e, trusted) then
+	-- a use seen again before the last one's aura could have run out proves no
+	-- shorter cooldown: whatever brought the aura back, it was not the cooldown
+	local known = durations[e.def.id]
+	local learn = not (known and last and at - last <= known + FLICKER)
+	if last and at - last < e.cd and learn and CanCorrect(e, trusted) then
 		e.cd = at - last
 		e.uses = {}
 	end
@@ -313,10 +322,60 @@ local function Use(t, e, at, holder, ambiguous)
 	Notify("use", t, e)
 end
 
+-- The aura came back on the unit it just left (FLICKER): the same aura. The
+-- entries it was on are active again from its first appearance, which keeps
+-- the use as it was and the length learned at its end right. Returns true
+-- when it was one.
+local function Flickered(unit, spellID, at)
+	local found = false
+	for _, t in pairs(teammates) do
+		local e = t.spells[spellID]
+		if e and e.goneHolder == unit and e.goneAt and at - e.goneAt < FLICKER then
+			e.activeSince, e.activeHolder = e.goneSince or at, unit
+			e.goneAt, e.goneHolder, e.goneSince = nil, nil, nil
+			Notify("active", t, e)
+			found = true
+		end
+	end
+	return found
+end
+
+local function Plain(v) return not (issecretvalue and issecretvalue(v)) end
+
+-- may an opponent be of `class`? Yes for one who is, and for one whose class
+-- cannot be read; the specs the arena announces count first, then the units
+function Tracker.OpponentMayBe(class)
+	for i = 1, 3 do
+		local known
+		if GetArenaOpponentSpec and GetSpecializationInfoByID then
+			local okSpec, spec = pcall(GetArenaOpponentSpec, i)
+			if okSpec and Plain(spec) and type(spec) == "number" and spec > 0 then
+				local okInfo, _, _, _, _, _, specClass = pcall(GetSpecializationInfoByID, spec)
+				if okInfo and Plain(specClass) and type(specClass) == "string" then known = specClass end
+			end
+		end
+		if not known then
+			local unit = "arena" .. i
+			local okExists, exists = pcall(UnitExists, unit)
+			if not (okExists and Plain(exists)) then return true end
+			if exists then
+				local okClass, _, unitClass = pcall(UnitClass, unit)
+				if not (okClass and Plain(unitClass) and type(unitClass) == "string") then return true end
+				known = unitClass
+			end
+		end
+		if known == class then return true end
+	end
+	return false
+end
+
 function Tracker.Shown(unit, spellID, at, initial)
 	at = at or now()
 	local def = ns.SPELL_BY_ID[spellID]
 	if not def then return end
+	if Flickered(unit, spellID, at) then return end
+	-- the opponents' own may leave the same aura: then it says nothing about the team
+	if def.notAgainst and Tracker.OpponentMayBe(def.notAgainst) then return end
 	if def.seen == "caster" then
 		local e, t = Entry(unit, spellID)
 		if not e then return end
@@ -350,6 +409,8 @@ function Tracker.Hidden(unit, spellID, at)
 	for _, t in pairs(teammates) do
 		local e = t.spells[spellID]
 		if e and e.activeHolder == unit then
+			-- kept a moment, in case the same aura is drawn again (Flickered)
+			e.goneAt, e.goneHolder, e.goneSince = at, unit, e.activeSince
 			e.activeSince, e.activeHolder = nil, nil
 			Notify("inactive", t, e)
 		end

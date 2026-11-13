@@ -58,8 +58,12 @@ local ADDON, ns = ...
 -- `replaces` names the ability a PvP talent's own entry takes the button of
 -- (Ancient of Lore, Tree of Life): with the PvP talent taken, inspect takes
 -- the other out of the row. `window` on a Caster entry makes every sighting
--- within that many seconds one use (Smoke Bomb's cloud, Tree of Life's 30 s
--- of shifting in and out).
+-- within that many seconds one use (Tree of Life's 30 s of shifting in and
+-- out).
+--
+-- `notAgainst` (a class) on an entry seen on the opponents: a sighting counts
+-- only while no opponent may be of that class, one whose class cannot be read
+-- included (Smoke Bomb: an enemy rogue's own cloud leaves the same aura).
 --
 -- `external` (from how it is seen: on someone else than the caster) marks an
 -- ability that may be another teammate's: the sample rows show it with the
@@ -83,8 +87,10 @@ local ADDON, ns = ...
 -- `debuff` marks an ability seen on the team whose aura the game counts as a
 -- debuff (its data sets the aura-is-a-debuff attribute): a slot drawing only
 -- buffs never shows it, so the team's slot for it draws debuffs instead
--- (Smoke Bomb's cloud, Death Pact's healing absorb). tools/auradata.py checks
--- the flag against the data.
+-- (Death Pact's healing absorb). tools/auradata.py checks the flag against the
+-- data. The game matches such a debuff by spell ID only when the spell is never
+-- secret (AuraLab findings, section 12): Smoke Bomb's cloud never showed on a
+-- teammate, so it is watched on the opponents instead.
 --
 -- On by default is every ability with a base cooldown of a minute or more;
 -- the shorter ones are off until ticked on the spells page (Settings > Party
@@ -289,7 +295,13 @@ ns.SPELLS = {
 	ROGUE = {
 		Caster(31224, 120, "defense", { big = true }),  -- Cloak of Shadows
 		Caster(5277, 120, "defense"),           -- Evasion
-		Caster(212182, 180, "defense", { aura = 212183, window = 5, debuff = true }),  -- Smoke Bomb (PvP talent): the cloud's aura, a debuff on everyone inside, counted on the rogue only (an enemy rogue's cloud puts the same aura on whoever stands in it); one use for the cloud's 5 s
+		-- Smoke Bomb (PvP talent): the cloud's aura 212183 is a debuff on everyone inside. On a
+		-- teammate it can never be seen: the game's aura slots match a debuff on a unit the player
+		-- can assist by spell ID only for a spell that is never secret, and the rogue's are not
+		-- (AuraLab findings, section 12; 0 sightings in 14 matches, 2026-11-14). So it is seen on
+		-- the opponents standing in it, for the cloud's 5 s, and only while no opponent may be a
+		-- rogue: an enemy rogue's own cloud puts the same aura on its team.
+		Enemies(212182, 180, 5, "defense", { aura = 212183, notAgainst = "ROGUE" }),
 		Caster(13750, 180, "burst", { specs = set(260) }),  -- Adrenaline Rush
 		Caster(121471, 90, "burst", { specs = set(261) }),  -- Shadow Blades
 		Enemy(360194, 120, "burst", { specs = set(259) }),  -- Deathmark: the mark on the opponent
@@ -362,7 +374,10 @@ ns.SPELLS = {
 ns.RACIALS = {
 	{ race = "Dwarf", raceID = 3, Caster(20594, 120, "defense", { aura = 65116 }) },  -- Stoneform: the buff is 65116
 	{ race = "DarkIronDwarf", raceID = 34, Caster(265221, 120, "defense", { aura = 265226 }) },  -- Fireblood: the buff is 265226
-	{ race = "NightElf", raceID = 4, Caster(58984, 120, "other") },  -- Shadowmeld: stealth, no damage taken off
+	-- Shadowmeld: stealth that lasts until it breaks, an aura without a duration, so the slot's
+	-- duration never starts the probe. 0 sightings in 45 matches (2026-11-14); the user agreed it
+	-- never lights up.
+	{ race = "NightElf", raceID = 4, Caster(58984, 120, "other", { undetectable = true }) },
 	{ race = "Orc", raceID = 2, Caster(33697, 120, "burst", { casts = { 20572, 33702 }, auras = { 33697, 20572, 33702 }, defaultOff = true }) },  -- Blood Fury, in each class's version
 	{ race = "Troll", raceID = 8, Caster(26297, 180, "burst", { defaultOff = true }) },  -- Berserking
 	{ race = "MagharOrc", raceID = 36, Caster(274738, 120, "burst", { auras = { 274738, 274739, 274740, 274741, 274742 }, defaultOff = true }) },  -- Ancestral Call: its own aura, and one of four buffs

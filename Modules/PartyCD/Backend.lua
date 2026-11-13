@@ -104,7 +104,7 @@ local function Filter(def)
 end
 
 -- what a slot draws: debuffs on an opponent; on the team buffs, or debuffs
--- for an ability whose aura the game counts as one (Smoke Bomb's cloud)
+-- for an ability whose aura the game counts as one (Death Pact's absorb)
 local function AuraFilter(unit, def)
 	if unit:match("^arena%d$") or def.debuff then return "HARMFUL" end
 	return "HELPFUL"
