@@ -106,7 +106,7 @@ ns.hudSection = {
 		local rows = { { icon = spec and spec.icon or 134400, value = name, right = Skin.Text(colour, text) } }
 		-- under the state, flush right like it
 		if detail then rows[#rows + 1] = { label = "", value = Skin.Text(colour, detail) } end
-		AddLines(rows, L["Talents"], st.hasTalents, st.talentsOK, st.talentsMissing, cell.configName,
+		AddLines(rows, L["Talents"], st.hasTalents, st.talentsOK, st.talentsMissing, st.configName,
 			st.hasTalents and not st.talentsOK and ns.GetActiveConfigName(st.specID) or nil)
 		if st.hasPvp then
 			local text = ("%d/%d"):format(st.pvpHave, st.pvpWant)

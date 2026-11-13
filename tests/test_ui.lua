@@ -204,10 +204,33 @@ p.split:Click()
 eq(#shownRows(), 4, "collapsed")
 eq(C.scenarios.dungeon.custom, true, "the scenarios keep their settings for later")
 
+-- ---------------------------------------------------------------- loadouts picked by name
+W.configs[VENG] = { 201, 202 }; W.configNames[202] = "PvP"
+LO.db.settings.byName = true
+treeRow("Loadout", "group:pvp"):Click()
+specButton(VENG):Click()
+eq(p.talents.text:GetText(), L["Recommended: %s"]:format("PvP"), "nothing set: the loadout picked by name, the same for every PvP scenario")
+check(pick(p.talents, false), "'Not set' is offered after it")
+eq(C.groups.pvp.specs[VENG].configID, false, "and saved as false")
+eq(p.talents.text:GetText(), L["Not set"], "the field says so")
+check(specButton(VENG).dot:IsShown(), "a choice like any other")
+check(pick(p.talents, nil), "the recommendation picked again")
+eq(C.groups.pvp.specs[VENG], nil, "nothing set again")
+W.configs[VENG] = { 201, 202, 203 }; W.configNames[203] = "Arena"; O.Refresh()
+eq(p.talents.text:GetText(), L["Recommended: %s"]:format(L["by scenario"]), "arena and battlegrounds pick different ones")
+LO.db.settings.byName = false; O.Refresh()
+eq(p.talents.text:GetText(), L["Not set"], "option off: nothing picked by name")
+check(not offered(p.talents, false), "and only one 'Not set'")
+W.configs[VENG] = { 201 }; W.configNames[202], W.configNames[203] = nil, nil
+specButton(HAVOC):Click()
+
 -- ---------------------------------------------------------------- Loadout options page
 treeRow("Loadout", "options"):Click()
 local lopt = main.bodies.Loadout.pages.options
 check(lopt:IsShown() and not p:IsShown(), "only the page is shown")
+check(not lopt.byName:GetChecked(), "loadouts by name: off")
+eq(LO.defaults.byName, false, "off on a fresh install")
+lopt.byName:Click(); eq(LO.db.settings.byName, true, "by name on"); lopt.byName:Click()
 lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
 lopt.gearCheck:Click(); eq(LO.db.settings.gearCheck, false, "gear check off"); lopt.gearCheck:Click()
 eq(LO.defaults.auto, false, "a fresh install does not switch on its own")

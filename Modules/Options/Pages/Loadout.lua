@@ -143,8 +143,40 @@ local function CopyCells(from, to)
 	end
 end
 
+-- The loadouts picked by name for the scenarios that play with the settings
+-- shown: { { key=, group=, id=, name= }, ... }, and how many scenarios that is
+local function ByName()
+	local uses
+	if selected.kind == "scenario" then
+		uses = { { key = selected.key, group = GroupOf(selected.key) } }
+	else
+		uses = LO.GroupUsers(selected.key)
+	end
+	local out = {}
+	for _, u in ipairs(uses) do
+		local id, name = LO.ConfigByName(u.key, u.group, selectedSpec)
+		if id then out[#out + 1] = { key = u.key, group = u.group, id = id, name = name } end
+	end
+	return out, #uses
+end
+
+-- What the loadout field says while nothing is set: "Recommended: M+ AoE", or
+-- "Recommended: by scenario" when the scenarios differ; nil when none is picked.
+-- The second value is the one picked for all of them, when it is one.
+local function ByNameText()
+	local list, uses = ByName()
+	if #list == 0 then return nil end
+	local same = #list == uses
+	for _, r in ipairs(list) do if r.id ~= list[1].id then same = false end end
+	return L["Recommended: %s"]:format(same and list[1].name or L["by scenario"]), same and list[1] or nil
+end
+
+-- With a loadout picked by name, the list offers it first and "Not set" after
+-- it, to switch no talents here at all (saved as false).
 local function TalentItems()
-	local items = { { label = L["Not set"], value = nil } }
+	local recommended = ByNameText()
+	local items = { { label = recommended or L["Not set"], value = nil } }
+	if recommended then items[2] = { label = L["Not set"], value = false } end
 	for _, c in ipairs(LO.GetTalentConfigs(selectedSpec)) do
 		items[#items + 1] = { label = c.name, value = c.id }
 	end
@@ -220,6 +252,20 @@ local function CurrentNode()
 	local group = GroupOf(key)
 	if LO.char.split[group] then return "scenario", key end
 	return "group", group
+end
+
+-- Whose loadout by name "Apply" takes: the one for every scenario of the page,
+-- else the one for where the player is, when the page's settings are used there.
+-- Returns key, group, or nil.
+local function ByNameFor()
+	local _, all = ByNameText()
+	if all then return all.key, all.group end
+	local kind, key = CurrentNode()
+	if not kind then return nil end
+	local here, group = LO.GetCurrentScenario(), LO.SourceGroup(key)
+	for _, r in ipairs((ByName())) do
+		if r.key == here and r.group == group then return r.key, r.group end
+	end
 end
 
 -- A scenario that switches spec opens on that spec: it is the one set up there.
@@ -325,6 +371,20 @@ local function BuildLoadout(p)
 	p.talents = Skin.Dropdown(editor, FIELD_W, TalentItems, function(_, item)
 		SetCell("configID", "configName", item.value, item.label)
 	end)
+	-- while a loadout is picked by name: which one, for each scenario
+	p.talents:HookScript("OnEnter", function(self)
+		local set = ShownSet()
+		if set and set.configID ~= nil then return end
+		local list = ByName()
+		if #list == 0 then return end
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(L["Picked by name"], 1, 1, 1)
+		local r, g, b = Skin.Color("dim")
+		for _, rec in ipairs(list) do GameTooltip:AddDoubleLine(LO.ScenarioName(rec.key), rec.name, r, g, b, 1, 1, 1) end
+		GameTooltip:AddLine(L["BYNAME_FIELD_TIP"], nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	p.talents:HookScript("OnLeave", GameTooltip_Hide)
 
 	-- PvP talents: three icons picked one by one, or all three from what is on now
 	p.pvpLabel = Skin.Field(editor, "PvP", 0, p.fieldY)
@@ -356,7 +416,7 @@ local function BuildLoadout(p)
 	-- what the page shows, applied right now: the spec picked above, its talents and
 	-- gear, whatever is on already (so a loadout can be re-applied)
 	p.switch = CK.Bind(Skin.Button(editor, "", BUTTON_W, 22, function()
-		local setup = LO.BuildSetupFor(selectedSpec, ShownSet())
+		local setup = LO.BuildSetupFor(selectedSpec, ShownSet(), ByNameFor())
 		if setup then LO.ApplySetup(setup) end
 		O.Refresh()
 	end), "Apply")
@@ -500,10 +560,17 @@ local function RefreshLoadout(p)
 	local usable = editable and selectedSpec ~= nil
 	p.talents:SetDisabled(not usable)
 	p.gear:SetDisabled(not usable)
-	p.talents:SetValueText(cell and cell.configName or L["Not set"], not (cell and cell.configID))
+	-- nothing set: the loadout picked by name, if any, dimmed like "Not set"
+	local talentsText
+	if cell and cell.configID then
+		talentsText = cell.configName
+	elseif not (cell and cell.configID == false) then
+		talentsText = ByNameText()
+	end
+	p.talents:SetValueText(talentsText or L["Not set"], not (cell and cell.configID))
 	p.gear:SetValueText(cell and cell.setName or L["Not set"], not (cell and cell.setID))
 	-- nothing to switch to at all (this spec, nothing set): the button waits
-	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell) == nil)
+	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell, ByNameFor()) == nil)
 
 	-- the PvP pages add "Multiple setups" above the loadout and the PvP talents under it
 	local pvpPage = (isGroup and selected.key == "pvp") or (isScenario and scenario.group == "pvp")
@@ -545,6 +612,8 @@ local function BuildOptions(p)
 	end
 	p.auto = Toggle("Switch talents and gear automatically", "AUTO_TIP",
 		function() return LO.db.settings.auto end, function(v) LO.db.settings.auto = v end)
+	p.byName = Toggle("Recommend loadouts by name", "BYNAME_TIP",
+		function() return LO.db.settings.byName end, function(v) LO.db.settings.byName = v end)
 	p.gearCheck = Toggle("Smart gear check", "GEARCHECK_TIP",
 		function() return LO.db.settings.gearCheck end, function(v) LO.db.settings.gearCheck = v end)
 	p.early = Toggle("Show the next scenario on a queue pop", "EARLY_TIP",
@@ -552,7 +621,7 @@ local function BuildOptions(p)
 	p.mismatch = Toggle("On the HUD only when something differs", nil,
 		function() return LO.db.settings.hud == "mismatch" end,
 		function(v) LO.db.settings.hud = v and "mismatch" or "always" end)
-	p.toggles = { p.auto, p.gearCheck, p.early, p.mismatch }
+	p.toggles = { p.auto, p.byName, p.gearCheck, p.early, p.mismatch }
 end
 
 local function RefreshOptions(p)

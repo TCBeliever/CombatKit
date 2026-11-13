@@ -354,5 +354,85 @@ eq(warning(), nil, "module off: gone")
 CK.SetModuleEnabled("Loadout", true); flush()
 gear(false, false)
 
+-- ---------------------------------------------------------------- loadouts picked by name
+C = ns.char
+eq(ns.defaults.byName, false, "loadouts by name: off by default")
+eq(ns.db.settings.byName, false, "and off in a saved file from before the option")
+W.configNames[101], W.configNames[102] = "M+ AoE", "Raid ST"
+eq(ns.ConfigByName("raid", "pve", HAVOC), nil, "off: nothing is picked by name")
+ns.db.settings.byName = true
+C.split.pve, C.split.pvp, C.warmodePvP = false, false, false
+C.groups.pve.specs, C.groups.pvp.specs = {}, {}
+W.configs[HAVOC] = { 101, 102, 103, 104, 105 }
+W.configNames[101], W.configNames[102] = "M+ AoE", "Raid ST"
+W.configNames[103], W.configNames[104], W.configNames[105] = "Arena 3v3", "Delves", "NoPvP"
+W.specIndex = 1; W.activeConfig[HAVOC] = 101
+local function byName(key, group) return select(2, ns.ConfigByName(key, group, HAVOC)) end
+eq(byName("dungeon", "pve"), "M+ AoE", "dungeons: the M+ loadout")
+eq(byName("raid", "pve"), "Raid ST", "raids: Raid")
+eq(byName("delve", "pve"), "Delves", "delves: the plural counts")
+eq(byName("arena", "pvp"), "Arena 3v3", "arena")
+eq(byName("bg", "pvp"), nil, "battlegrounds: none says so, 'NoPvP' is not PvP")
+eq(byName("world", "pve"), nil, "open world: none")
+W.configNames[105] = "PvP"
+eq(byName("bg", "pvp"), "PvP", "battlegrounds fall back to the group's word")
+eq(byName("arena", "pvp"), "Arena 3v3", "the scenario's own word comes first")
+eq(byName("world", "pvp"), "PvP", "open world in War Mode: PvP")
+eq(byName("arena", "pve"), nil, "a scenario of the other group gets only that group's word")
+W.configNames[104] = "Raid AoE"
+eq(byName("raid", "pve"), "Raid ST", "two raid loadouts: the first in the game's order")
+W.activeConfig[HAVOC] = 104
+eq(byName("raid", "pve"), "Raid AoE", "unless the other one is on")
+W.configNames[104] = "探究單體"
+eq(byName("delve", "pve"), "探究單體", "Chinese names")
+W.configNames[104] = "大秘 AoE"
+eq(byName("dungeon", "pve"), "大秘 AoE", "大秘 is a dungeon word")
+W.activeConfig[HAVOC] = 102
+eq(byName("dungeon", "pve"), "M+ AoE", "neither on: the first in the game's order")
+
+-- nothing set: the status, the HUD and the switch follow the name
+W.activeConfig[HAVOC] = 101
+st = ns.GetStatus("raid")
+check(st.hasTalents and st.byName and st.configName == "Raid ST" and st.state == "mismatch", "a raid with nothing set wants Raid ST")
+eq(ns.BuildSetup("raid").configID, 102, "and applies it")
+eq(ns.GetStatus("dungeon").state, "ready", "a dungeon on M+ AoE is ready")
+C.groups.pve.specs[HAVOC] = { setID = 1, setName = "PvE" }
+eq(ns.BuildSetup("raid").configID, 102, "gear set and no loadout: the loadout by name")
+C.groups.pve.specs[HAVOC].configID, C.groups.pve.specs[HAVOC].configName = 101, "M+ AoE"
+st = ns.GetStatus("raid")
+check(st.configName == "M+ AoE" and not st.byName, "a loadout set by hand wins")
+C.groups.pve.specs[HAVOC].configID, C.groups.pve.specs[HAVOC].configName = false, nil
+st = ns.GetStatus("raid")
+check(not st.hasTalents and not st.byName, "'Not set' picked by hand: no loadout by name")
+eq(ns.BuildSetup("raid").configID, nil, "and none applied")
+eq(ns.BuildSetupFor(HAVOC, C.groups.pve.specs[HAVOC], "raid", "pve").configID, nil, "nor by the settings page")
+C.groups.pve.specs[HAVOC] = nil
+eq(ns.BuildSetupFor(HAVOC, nil, "raid", "pve").configID, 102, "the settings page applies the one it shows")
+eq(ns.BuildSetupFor(HAVOC, nil), nil, "and none when it shows none")
+ns.db.settings.byName = false
+eq(ns.GetStatus("raid").state, "none", "option off: nothing set is nothing")
+ns.db.settings.byName = true
+
+-- War Mode: the PvP word, not the open world's
+W.configNames[104] = "World"
+W.warMode, C.warmodePvP = true, true
+eq(ns.GetStatus("world").configName, "PvP", "open world in War Mode: the PvP loadout")
+W.warMode = false
+eq(ns.GetStatus("world").configName, "World", "War Mode off: the open world's")
+
+-- entering applies it
+at(false, "none"); fire("PLAYER_ENTERING_WORLD"); flush()
+W.activeConfig[HAVOC] = 101; W.log = {}
+at(true, "raid", 16); fire("PLAYER_ENTERING_WORLD"); flush()
+check(logged("talents:102"), "entering a raid with nothing set switches to Raid ST")
+
+-- who plays with a group's settings
+eq(#ns.GroupUsers("pve"), 4, "PvE not split: its four scenarios")
+C.split.pve, C.scenarios.raid.custom = true, true
+eq(#ns.GroupUsers("pve"), 3, "split: less the one with its own settings")
+local users = ns.GroupUsers("pvp")
+check(#users == 3 and users[3].key == "world" and users[3].group == "pvp", "PvP: open world too while War Mode uses PvP")
+C.split.pve, C.scenarios.raid.custom, C.warmodePvP = false, false, false
+
 T.releaseChat()
 return T.report("logic [" .. (LOCALE or "enUS") .. "]")

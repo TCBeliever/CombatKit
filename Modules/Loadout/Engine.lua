@@ -7,7 +7,7 @@ local CK = CombatKit
 --
 --   CombatKitLoadoutDB = {
 --     version  = 1,
---     settings = { auto=, early=, hud = "always" | "mismatch", gearCheck= },   -- account-wide
+--     settings = { auto=, early=, hud = "always" | "mismatch", gearCheck=, byName= },   -- account-wide
 --     chars    = {
 --       ["Name - Realm"] = {
 --         class      = "DEMONHUNTER",
@@ -18,7 +18,7 @@ local CK = CombatKit
 --       },
 --     },
 --   }
---   specs[specID] = { configID=, configName=, setID=, setName=, pvp = { [slot] = talentID },
+--   specs[specID] = { configID=, configName=, setID=, setName=, pvp = { [slot] = talentID },   -- configID false: "Not set" picked
 --                     multi=, active=, alt = { [2] = { configID=, ... }, [3] = ... } }   -- up to 3 setups (PvP)
 --
 -- Per character because talent loadouts and equipment sets are.
@@ -29,6 +29,7 @@ ns.defaults = {
 	early = true,       -- show the upcoming scenario on a queue pop
 	hud   = "always",   -- this module's HUD lines: "always" | "mismatch"
 	gearCheck = true,   -- a text on screen when the gear does not fit the scenario
+	byName = false,     -- where no loadout is set, use the one whose name says the scenario
 }
 
 local function InitDB()
