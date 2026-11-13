@@ -495,6 +495,8 @@ C_EquipmentSet = {
 		return s[1], 134400, id, s[2]
 	end,
 	GetEquipmentSetID = function(name) for id, s in pairs(W.sets) do if s[1] == name then return id end end end,
+	-- W.setSpec[setID] = the spec index the game ties the set to
+	GetEquipmentSetAssignedSpec = function(id) return W.setSpec and W.setSpec[id] end,
 	UseEquipmentSet = function(id)
 		log("equip:" .. id)
 		if W.equipFails then return false end

@@ -153,3 +153,7 @@ First public release.
 ## 1.5.5 (2026-11-13)
 
 - Loadout: *Recommend loadouts by name* on the Options page (off by default). Where no talent loadout is set, the one whose name says the scenario is used: "M+" or "Dungeon" in dungeons, "Raid" in raids, "Delve" in delves, "Arena", "BG" and then "PvP" in PvP, "PvE" anywhere in PvE, and the Chinese names too (大秘, 團本, 探究, 競技場, 戰場). The loadout field shows it as "Recommended: …"; picking *Not set* there switches no talents at all. A loadout you pick yourself always wins. Once it is on, settings that switch only gear switch talents too, when a loadout's name matches.
+
+## 1.5.6 (unreleased)
+
+- Loadout: *Recommend loadouts by name* is now *Recommend loadouts and gear sets by name*: the same option picks equipment sets as well, by the same words ("M+", "Raid", "Delve", "World", "Arena", "BG", then "PvE" or "PvP", and the Chinese names). Of several, the set you wear stays; a set the game assigns to another spec is skipped. The gear set field shows it as "Recommended: …", and *Not set* there changes no gear at all. If you turned the option on in 1.5.5, gear sets now follow it too.

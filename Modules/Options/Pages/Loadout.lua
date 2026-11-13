@@ -143,9 +143,10 @@ local function CopyCells(from, to)
 	end
 end
 
--- The loadouts picked by name for the scenarios that play with the settings
--- shown: { { key=, group=, id=, name= }, ... }, and how many scenarios that is
-local function ByName()
+-- What is picked by name for the scenarios that play with the settings shown,
+-- `field` "config" (talent loadouts) or "set" (equipment sets):
+-- { { key=, group=, id=, name= }, ... }, and how many scenarios that is
+local function ByName(field)
 	local uses
 	if selected.kind == "scenario" then
 		uses = { { key = selected.key, group = GroupOf(selected.key) } }
@@ -154,29 +155,34 @@ local function ByName()
 	end
 	local out = {}
 	for _, u in ipairs(uses) do
-		local id, name = LO.ConfigByName(u.key, u.group, selectedSpec)
+		local id, name = LO.ByName(field, u.key, u.group, selectedSpec)
 		if id then out[#out + 1] = { key = u.key, group = u.group, id = id, name = name } end
 	end
 	return out, #uses
 end
 
--- What the loadout field says while nothing is set: "Recommended: M+ AoE", or
+-- What a field says while nothing is set: "Recommended: M+ AoE", or
 -- "Recommended: by scenario" when the scenarios differ; nil when none is picked.
 -- The second value is the one picked for all of them, when it is one.
-local function ByNameText()
-	local list, uses = ByName()
+local function ByNameText(field)
+	local list, uses = ByName(field)
 	if #list == 0 then return nil end
 	local same = #list == uses
 	for _, r in ipairs(list) do if r.id ~= list[1].id then same = false end end
 	return L["Recommended: %s"]:format(same and list[1].name or L["by scenario"]), same and list[1] or nil
 end
 
--- With a loadout picked by name, the list offers it first and "Not set" after
--- it, to switch no talents here at all (saved as false).
-local function TalentItems()
-	local recommended = ByNameText()
+-- With something picked by name, the list offers it first and "Not set" after
+-- it, to switch nothing here at all (saved as false).
+local function FirstItems(field)
+	local recommended = ByNameText(field)
 	local items = { { label = recommended or L["Not set"], value = nil } }
 	if recommended then items[2] = { label = L["Not set"], value = false } end
+	return items
+end
+
+local function TalentItems()
+	local items = FirstItems("config")
 	for _, c in ipairs(LO.GetTalentConfigs(selectedSpec)) do
 		items[#items + 1] = { label = c.name, value = c.id }
 	end
@@ -208,7 +214,7 @@ local function PvpItems(slot)
 end
 
 local function GearItems()
-	local items = { { label = L["Not set"], value = nil } }
+	local items = FirstItems("set")
 	for _, s in ipairs(LO.GetEquipmentSets()) do
 		items[#items + 1] = { label = s.name, value = s.id, icon = s.icon }
 	end
@@ -254,18 +260,47 @@ local function CurrentNode()
 	return "group", group
 end
 
--- Whose loadout by name "Apply" takes: the one for every scenario of the page,
--- else the one for where the player is, when the page's settings are used there.
--- Returns key, group, or nil.
-local function ByNameFor()
-	local _, all = ByNameText()
-	if all then return all.key, all.group end
+-- What "Apply" takes picked by name for a field: the one for every scenario of
+-- the page, else the one for where the player is, when the page's settings
+-- are used there. Returns an id, or nil.
+local function ByNameID(field)
+	local _, all = ByNameText(field)
+	if all then return all.id end
 	local kind, key = CurrentNode()
 	if not kind then return nil end
 	local here, group = LO.GetCurrentScenario(), LO.SourceGroup(key)
-	for _, r in ipairs((ByName())) do
-		if r.key == here and r.group == group then return r.key, r.group end
+	for _, r in ipairs((ByName(field))) do
+		if r.key == here and r.group == group then return r.id end
 	end
+end
+
+local function ByNameSetup()
+	return { configID = ByNameID("config"), setID = ByNameID("set") }
+end
+
+-- The text of a field while nothing is set: what is picked by name, if
+-- anything, unless "Not set" was picked by hand (false)
+local function FieldText(value, name, field)
+	if value then return name end
+	if value == nil then return ByNameText(field) end
+end
+
+-- On hovering a field while something is picked by name for it: what, for
+-- each scenario. `idField` is the setup's field ("configID" | "setID").
+local function ByNameTooltip(dropdown, field, idField, tipKey)
+	dropdown:HookScript("OnEnter", function(self)
+		local set = ShownSet()
+		if set and set[idField] ~= nil then return end
+		local list = ByName(field)
+		if #list == 0 then return end
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(L["Picked by name"], 1, 1, 1)
+		local r, g, b = Skin.Color("dim")
+		for _, rec in ipairs(list) do GameTooltip:AddDoubleLine(LO.ScenarioName(rec.key), rec.name, r, g, b, 1, 1, 1) end
+		GameTooltip:AddLine(L[tipKey], nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	dropdown:HookScript("OnLeave", GameTooltip_Hide)
 end
 
 -- A scenario that switches spec opens on that spec: it is the one set up there.
@@ -371,20 +406,7 @@ local function BuildLoadout(p)
 	p.talents = Skin.Dropdown(editor, FIELD_W, TalentItems, function(_, item)
 		SetCell("configID", "configName", item.value, item.label)
 	end)
-	-- while a loadout is picked by name: which one, for each scenario
-	p.talents:HookScript("OnEnter", function(self)
-		local set = ShownSet()
-		if set and set.configID ~= nil then return end
-		local list = ByName()
-		if #list == 0 then return end
-		GameTooltip:SetOwner(self, "ANCHOR_TOP")
-		GameTooltip:SetText(L["Picked by name"], 1, 1, 1)
-		local r, g, b = Skin.Color("dim")
-		for _, rec in ipairs(list) do GameTooltip:AddDoubleLine(LO.ScenarioName(rec.key), rec.name, r, g, b, 1, 1, 1) end
-		GameTooltip:AddLine(L["BYNAME_FIELD_TIP"], nil, nil, nil, true)
-		GameTooltip:Show()
-	end)
-	p.talents:HookScript("OnLeave", GameTooltip_Hide)
+	ByNameTooltip(p.talents, "config", "configID", "BYNAME_FIELD_TIP")
 
 	-- PvP talents: three icons picked one by one, or all three from what is on now
 	p.pvpLabel = Skin.Field(editor, "PvP", 0, p.fieldY)
@@ -412,11 +434,12 @@ local function BuildLoadout(p)
 	p.gear = Skin.Dropdown(editor, FIELD_W, GearItems, function(_, item)
 		SetCell("setID", "setName", item.value, item.label)
 	end)
+	ByNameTooltip(p.gear, "set", "setID", "GEARBYNAME_FIELD_TIP")
 
 	-- what the page shows, applied right now: the spec picked above, its talents and
 	-- gear, whatever is on already (so a loadout can be re-applied)
 	p.switch = CK.Bind(Skin.Button(editor, "", BUTTON_W, 22, function()
-		local setup = LO.BuildSetupFor(selectedSpec, ShownSet(), ByNameFor())
+		local setup = LO.BuildSetupFor(selectedSpec, ShownSet(), ByNameSetup())
 		if setup then LO.ApplySetup(setup) end
 		O.Refresh()
 	end), "Apply")
@@ -561,16 +584,12 @@ local function RefreshLoadout(p)
 	p.talents:SetDisabled(not usable)
 	p.gear:SetDisabled(not usable)
 	-- nothing set: the loadout picked by name, if any, dimmed like "Not set"
-	local talentsText
-	if cell and cell.configID then
-		talentsText = cell.configName
-	elseif not (cell and cell.configID == false) then
-		talentsText = ByNameText()
-	end
-	p.talents:SetValueText(talentsText or L["Not set"], not (cell and cell.configID))
-	p.gear:SetValueText(cell and cell.setName or L["Not set"], not (cell and cell.setID))
+	p.talents:SetValueText(FieldText(cell and cell.configID, cell and cell.configName, "config") or L["Not set"],
+		not (cell and cell.configID))
+	p.gear:SetValueText(FieldText(cell and cell.setID, cell and cell.setName, "set") or L["Not set"],
+		not (cell and cell.setID))
 	-- nothing to switch to at all (this spec, nothing set): the button waits
-	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell, ByNameFor()) == nil)
+	p.switch:SetDisabled(selectedSpec == nil or LO.BuildSetupFor(selectedSpec, cell, ByNameSetup()) == nil)
 
 	-- the PvP pages add "Multiple setups" above the loadout and the PvP talents under it
 	local pvpPage = (isGroup and selected.key == "pvp") or (isScenario and scenario.group == "pvp")
@@ -612,7 +631,7 @@ local function BuildOptions(p)
 	end
 	p.auto = Toggle("Switch talents and gear automatically", "AUTO_TIP",
 		function() return LO.db.settings.auto end, function(v) LO.db.settings.auto = v end)
-	p.byName = Toggle("Recommend loadouts by name", "BYNAME_TIP",
+	p.byName = Toggle("Recommend loadouts and gear sets by name", "BYNAME_TIP",
 		function() return LO.db.settings.byName end, function(v) LO.db.settings.byName = v end)
 	p.gearCheck = Toggle("Smart gear check", "GEARCHECK_TIP",
 		function() return LO.db.settings.gearCheck end, function(v) LO.db.settings.gearCheck = v end)

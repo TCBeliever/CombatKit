@@ -405,9 +405,9 @@ C.groups.pve.specs[HAVOC].configID, C.groups.pve.specs[HAVOC].configName = false
 st = ns.GetStatus("raid")
 check(not st.hasTalents and not st.byName, "'Not set' picked by hand: no loadout by name")
 eq(ns.BuildSetup("raid").configID, nil, "and none applied")
-eq(ns.BuildSetupFor(HAVOC, C.groups.pve.specs[HAVOC], "raid", "pve").configID, nil, "nor by the settings page")
+eq(ns.BuildSetupFor(HAVOC, C.groups.pve.specs[HAVOC], { configID = 102 }).configID, nil, "nor by the settings page")
 C.groups.pve.specs[HAVOC] = nil
-eq(ns.BuildSetupFor(HAVOC, nil, "raid", "pve").configID, 102, "the settings page applies the one it shows")
+eq(ns.BuildSetupFor(HAVOC, nil, { configID = 102 }).configID, 102, "the settings page applies the one it shows")
 eq(ns.BuildSetupFor(HAVOC, nil), nil, "and none when it shows none")
 ns.db.settings.byName = false
 eq(ns.GetStatus("raid").state, "none", "option off: nothing set is nothing")
@@ -433,6 +433,48 @@ eq(#ns.GroupUsers("pve"), 3, "split: less the one with its own settings")
 local users = ns.GroupUsers("pvp")
 check(#users == 3 and users[3].key == "world" and users[3].group == "pvp", "PvP: open world too while War Mode uses PvP")
 C.split.pve, C.scenarios.raid.custom, C.warmodePvP = false, false, false
+
+-- ---------------------------------------------------------------- gear sets picked by name
+flush()
+ns.db.settings.byName = false
+eq(ns.SetByName("arena", "pvp", HAVOC), nil, "off: no gear set by name either")
+ns.db.settings.byName = true
+C.groups.pve.specs, C.groups.pvp.specs = {}, {}
+W.sets[4], W.sets[5], W.sets[6] = { "Raid BiS", false }, { "M+ Haste", false }, { "Raid AoE", false }
+wear(1)
+local function setByName(key, group, spec) return select(2, ns.SetByName(key, group, spec or HAVOC)) end
+eq(setByName("arena", "pvp"), "PvP", "arena: the PvP set")
+eq(setByName("raid", "pve"), "Raid BiS", "raids: the first Raid set in the game's order")
+eq(setByName("dungeon", "pve"), "M+ Haste", "dungeons: the M+ set")
+eq(setByName("world", "pve"), "PvE", "open world: the PvE set")
+wear(6)
+eq(setByName("raid", "pve"), "Raid AoE", "the Raid set worn stays")
+W.setSpec = { [5] = 2 }   -- the game ties M+ Haste to Vengeance
+eq(setByName("dungeon", "pve"), "PvE", "a set the game ties to another spec is left out")
+eq(setByName("dungeon", "pve", VENG), "M+ Haste", "and taken by that spec")
+W.setSpec = nil
+
+wear(1)
+st = ns.GetStatus("raid")
+check(st.hasGear and st.setByName and st.setName == "Raid BiS" and not st.gearOK, "a raid with no set wants Raid BiS")
+eq(ns.BuildSetup("raid").setID, 4, "and equips it")
+wear(4)
+eq(ns.GetStatus("raid").gearOK, true, "worn: fine")
+C.groups.pve.specs[HAVOC] = { setID = 1, setName = "PvE" }
+st = ns.GetStatus("raid")
+check(st.setName == "PvE" and not st.setByName, "a set picked by hand wins")
+C.groups.pve.specs[HAVOC] = { setID = false }
+check(not ns.GetStatus("raid").hasGear, "'Not set' picked by hand: no set by name")
+eq(ns.BuildSetupFor(HAVOC, C.groups.pve.specs[HAVOC], { setID = 4 }), nil, "nor by the settings page")
+C.groups.pve.specs[HAVOC] = nil
+eq(ns.BuildSetupFor(HAVOC, nil, { setID = 4 }).setID, 4, "the settings page equips the one it shows")
+
+at(false, "none"); fire("PLAYER_ENTERING_WORLD"); flush()
+wear(2); W.log = {}
+at(true, "raid", 16); fire("PLAYER_ENTERING_WORLD"); flush()
+check(logged("equip:4"), "entering a raid with no set equips Raid BiS")
+W.sets[4], W.sets[5], W.sets[6] = nil, nil, nil
+ns.db.settings.byName = false
 
 T.releaseChat()
 return T.report("logic [" .. (LOCALE or "enUS") .. "]")

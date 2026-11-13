@@ -222,6 +222,16 @@ LO.db.settings.byName = false; O.Refresh()
 eq(p.talents.text:GetText(), L["Not set"], "option off: nothing picked by name")
 check(not offered(p.talents, false), "and only one 'Not set'")
 W.configs[VENG] = { 201 }; W.configNames[202], W.configNames[203] = nil, nil
+-- gear sets: the same, under the same option
+eq(p.gear.text:GetText(), L["Not set"], "option off: no gear set by name either")
+LO.db.settings.byName = true; O.Refresh()
+eq(p.gear.text:GetText(), L["Recommended: %s"]:format("PvP"), "on: the PvP set for every PvP scenario")
+check(pick(p.gear, false), "'Not set' after it")
+eq(C.groups.pvp.specs[VENG].setID, false, "saved as false")
+eq(p.gear.text:GetText(), L["Not set"], "the field says so")
+check(pick(p.gear, nil), "the recommendation picked again")
+eq(C.groups.pvp.specs[VENG], nil, "nothing set again")
+LO.db.settings.byName = false
 specButton(HAVOC):Click()
 
 -- ---------------------------------------------------------------- Loadout options page
@@ -231,6 +241,7 @@ check(lopt:IsShown() and not p:IsShown(), "only the page is shown")
 check(not lopt.byName:GetChecked(), "loadouts by name: off")
 eq(LO.defaults.byName, false, "off on a fresh install")
 lopt.byName:Click(); eq(LO.db.settings.byName, true, "by name on"); lopt.byName:Click()
+eq(lopt.byName.label:GetText(), L["Recommend loadouts and gear sets by name"], "one check box for loadouts and gear sets")
 lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
 lopt.gearCheck:Click(); eq(LO.db.settings.gearCheck, false, "gear check off"); lopt.gearCheck:Click()
 eq(LO.defaults.auto, false, "a fresh install does not switch on its own")

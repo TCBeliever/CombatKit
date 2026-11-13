@@ -236,13 +236,14 @@ function ns.RepairCell(cell, specID)
 end
 
 -- ===========================================================================
--- Loadouts picked by name
+-- Loadouts and equipment sets picked by name
 --
--- Where no loadout is set (the option on), the one whose name says where it
--- is for is used: "M+ AoE" in dungeons, "Raid ST" in raids, "PvP" in arena.
--- The scenario's own words count first, then its group's, so "Delve" beats
--- "PvE" in a delve. A loadout picked by hand always wins, and so does "Not
--- set" picked by hand: it is saved as configID = false.
+-- Where no talent loadout is set (the option on), the one whose name says
+-- where it is for is used: "M+ AoE" in dungeons, "Raid ST" in raids, "PvP" in
+-- arena; the same for equipment sets, under the same option. The
+-- scenario's own words count first, then its group's, so "Delve" beats "PvE"
+-- in a delve. What is picked by hand always wins, and so does "Not set"
+-- picked by hand: it is saved as configID = false, or setID = false.
 -- ===========================================================================
 
 -- Lower case. A word that starts with a letter only counts at the start of a
@@ -279,38 +280,75 @@ function ns.SourceGroup(source)
 	return scenario and scenario.group or nil
 end
 
--- The loadout of `specID` whose name says it is for `key`, played with the
--- settings of `group` (open world in War Mode is PvP's, and then only "PvP"
--- counts). Of several that say so, the one on now, else the first in the
--- game's order. Returns configID, name, or nil.
-function ns.ConfigByName(key, group, specID)
-	if not (ns.db and ns.db.settings.byName and specID and group) then return nil end
+-- Of `items` ({ { id=, name= }, ... } in the game's order), the one whose name
+-- says it is for `key`, played with the settings of `group` (open world in
+-- War Mode is PvP's, and then only "PvP" counts). Of several that say so, the
+-- one on now (`current`), else the first. Returns id, name, or nil.
+local function PickByName(items, current, key, group)
 	local lists = { ns.NAME_WORDS[group] }
 	local scenario = key and ns.SCENARIO_BY_KEY[key]
 	if scenario and scenario.group == group then table.insert(lists, 1, ns.NAME_WORDS[key]) end
-	local configs = ns.GetTalentConfigs(specID)
-	local active = ns.GetActiveConfigID(specID)
 	for _, words in ipairs(lists) do
 		local first
-		for _, c in ipairs(configs) do
-			if type(c.name) == "string" and Says(c.name, words) then
-				if c.id == active then return c.id, c.name end
-				first = first or c
+		for _, item in ipairs(items) do
+			if type(item.name) == "string" and Says(item.name, words) then
+				if item.id == current then return item.id, item.name end
+				first = first or item
 			end
 		end
 		if first then return first.id, first.name end
 	end
 end
 
--- The loadout a setup wants for `key`: the one set, else the one picked by
--- name. Returns configID, name, and true when it was picked by name.
-function ns.WantedConfig(set, key, group, specID)
-	if set and set.configID ~= nil then
-		if set.configID then return set.configID, set.configName end
-		return nil   -- "Not set", picked by hand
+-- The talent loadout of `specID` picked by name. Returns configID, name, or nil.
+function ns.ConfigByName(key, group, specID)
+	if not (ns.db and ns.db.settings.byName and specID and group) then return nil end
+	return PickByName(ns.GetTalentConfigs(specID), ns.GetActiveConfigID(specID), key, group)
+end
+
+-- The equipment set picked by name for `specID`: sets are the character's,
+-- not a spec's, but one the game ties to another spec is left out. Returns
+-- setID, name, or nil.
+function ns.SetByName(key, group, specID)
+	if not (ns.db and ns.db.settings.byName and specID and group) then return nil end
+	if not (C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs) then return nil end
+	local spec = ns.GetSpecByID(specID)
+	local sets, worn = {}, nil
+	for _, id in ipairs(C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+		local name, _, _, isEquipped = C_EquipmentSet.GetEquipmentSetInfo(id)
+		local ok, assigned = pcall(C_EquipmentSet.GetEquipmentSetAssignedSpec, id)
+		assigned = ok and type(assigned) == "number" and assigned or nil
+		if name and not (assigned and spec and assigned ~= spec.index) then
+			sets[#sets + 1] = { id = id, name = name }
+			if isEquipped and not worn then worn = id end
+		end
 	end
-	local id, name = ns.ConfigByName(key, group, specID)
-	return id, name, id ~= nil
+	return PickByName(sets, worn, key, group)
+end
+
+-- `field` "config" (talent loadouts) or "set" (equipment sets)
+function ns.ByName(field, key, group, specID)
+	if field == "set" then return ns.SetByName(key, group, specID) end
+	return ns.ConfigByName(key, group, specID)
+end
+
+-- What a setup wants: what it has (false is "Not set", picked by hand), else
+-- (nothing there) the one picked by name. Returns id, name, and true when by name.
+local function Wanted(id, name, pick, key, group, specID)
+	if id ~= nil then
+		if id then return id, name end
+		return nil
+	end
+	local byID, byName = pick(key, group, specID)
+	return byID, byName, byID ~= nil
+end
+
+function ns.WantedConfig(set, key, group, specID)
+	return Wanted(set and set.configID, set and set.configName, ns.ConfigByName, key, group, specID)
+end
+
+function ns.WantedSet(set, key, group, specID)
+	return Wanted(set and set.setID, set and set.setName, ns.SetByName, key, group, specID)
 end
 
 -- The scenarios that play with the group's own settings, { { key=, group= }, ... }:
@@ -405,17 +443,20 @@ function ns.GetStatus(key)
 	end
 	if cell then ns.RepairCell(cell, targetSpec) end
 
-	-- a spec with nothing set may still have a loadout picked by name
-	local configID, configName, byName = ns.WantedConfig(cell, key, ns.SourceGroup(source), targetSpec)
+	-- a spec with nothing set may still have a loadout and a set picked by name
+	local group = ns.SourceGroup(source)
+	local configID, configName, byName = ns.WantedConfig(cell, key, group, targetSpec)
 	st.configName, st.byName = configName, byName
 	if configID then
 		st.hasTalents = true
 		st.talentsOK = not st.targetSpecID and ns.GetActiveConfigID(specID) == configID
 		st.talentsMissing = not ConfigExists(configID)
 	end
-	if cell and cell.setID then
+	local setID, setName, setByName = ns.WantedSet(cell, key, group, targetSpec)
+	st.setName, st.setByName = setName, setByName
+	if setID then
 		st.hasGear = true
-		local equipped, exists = ns.IsSetEquipped(cell.setID)
+		local equipped, exists = ns.IsSetEquipped(setID)
 		st.gearOK, st.gearMissing = (equipped and not st.targetSpecID) and true or false, not exists
 	end
 	if cell and ns.HasPvp(cell.pvp) then
@@ -441,15 +482,13 @@ function ns.BuildSetup(key, targetSpecID)
 	local cell, source = ns.ResolveTarget(key, specID)
 	local setup = { specID = targetSpecID }
 	if cell then ns.RepairCell(cell, specID) end
-	local configID = ns.WantedConfig(cell, key, ns.SourceGroup(source), specID)
+	local group = ns.SourceGroup(source)
+	local configID = ns.WantedConfig(cell, key, group, specID)
 	if configID and ConfigExists(configID) then setup.configID = configID end
-	if cell then
-		if cell.setID and select(2, ns.IsSetEquipped(cell.setID)) then
-			setup.setID = cell.setID
-		end
-		-- what can be placed is worked out at the time, in the spec the setup ends in
-		if ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
-	end
+	local setID = ns.WantedSet(cell, key, group, specID)
+	if setID and select(2, ns.IsSetEquipped(setID)) then setup.setID = setID end
+	-- what can be placed is worked out at the time, in the spec the setup ends in
+	if cell and ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
 	if not setup.specID and not setup.configID and not setup.setID and not setup.pvp then return nil end
 	return setup
 end
@@ -460,17 +499,18 @@ end
 -- what does not exist is left out; nil when there is nothing at all.
 -- For the settings page: what the page shows, applied on request, whatever
 -- scenario the character is in. A forced setup asks every step once.
--- `key` and `group` say whose loadout by name the page shows, if any.
-function ns.BuildSetupFor(specID, cell, key, group)
+-- `byName` = { configID=, setID= }: what the page shows picked by name, used
+-- for a field the cell leaves empty.
+function ns.BuildSetupFor(specID, cell, byName)
 	if not specID then return nil end
 	local setup = { specID = specID ~= ns.GetCurrentSpecID() and specID or nil, force = true }
+	byName = byName or {}
 	if cell then ns.RepairCell(cell, specID) end
-	local configID = ns.WantedConfig(cell, key, group, specID)
+	local configID = Wanted(cell and cell.configID, nil, function() return byName.configID end)
+	local setID = Wanted(cell and cell.setID, nil, function() return byName.setID end)
 	if configID and ConfigExists(configID) then setup.configID = configID end
-	if cell then
-		if cell.setID and select(2, ns.IsSetEquipped(cell.setID)) then setup.setID = cell.setID end
-		if ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
-	end
+	if setID and select(2, ns.IsSetEquipped(setID)) then setup.setID = setID end
+	if cell and ns.HasPvp(cell.pvp) then setup.pvp = cell.pvp end
 	if not setup.specID and not setup.configID and not setup.setID and not setup.pvp then return nil end
 	return setup
 end

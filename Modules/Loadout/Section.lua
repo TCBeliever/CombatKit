@@ -102,7 +102,6 @@ ns.hudSection = {
 		local name = spec and spec.name or "-"
 		if ns.IsFaking() then name = name .. " " .. Skin.Text("dim", "(" .. L["faked"] .. ")") end
 		local text, colour, detail = StateText(st, early)
-		local cell = st.cell or {}
 		local rows = { { icon = spec and spec.icon or 134400, value = name, right = Skin.Text(colour, text) } }
 		-- under the state, flush right like it
 		if detail then rows[#rows + 1] = { label = "", value = Skin.Text(colour, detail) } end
@@ -119,7 +118,7 @@ ns.hudSection = {
 			end
 			rows[#rows + 1] = { label = L["PvP talents"], value = text }
 		end
-		AddLines(rows, L["Gear"], st.hasGear, st.gearOK, st.gearMissing, cell.setName,
+		AddLines(rows, L["Gear"], st.hasGear, st.gearOK, st.gearMissing, st.setName,
 			st.hasGear and not st.gearOK and ns.GetEquippedSetName() or nil)
 		return rows, alert
 	end,
