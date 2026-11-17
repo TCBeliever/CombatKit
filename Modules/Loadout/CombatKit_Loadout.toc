@@ -16,5 +16,6 @@ Scenarios.lua
 Loadouts.lua
 ApplyLog.lua
 Engine.lua
+Slots.lua
 Section.lua
 Trinkets.lua

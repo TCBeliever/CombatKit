@@ -148,15 +148,18 @@ W.log = {}
 treeRow("Loadout", "group:pve"):Click()
 check(not p.pvpLabel:IsShown() and not p.pvpSlots[1]:IsShown() and not p.pvpCapture:IsShown(), "PvE: no PvP talent row")
 local gearY = p.gear.__point[3]
+local barsPvE = p.bars:IsShown()
 treeRow("Loadout", "group:pvp"):Click()
 specButton(HAVOC):Click()
+-- the action bars line under a loadout that is set moves the rows under it too
+local barsH = ((p.bars:IsShown() and 1 or 0) - (barsPvE and 1 or 0)) * 16
 check(p.pvpLabel:IsShown() and p.pvpSlots[3]:IsShown() and p.pvpCapture:IsShown(), "PvP: three slots and the button")
 check(not p.pvpSlots[1].disabled and not p.pvpSlots[1].icon:IsDesaturated() and not p.pvpCapture.disabled, "the current spec: in colour, editable")
 eq(treeRow("Loadout", "group:pvp").text:GetText(), "PvP", "the tab is named PvP")
 local slotH = select(2, CK.Skin.TalentSlotSize(26))
 local pvpH = slotH + 32   -- the icons, then "Use current" under them
-eq(p.gear.__point[3], gearY - 28 - pvpH, "the gear set moves down under 'Multiple setups' and the PvP talents")
-check(p.warmode:IsShown() and p.warmode.__point[3] == gearY - 28 - pvpH - 68, "and so does the War Mode option")
+eq(p.gear.__point[3], gearY - 28 - pvpH - barsH, "the gear set moves down under 'Multiple setups' and the PvP talents")
+check(p.warmode:IsShown() and p.warmode.__point[3] == gearY - 28 - pvpH - barsH - 68, "and so does the War Mode option")
 local slotY = p.pvpSlots[1].__point[3]
 check(p.pvpLabel.__point[1] == "LEFT" and p.pvpLabel.__point[5] == slotY - slotH / 2, "the PvP label on the icons' middle line")
 check(p.pvpCapture.__point[2] == p.pvpSlots[1].__point[2] and p.pvpCapture.__point[3] == slotY - slotH - 4, "'Use current' on its own line, under the icons")

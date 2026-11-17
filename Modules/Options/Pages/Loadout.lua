@@ -18,6 +18,7 @@ local PVP_GAP   = 4       -- between slots, as in the game's talent window
 local PVP_SLOT_W, PVP_SLOT_H = Skin.TalentSlotSize(PVP_ICON)
 local PVP_ROW_H = PVP_SLOT_H + 4 + 20 + 8   -- the icons, then "Use current" on a line of its own
 local BUTTON_W  = 80      -- Apply
+local BARS_H    = 16      -- the line under the loadout: shared action bars or its own
 local SET_W     = 28      -- the 1 2 3 buttons of "Multiple setups"
 
 local LO                -- the module, set whenever the section is used
@@ -285,6 +286,15 @@ local function FieldText(value, name, field)
 	if value == nil then return ByNameText(field) end
 end
 
+-- The loadout the field shows: the one set, else the one picked by name for
+-- every scenario of the page; nil for "Not set" or one per scenario
+local function ShownConfigID(cell)
+	local id = cell and cell.configID
+	if id ~= nil then return id or nil end
+	local _, all = ByNameText("config")
+	return all and all.id or nil
+end
+
 -- On hovering a field while something is picked by name for it: what, for
 -- each scenario. `idField` is the setup's field ("configID" | "setID").
 local function ByNameTooltip(dropdown, field, idField, tipKey)
@@ -408,6 +418,14 @@ local function BuildLoadout(p)
 	end)
 	ByNameTooltip(p.talents, "config", "configID", "BYNAME_FIELD_TIP")
 
+	-- under the loadout: whether it shares the action bars, as the game's talent
+	-- window sets it (shown, never changed here)
+	p.bars = CreateFrame("Frame", nil, editor)
+	p.bars:EnableMouse(true)   -- for its tooltip
+	p.bars.text = Skin.Label(p.bars, "", nil, "dim")
+	p.bars.text:SetPoint("LEFT")
+	Skin.Tooltip(p.bars, function() return "BARS_" .. p.bars.state end, function() return "BARS_TIP_" .. p.bars.state end)
+
 	-- PvP talents: three icons picked one by one, or all three from what is on now
 	p.pvpLabel = Skin.Field(editor, "PvP", 0, p.fieldY)
 	p.pvpSlots = {}
@@ -496,6 +514,20 @@ local function RefreshPvp(p, shown, cell, usable, inSpec, y)
 	end
 	p.pvpCapture:SetDisabled(not (usable and inSpec))
 	return y - PVP_ROW_H
+end
+
+-- The action bars line under the loadout at y (the loadout's row); returns the y of the next row
+local function RefreshBars(p, configID, y)
+	local shared
+	if configID then shared = LO.UsesSharedBars(configID) end
+	p.bars:SetShown(shared ~= nil)
+	if shared == nil then return y - ROW_H end
+	p.bars.state = shared and "shared" or "own"
+	p.bars.text:SetText(L["BARS_" .. p.bars.state])
+	p.bars:SetSize(math.max(p.bars.text:GetStringWidth() or 0, 1), 14)
+	p.bars:ClearAllPoints()
+	p.bars:SetPoint("TOPLEFT", FIELD_X + 2, y - 24)
+	return y - ROW_H - BARS_H
 end
 
 local function RefreshLoadout(p)
@@ -598,7 +630,8 @@ local function RefreshLoadout(p)
 	p.talentsLabel:SetPoint("TOPLEFT", 0, y - 4)
 	p.talents:ClearAllPoints()
 	p.talents:SetPoint("TOPLEFT", FIELD_X, y)
-	y = RefreshPvp(p, pvpPage, cell, usable, selectedSpec == currentSpec, y - ROW_H)
+	y = RefreshBars(p, ShownConfigID(cell), y)
+	y = RefreshPvp(p, pvpPage, cell, usable, selectedSpec == currentSpec, y)
 	p.gearLabel:ClearAllPoints()
 	p.gearLabel:SetPoint("TOPLEFT", 0, y - 4)
 	p.gear:ClearAllPoints()
@@ -640,7 +673,13 @@ local function BuildOptions(p)
 	p.mismatch = Toggle("On the HUD only when something differs", nil,
 		function() return LO.db.settings.hud == "mismatch" end,
 		function(v) LO.db.settings.hud = v and "mismatch" or "always" end)
-	p.toggles = { p.auto, p.byName, p.gearCheck, p.early, p.mismatch }
+	p.slotRestore = Toggle("Put talent spells back in their slot", "SLOTRESTORE_TIP",
+		function() return LO.db.settings.slotRestore end,
+		function(v)
+			LO.db.settings.slotRestore = v
+			LO.OnSlotRestoreChanged()
+		end)
+	p.toggles = { p.auto, p.byName, p.gearCheck, p.early, p.mismatch, p.slotRestore }
 end
 
 local function RefreshOptions(p)

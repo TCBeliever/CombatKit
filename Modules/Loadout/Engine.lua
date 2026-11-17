@@ -7,7 +7,7 @@ local CK = CombatKit
 --
 --   CombatKitLoadoutDB = {
 --     version  = 1,
---     settings = { auto=, early=, hud = "always" | "mismatch", gearCheck=, byName= },   -- account-wide
+--     settings = { auto=, early=, hud = "always" | "mismatch", gearCheck=, byName=, slotRestore= },   -- account-wide
 --     chars    = {
 --       ["Name - Realm"] = {
 --         class      = "DEMONHUNTER",
@@ -15,6 +15,8 @@ local CK = CombatKit
 --         warmodePvP = false,                           -- open world with War Mode uses PvP
 --         groups     = { pve = { specs = {} }, pvp = { specs = {} } },
 --         scenarios  = { dungeon = { custom = false, specs = {}, autoSpec = nil }, ... },
+--         slots      = { [specID] = { [spellID] = slot } },   -- talent spells to put back (Slots.lua)
+--         autoPushWas = "1",                                 -- the game's auto-push before it was turned off
 --       },
 --     },
 --   }
@@ -30,6 +32,7 @@ ns.defaults = {
 	hud   = "always",   -- this module's HUD lines: "always" | "mismatch"
 	gearCheck = true,   -- a text on screen when the gear does not fit the scenario
 	byName = false,     -- where no loadout or gear set is set, use the one whose name says the scenario
+	slotRestore = true, -- a spell a talent change took off the bars goes back to its slot when learned again
 }
 
 local function InitDB()
@@ -57,6 +60,7 @@ local function InitChar()
 		char.groups[group].specs = char.groups[group].specs or {}
 	end
 	if char.warmodePvP == nil then char.warmodePvP = false end
+	char.slots = char.slots or {}
 	char.scenarios = char.scenarios or {}
 	for _, s in ipairs(ns.SCENARIOS) do
 		local e = char.scenarios[s.key] or {}
@@ -328,6 +332,7 @@ function ns.OnEnable()
 	-- an event this client does not know raises an error on registration
 	for _, e in ipairs(EVENTS) do pcall(driver.RegisterEvent, driver, e) end
 	CK.HUD.AddSection(ns.hudSection)
+	ns.StartSlots()
 	-- switched on mid-session there is no loading screen to start from; at
 	-- login this merges with the one PLAYER_ENTERING_WORLD asks for
 	currentKey = nil
@@ -338,6 +343,7 @@ function ns.OnDisable()
 	running = false
 	driver:UnregisterAllEvents()
 	ns.CancelApply()
+	ns.StopSlots()
 	wantAuto, wantSpec, earlyBG, earlyLFG = false, false, nil, nil
 	ns.UpdateGearWarning(nil)
 	wipe(ns.debug)

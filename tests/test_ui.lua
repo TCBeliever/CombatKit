@@ -98,9 +98,18 @@ check(pick(p.gear, 1), "Havoc PvE: gear")
 local cell = C.groups.pve.specs[HAVOC]
 check(cell and cell.configID == 101 and cell.configName == "M+ AoE" and cell.setID == 1 and cell.setName == "PvE", "cell saved with names")
 check(specButton(HAVOC).dot:IsShown() and not specButton(VENG).dot:IsShown(), "configured specs are marked")
+-- under the loadout: whether it shares the action bars, as the game says
+check(p.bars:IsShown(), "a loadout set: the action bars line is shown")
+eq(p.bars.text:GetText(), L["BARS_shared"], "shared bars")
+local gearWithBars = p.gear.__point[3]
+W.ownBars = { [101] = true }; O.Refresh()
+eq(p.bars.text:GetText(), L["BARS_own"], "a loadout with its own bars says so")
+W.ownBars = nil
 
 specButton(VENG):Click()
 eq(p.talents.text:GetText(), L["Not set"], "fields show the picked spec")
+check(not p.bars:IsShown(), "no loadout set: no action bars line")
+eq(p.gear.__point[3], gearWithBars + 16, "and the rows under it move up")
 check(not offered(p.talents, 101), "its own loadouts only")
 check(pick(p.talents, 201), "Vengeance PvE: talents")
 eq(C.groups.pve.specs[VENG].configID, 201, "saved under the picked spec")
@@ -246,6 +255,13 @@ lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
 lopt.gearCheck:Click(); eq(LO.db.settings.gearCheck, false, "gear check off"); lopt.gearCheck:Click()
 eq(LO.defaults.auto, false, "a fresh install does not switch on its own")
 lopt.early:Click(); eq(LO.db.settings.early, false, "early off"); lopt.early:Click()
+check(lopt.slotRestore:GetChecked(), "talent spells back in their slot: on")
+eq(LO.defaults.slotRestore, true, "on on a fresh install")
+W.cvars.AutoPushSpellToActionBar = "0"   -- as the module left it
+LO.char.autoPushWas = "1"
+lopt.slotRestore:Click(); eq(LO.db.settings.slotRestore, false, "slot restore off")
+eq(W.cvars.AutoPushSpellToActionBar, "1", "and the game's auto-push is back")
+lopt.slotRestore:Click(); eq(W.cvars.AutoPushSpellToActionBar, "0", "on again: off again")
 
 -- ---------------------------------------------------------------- settings page: language, window size, HUD
 go("kit", "general")

@@ -55,6 +55,11 @@ CK.AddLocale("enUS", {
 	["SWITCH_NOW_TIP"] = "Switches to the spec picked above and applies the talents, PvP talents and gear shown, right now, even if they seem to be on already. In combat it waits for combat to end.",
 	["PVP_CAPTURE_TIP"] = "Fills the three slots with the PvP talents you have on now.",
 	["ENTER_TIP"]     = "Runs the check as if you had just entered the scenario.",
+	["SLOTRESTORE_TIP"] = "Not if the slot is taken.\nWhile on, the game does not put newly learned spells on your bars.",
+	["BARS_shared"]   = "Action bars: shared",
+	["BARS_own"]      = "Action bars: its own",
+	["BARS_TIP_shared"] = "Change it when editing the loadout in the talent window.",
+	["BARS_TIP_own"]  = "Switching to this loadout brings back its own action bars.\nChange it when editing the loadout in the talent window.",
 
 	-- reminder pages
 	["CONSUMABLE_TIMING"] = "Shown when you enter, until the first pull. In a raid it comes back after every fight, and during a ready check.",
@@ -180,6 +185,11 @@ CK.AddLocale("zhTW", {
 	["SWITCH_NOW_TIP"] = "現在就切到上面選的專精，並套用顯示的天賦、PvP 天賦與裝備；已經是這一組也會重新套用。戰鬥中會等脫離戰鬥。",
 	["PVP_CAPTURE_TIP"] = "把你現在的 PvP 天賦填進三格。",
 	["ENTER_TIP"]     = "當作你剛進入這個場景，重新檢查一次。",
+	["SLOTRESTORE_TIP"] = "原格被佔用就不放。\n開著時，\n新學的技能不會自動上動作條。",
+	["BARS_shared"]   = "動作條：共用",
+	["BARS_own"]      = "動作條：獨立",
+	["BARS_TIP_shared"] = "在天賦視窗編輯配置時可以改。",
+	["BARS_TIP_own"]  = "切到這個配置時，\n換上它自己的一套動作條。\n在天賦視窗編輯配置時可以改。",
 
 	["Options"]                  = "選項",
 	["Use different settings per scenario"] = "各場景使用不同設定",
@@ -203,6 +213,7 @@ CK.AddLocale("zhTW", {
 	["Smart gear check"]                       = "智慧檢查套裝切換",
 	["Show the next scenario on a queue pop"]  = "排隊就緒時，預先顯示該場景的配置",
 	["On the HUD only when something differs"] = "僅在配置不符時顯示",
+	["Put talent spells back in their slot"]   = "天賦技能放回原格",
 
 	-- debug page
 	["Off"]                      = "關閉",

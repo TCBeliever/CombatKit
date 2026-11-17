@@ -487,6 +487,47 @@ function LearnPvpTalent(id, slot)
 	for _, s in pairs(W.pvpSlots) do if s.selected == id then s.selected = nil end end
 	W.pvpSlots[slot].selected = id
 end
+-- Action slots: W.actions[slot] = spellID (a spell) or "macro" (anything else). W.cursor holds what is
+-- picked up. Every change fires ACTIONBAR_SLOT_CHANGED, as the game does; W.actionsSecret makes every
+-- answer secret. W.ownBars[configID]: that loadout keeps its own bars (usesSharedActionBars false).
+W.actions = {}
+local function SlotChanged(slot) T.raw("ACTIONBAR_SLOT_CHANGED", slot) end
+function GetActionInfo(slot)
+	if W.actionsSecret then return T.SECRET, T.SECRET end
+	local a = W.actions[slot]
+	if a == nil then return nil end
+	if type(a) == "number" then return "spell", a, "spell" end
+	return "macro", 1, nil
+end
+function GetCursorInfo() if W.cursor ~= nil then return type(W.cursor) == "number" and "spell" or "macro", W.cursor end end
+function ClearCursor() W.cursor = nil end
+function PickupAction(slot)
+	log("pickup:" .. slot)
+	W.cursor, W.actions[slot] = W.actions[slot], W.cursor
+	SlotChanged(slot)
+end
+function PlaceAction(slot)
+	log("place:" .. slot)
+	if W.placeRefused then return end
+	W.actions[slot], W.cursor = W.cursor, W.actions[slot]
+	SlotChanged(slot)
+end
+C_Spell.PickupSpell = function(id) log("pickupspell:" .. id); W.cursor = id end
+-- CVars: W.cvars[name] = "value"; a name not there is one the client does not know
+W.cvars = {}
+C_CVar = {
+	GetCVar = function(name) return W.cvars[name] end,
+	SetCVar = function(name, value) log("cvar:" .. name .. "=" .. tostring(value)); W.cvars[name] = tostring(value); return true end,
+}
+do
+	local configInfo = C_Traits.GetConfigInfo
+	C_Traits.GetConfigInfo = function(id)
+		local info = configInfo(id)
+		if info then info.usesSharedActionBars = not (W.ownBars and W.ownBars[id]) end
+		return info
+	end
+end
+
 C_EquipmentSet = {
 	GetEquipmentSetIDs = function() local t = {} for id in pairs(W.sets) do t[#t + 1] = id end table.sort(t) return t end,
 	GetEquipmentSetInfo = function(id)
