@@ -255,13 +255,12 @@ lopt.auto:Click(); eq(LO.db.settings.auto, false, "auto off"); lopt.auto:Click()
 lopt.gearCheck:Click(); eq(LO.db.settings.gearCheck, false, "gear check off"); lopt.gearCheck:Click()
 eq(LO.defaults.auto, false, "a fresh install does not switch on its own")
 lopt.early:Click(); eq(LO.db.settings.early, false, "early off"); lopt.early:Click()
-check(lopt.slotRestore:GetChecked(), "talent spells back in their slot: on")
-eq(LO.defaults.slotRestore, true, "on on a fresh install")
-W.cvars.AutoPushSpellToActionBar = "0"   -- as the module left it
-LO.char.autoPushWas = "1"
-lopt.slotRestore:Click(); eq(LO.db.settings.slotRestore, false, "slot restore off")
-eq(W.cvars.AutoPushSpellToActionBar, "1", "and the game's auto-push is back")
-lopt.slotRestore:Click(); eq(W.cvars.AutoPushSpellToActionBar, "0", "on again: off again")
+check(not lopt.slotRestore:GetChecked(), "talent spells back in their slot: off")
+eq(LO.defaults.slotRestore, false, "off on a fresh install")
+W.cvars.AutoPushSpellToActionBar = "1"
+lopt.slotRestore:Click(); eq(LO.db.settings.slotRestore, true, "slot restore on")
+eq(W.cvars.AutoPushSpellToActionBar, "0", "and the game's auto-push is off")
+lopt.slotRestore:Click(); eq(W.cvars.AutoPushSpellToActionBar, "1", "off again: back as it was")
 
 -- ---------------------------------------------------------------- settings page: language, window size, HUD
 go("kit", "general")

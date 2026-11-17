@@ -286,6 +286,17 @@ function ns.OnSlotRestoreChanged()
 	QueueSettle()
 end
 
+-- The landing offers this module's options (CombatKit.MODULES): this one only
+function ns.GetOption(key)
+	if key == "slotRestore" then return ns.db.settings.slotRestore end
+end
+
+function ns.SetOption(key, on)
+	if key ~= "slotRestore" or ns.db.settings.slotRestore == on then return end
+	ns.db.settings.slotRestore = on
+	ns.OnSlotRestoreChanged()
+end
+
 -- ---------------------------------------------------------------------------
 -- Events
 -- ---------------------------------------------------------------------------

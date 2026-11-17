@@ -32,7 +32,7 @@ ns.defaults = {
 	hud   = "always",   -- this module's HUD lines: "always" | "mismatch"
 	gearCheck = true,   -- a text on screen when the gear does not fit the scenario
 	byName = false,     -- where no loadout or gear set is set, use the one whose name says the scenario
-	slotRestore = true, -- a spell a talent change took off the bars goes back to its slot when learned again
+	slotRestore = false, -- a spell a talent change took off the bars goes back to its slot (offered on the landing)
 }
 
 local function InitDB()

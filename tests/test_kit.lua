@@ -49,8 +49,20 @@ check(landing and landing:IsShown(), "a fresh install: the landing is up, once t
 check(not loaded("CombatKit_Options"), "without loading the settings window")
 eq(#landing.defs, 5, "the five modules that are switched as a whole")
 check(landing.rows[1].check:GetChecked() and not landing.rows[2].check:GetChecked(), "ticked as they would be on: Loadout yes, Stats no")
+-- Loadout's option under it: off, as on a fresh install
+local opt = landing.optionRows[1]
+check(opt and opt.check:IsShown() and opt.key == "slotRestore", "Loadout's option has a row under it")
+eq(opt.check.label:GetText(), CK.L["LANDOPT_slotRestore"], "named")
+check(not opt.check:GetChecked() and not opt.check.disabled, "off, and can be ticked while Loadout is")
+landing.rows[1].check:Click()
+check(opt.check.disabled, "Loadout unticked: its option cannot be")
+landing.rows[1].check:Click()
+check(not opt.check.disabled, "ticked again: it can")
+opt.check:Click()   -- wanted
 landing.rows[3].check:Click()   -- Range wanted
 CK.Landing.Apply()
+eq(CK.modules.Loadout.db.settings.slotRestore, true, "Apply turns the option on in the module")
+check(CK.db.settings.asked["Loadout.slotRestore"], "and it is not asked about again")
 check(not landing:IsShown() and CK.IsModuleEnabled("Range") and loaded("CombatKit_Range"), "Apply switches the ticked ones on")
 check(CK.IsModuleEnabled("Loadout") and not loaded("CombatKit_Stats"), "and leaves the rest as they were")
 check(CK.db.settings.asked.Stats and CK.db.settings.asked.Range, "every module shown is now asked about")
@@ -78,6 +90,25 @@ check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "Remi
 	and not landing.rows[1].check:GetChecked(), "an update with Reminder: shown alone, unticked")
 CK.Landing.Apply()
 check(not CK.IsModuleEnabled("Reminder") and not loaded("CombatKit_Reminder"), "applied as it stands: Reminder stays off and unloaded")
+
+-- an update that brings an option to a module that is on: asked about on its own landing
+CK.db.settings.asked["Loadout.slotRestore"] = nil
+CK.modules.Loadout.db.settings.slotRestore = false
+login()
+check(landing:IsShown() and #landing.defs == 1 and landing.defs[1].name == "Loadout", "a new option: its module on the landing")
+eq(landing.intro:GetText(), CK.L["LANDING_OPTIONS"], "as new options")
+check(landing.rows[1].check:GetChecked() and not landing.optionRows[1].check:GetChecked(), "the module as it is, the option off")
+CK.Landing.Later()
+-- a module that is off is not asked about for its options
+CK.SetModuleEnabled("Loadout", false)
+login()
+check(not landing:IsShown(), "Loadout off: its new option asks nothing")
+CK.SetModuleEnabled("Loadout", true)
+login()
+check(landing:IsShown(), "Loadout on: asked")
+CK.Landing.Apply()
+eq(CK.modules.Loadout.db.settings.slotRestore, false, "applied unticked: the option stays off")
+check(CK.db.settings.asked["Loadout.slotRestore"], "and is not asked about again")
 CK.db.settings.asked.Range = nil   -- as the lines above left it
 
 -- ---------------------------------------------------------------- switching a module off and on

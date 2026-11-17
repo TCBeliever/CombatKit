@@ -91,6 +91,9 @@ ns.AddLocale("enUS", {
 	["Slash hint"]      = "/ck opens the settings.",
 	["LANDING_FIRST"]   = "Welcome to CombatKit.\nLoad only the modules you use: one that is not loaded costs nothing. Settings later in Options > AddOns or /ck.",
 	["LANDING_NEW"]     = "This version has new modules. Load only the ones you use: one that is not loaded costs nothing. Settings later in Options > AddOns or /ck.",
+	["LANDING_OPTIONS"] = "This version has new options: tick the ones you want. Settings later in Options > AddOns or /ck.",
+	["LANDOPT_slotRestore"]     = "Put talent spells back in their slot",
+	["LANDOPTDESC_slotRestore"] = "After a talent switch, spells go back to their old action bar slot.",
 })
 
 ns.AddLocale("zhTW", {
@@ -127,6 +130,9 @@ ns.AddLocale("zhTW", {
 	["Could not load %s (%s)."]         = "無法載入 %s（%s）。",
 	["LANDING_FIRST"]   = "歡迎使用 CombatKit。\n按需載入你要用的模組，沒載入的不消耗效能。後續設定在「選項 > 插件」或 /ck。",
 	["LANDING_NEW"]     = "這版有新的模組。按需載入你要用的，沒載入的不消耗效能。後續設定在「選項 > 插件」或 /ck。",
+	["LANDING_OPTIONS"] = "這版有新的選項，要用就勾選。後續設定在「選項 > 插件」或 /ck。",
+	["LANDOPT_slotRestore"]     = "天賦技能放回原格",
+	["LANDOPTDESC_slotRestore"] = "切換天賦後，技能回到動作條原本的格子。",
 	["Apply"]           = "套用",
 	["Later"]           = "稍後再說",
 })

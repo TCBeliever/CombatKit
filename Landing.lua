@@ -7,6 +7,10 @@ local L, Skin = ns.L, ns.Skin
 -- update that brought one). One row per module, ticked as it would be on,
 -- Apply switches them, Later asks again next login. /ck landing shows it
 -- for every module, to look at it.
+--
+-- A module's options (CombatKit.MODULES `options`, off by default) have a row
+-- of their own under it, usable while the module is ticked. A new option is
+-- asked about once, on its own landing, wherever its module is on.
 -- ===========================================================================
 
 local Landing = {}
@@ -48,6 +52,7 @@ local function Create()
 	f.intro:SetJustifyH("LEFT")
 
 	f.rows = {}
+	f.optionRows = {}
 	f.apply = ns.Bind(Skin.Button(f, "", 90, 22, function() Landing.Apply() end), "Apply")
 	f.later = ns.Bind(Skin.Button(f, "", 90, 22, function() Landing.Later() end), "Later")
 	f.apply:SetPoint("BOTTOMRIGHT", -14, 12)
@@ -60,19 +65,65 @@ local function Create()
 	return f
 end
 
-local function Row(i)
-	local f = frame
-	local row = f.rows[i]
-	if row then return row end
-	row = {}
-	-- a switch for each module: on or off, one setting each
-	row.check = Skin.Switch(f, "", function() end)
+local function NewRow(onChange)
+	local row = {}
+	row.check = Skin.Switch(frame, "", onChange)
 	row.check.label:SetFontObject(BODY_FONT)
-	row.desc = Skin.Label(f, "", BODY_FONT, "dim")
-	row.desc:SetWidth(W - 28 - 20)
+	row.desc = Skin.Label(frame, "", BODY_FONT, "dim")
 	row.desc:SetJustifyH("LEFT")
-	f.rows[i] = row
 	return row
+end
+
+-- an option can be ticked while its module is
+local function UpdateOptions()
+	for i = 1, frame.optionCount or 0 do
+		local row = frame.optionRows[i]
+		row.check:SetDisabled(not row.parent.check:GetChecked())
+	end
+end
+
+-- a switch for each module: on or off, one setting each
+local function Row(i)
+	frame.rows[i] = frame.rows[i] or NewRow(UpdateOptions)
+	return frame.rows[i]
+end
+
+local function OptionRow(n)
+	frame.optionRows[n] = frame.optionRows[n] or NewRow(function() end)
+	return frame.optionRows[n]
+end
+
+-- An option as the module has it now; off while the module is not running
+local function OptionValue(def, key)
+	local module = ns.modules[def.name]
+	if not (module and module.enabled and module.GetOption) then return false end
+	return module.GetOption(key) and true or false
+end
+
+-- Places a row: its switch under `above` (nil: under the intro), `indent` to
+-- the right of where the rows start, its text under the switch's label.
+-- Returns the row's height.
+local function Place(row, above, aboveIndent, indent, labelKey, descKey)
+	local f = frame
+	ns.Bind(row.check, labelKey)
+	row.check:ClearAllPoints()
+	local labelX = row.check:BaseLabelX()
+	if above then
+		-- `above` is the previous row's text, which starts at its label
+		row.check:SetPoint("TOPLEFT", above, "BOTTOMLEFT", indent - aboveIndent - labelX, -10)
+	else
+		row.check:SetPoint("TOPLEFT", f.intro, "BOTTOMLEFT", indent, -16)   -- under the text, however many lines it takes
+	end
+	row.desc:SetText(L[descKey])
+	row.desc:ClearAllPoints()
+	row.desc:SetPoint("TOPLEFT", row.check, "BOTTOMLEFT", labelX, -2)
+	row.desc:SetWidth(W - 28 - labelX - indent)
+	row.check:Show()
+	row.desc:Show()
+	-- a description may wrap: the row is as tall as its text
+	local descH = row.desc:GetStringHeight()
+	if type(descH) ~= "number" or descH < 14 then descH = 16 end
+	return 18 + 2 + descH + 10
 end
 
 -- how much the window is scaled: its body text at BODY_SIZE, whatever size the client gives the font
@@ -88,40 +139,39 @@ function Landing.Show(defs, why)
 	local f = frame or Create()
 	f:SetScale(Scale())
 	f.defs = defs
-	f.intro:SetText(L[why == "first" and "LANDING_FIRST" or "LANDING_NEW"])
+	f.intro:SetText(L[why == "first" and "LANDING_FIRST" or why == "options" and "LANDING_OPTIONS" or "LANDING_NEW"])
 	local introH = f.intro:GetStringHeight()
 	if type(introH) ~= "number" or introH < 14 then introH = 40 end
-	local above, rowsH = nil, 0
+	local above, aboveIndent, rowsH, n = nil, 0, 0, 0
 	for i, def in ipairs(defs) do
 		local row = Row(i)
 		local nameKey = "MODLIST_" .. def.name
 		if not (ns.locales.enUS[nameKey] or ns.locales.zhTW[nameKey]) then nameKey = "MOD_" .. def.name end
-		ns.Bind(row.check, nameKey)
 		row.check:SetChecked(ns.IsModuleEnabled(def.name) or (def.default == true and ns.db.settings.asked[def.name] == nil))
-		row.check:ClearAllPoints()
-		local labelX = row.check:BaseLabelX()
-		if above then
-			row.check:SetPoint("TOPLEFT", above, "BOTTOMLEFT", -labelX, -10)
-		else
-			row.check:SetPoint("TOPLEFT", f.intro, "BOTTOMLEFT", 0, -16)   -- under the text, however many lines it takes
-		end
-		row.desc:SetText(L["MODDESC_" .. def.name])
-		row.desc:ClearAllPoints()
-		row.desc:SetPoint("TOPLEFT", row.check, "BOTTOMLEFT", labelX, -2)
-		row.desc:SetWidth(W - 28 - labelX)
-		row.check:Show()
-		row.desc:Show()
+		rowsH = rowsH + Place(row, above, aboveIndent, 0, nameKey, "MODDESC_" .. def.name)
 		row.module = def.name
-		above = row.desc
-		-- a description may wrap: the row is as tall as its text
-		local descH = row.desc:GetStringHeight()
-		if type(descH) ~= "number" or descH < 14 then descH = 16 end
-		rowsH = rowsH + 18 + 2 + descH + 10
+		above, aboveIndent = row.desc, 0
+		-- its options, under its label
+		local optionIndent = row.check:BaseLabelX()
+		for _, key in ipairs(def.options or {}) do
+			n = n + 1
+			local opt = OptionRow(n)
+			opt.parent, opt.def, opt.key = row, def, key
+			opt.check:SetChecked(OptionValue(def, key))
+			rowsH = rowsH + Place(opt, above, aboveIndent, optionIndent, "LANDOPT_" .. key, "LANDOPTDESC_" .. key)
+			above, aboveIndent = opt.desc, optionIndent
+		end
 	end
 	for i = #defs + 1, #f.rows do
 		f.rows[i].check:Hide()
 		f.rows[i].desc:Hide()
 	end
+	for i = n + 1, #f.optionRows do
+		f.optionRows[i].check:Hide()
+		f.optionRows[i].desc:Hide()
+	end
+	f.optionCount = n
+	UpdateOptions()
 	f:SetHeight(40 + introH + 16 + rowsH + 50)
 	f:Show()
 end
@@ -129,13 +179,22 @@ end
 function Landing.IsShown() return frame ~= nil and frame:IsShown() end
 function Landing.GetFrame() return frame end
 
--- The choices taken: each module as ticked, and none of them asked about again.
+-- The choices taken: each module as ticked, then the options of those that
+-- run. Nothing shown is asked about again.
 function Landing.Apply()
 	if not frame then return end
 	for i, def in ipairs(frame.defs or {}) do
 		local on = frame.rows[i].check:GetChecked()
 		if not def.features and on ~= ns.IsModuleEnabled(def.name) then ns.SetModuleEnabled(def.name, on) end
 		ns.db.settings.asked[def.name] = true
+	end
+	for i = 1, frame.optionCount or 0 do
+		local opt = frame.optionRows[i]
+		local module = ns.modules[opt.def.name]
+		if module and module.enabled and module.SetOption then
+			module.SetOption(opt.key, opt.check:GetChecked() and true or false)
+		end
+		ns.db.settings.asked[opt.def.name .. "." .. opt.key] = true
 	end
 	frame:Hide()
 end
@@ -152,12 +211,26 @@ function Landing.Later()
 end
 
 -- The modules the player was never asked about (switched as a whole; the small
--- features are switched on their own pages), and whether this is the first time.
+-- features are switched on their own pages), and those that are on with an
+-- option never asked about. Returns them, and why: "first" (nothing was ever
+-- asked), "new" (a new module among them) or "options" (new options only).
 function ns.PendingModules()
-	local out, anyAsked = {}, false
-	for name in pairs(ns.db.settings.asked) do anyAsked = true end
+	local asked = ns.db.settings.asked
+	local out, anyAsked, newModule = {}, false, false
+	for _ in pairs(asked) do anyAsked = true end
 	for _, def in ipairs(ns.MODULES) do
-		if not def.features and not ns.db.settings.asked[def.name] then out[#out + 1] = def end
+		if not def.features then
+			if not asked[def.name] then
+				out[#out + 1], newModule = def, true
+			elseif ns.IsModuleEnabled(def.name) then
+				for _, key in ipairs(def.options or {}) do
+					if not asked[def.name .. "." .. key] then
+						out[#out + 1] = def
+						break
+					end
+				end
+			end
+		end
 	end
-	return out, anyAsked and "new" or "first"
+	return out, not anyAsked and "first" or newModule and "new" or "options"
 end

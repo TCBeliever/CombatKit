@@ -19,7 +19,7 @@ W.actions = { [1] = OTHER, [2] = "macro", [5] = EC, [7] = 355913 }
 W.cvars = { AutoPushSpellToActionBar = "1" }
 
 CombatKitLoadoutDB = {
-	settings = { auto = true },
+	settings = { auto = true, slotRestore = true },   -- off by default: this player turned it on
 	chars = { ["Tester - Realm"] = {
 		class = "EVOKER",
 		groups = {
@@ -63,7 +63,8 @@ fire("PLAYER_ENTERING_WORLD")
 pass(5)
 
 -- ---------------------------------------------------------------- the game's auto-push
-eq(ns.db.settings.slotRestore, true, "on by default")
+eq(ns.defaults.slotRestore, false, "off by default")
+eq(ns.db.settings.slotRestore, true, "a saved choice is kept")
 eq(W.cvars.AutoPushSpellToActionBar, "0", "the game's auto-push is off while it is on")
 eq(ns.char.autoPushWas, "1", "and what it was is kept")
 ns.db.settings.slotRestore = false; ns.OnSlotRestoreChanged()

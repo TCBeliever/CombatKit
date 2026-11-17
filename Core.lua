@@ -25,11 +25,15 @@ function ns.Msg(fmt, ...) print(PREFIX .. string.format(fmt, ...)) end
 -- A feature for one class only (featureClass) is neither offered nor counted
 -- for any other: the flags are saved for the account, so a rogue's switch
 -- must not load the module on a warrior.
+--
+-- `options`: a module's own settings that are off by default and offered on
+-- the landing, under the module's row. The module keeps them in its own saved
+-- variables and provides ns.GetOption(key) / ns.SetOption(key, on).
 -- ---------------------------------------------------------------------------
 
 -- Static so the settings can list modules that are not loaded.
 ns.MODULES = {
-	{ name = "Loadout", default = true },
+	{ name = "Loadout", default = true, options = { "slotRestore" } },
 	{ name = "Stats",   default = false },
 	{ name = "Range",   default = false },
 	{ name = "PartyCD", default = false },
@@ -250,7 +254,7 @@ end
 --     version  = 1,
 --     settings = { windowScale=, locale= ("enUS" | "zhTW"; absent = follow the game),
 --                  theme= (a key of Skin.THEMES),
---                  asked = { <module> = true: the landing asked about it } },
+--                  asked = { <module> = true, ["<module>.<option>"] = true: the landing asked about it } },
 --     hud      = { show = "always" | "never", scale=, locked=, point=, relPoint=, x=, y=,
 --                  bgAlpha= (0 = no background), border=, font= (file; absent = the game's), fontName=,
 --                  anchor = the corner the box grows away from ("TOPLEFT" ...) },
