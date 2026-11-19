@@ -70,16 +70,26 @@ RM.db.classWhere.world = false
 RM.Refresh()
 check(not find(AI), "the open world's ticks: class reminders off there, off here")
 RM.db.classWhere.world = true
-W.difficultyID = 24
-fire("PLAYER_ENTERING_WORLD")
-check(find(L["Flask"]), "Timewalking is scaled up to you: a dungeon, whatever the loot rules say")
 W.difficultyID = 23
 fire("PLAYER_ENTERING_WORLD")
-check(find(L["Flask"]), "a Mythic dungeon (the season's keys take old ones too): a dungeon")
+check(find(L["Flask"]), "a Mythic dungeon (the season's keys take old ones too): a dungeon, whatever the loot rules say")
 W.instanceType, W.difficultyID = "raid", 14
 fire("PLAYER_ENTERING_WORLD")
 check(not find(L["Flask"]) and find(AI), "an old raid, legacy loot: the open world")
 W.instanceType, W.difficultyID, W.legacyLoot = "party", 2, nil
+fire("LEGACY_LOOT_RULES_CHANGED", false)
+check(find(L["Flask"]), "a current dungeon at the top level: consumables")
+W.difficultyID = 24
+fire("PLAYER_ENTERING_WORLD")
+check(not find(L["Flask"]) and not find(L["Food"]) and find(AI) and find(ELEMENTAL),
+	"Timewalking, scaled up to you but easy: the open world, class reminders and no consumables")
+W.instanceType = "raid"
+for _, id in ipairs({ 33, 257 }) do
+	W.difficultyID = id
+	fire("PLAYER_ENTERING_WORLD")
+	check(not find(L["Flask"]) and find(AI), "a Timewalking raid (" .. id .. "): the open world")
+end
+W.instanceType, W.difficultyID = "party", 2
 W.level = 84
 fire("PLAYER_ENTERING_WORLD")
 check(not find(L["Flask"]) and find(AI), "levelling: any dungeon plays as the open world")

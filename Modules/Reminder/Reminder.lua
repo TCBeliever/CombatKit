@@ -19,7 +19,7 @@ CK.NewModule("Reminder", ns)
 -- in a vehicle or on a flight, in a running key or encounter, or right after
 -- a loading screen; in a resting area only a death knight's runes; only in
 -- the scenarios the player picked. A dungeon or raid far below you (legacy
--- loot, or you are levelling) plays as the open world.
+-- loot, or you are levelling) and Timewalking play as the open world.
 --
 -- A class list (Classes/*.lua) holds entries:
 --   { key = what its switch is saved under,
@@ -747,9 +747,13 @@ local watching             -- what UNIT_AURA is registered for: nil, "player", "
 function ns.IsRunning() return running end
 function ns.Watching() return watching end
 
--- Instances scaled up to you whatever their age: Timewalking, a Mythic dungeon (the season's
--- keys take old dungeons too), a key (DifficultyUtil.ID)
-local SCALED = { [MYTHIC] = true, [KEYSTONE] = true, [24] = true, [33] = true }
+-- Instances scaled up to you whatever their age: a Mythic dungeon (the season's keys take
+-- old dungeons too), a key (DifficultyUtil.ID)
+local SCALED = { [MYTHIC] = true, [KEYSTONE] = true }
+
+-- Timewalking, scaled up to you too but too easy for consumables: plays as the open world.
+-- The Difficulty DB2's Timewalking flag (0x200): 24 the dungeons, 33 and 257 the raids
+local TIMEWALKING = { [24] = true, [33] = true, [257] = true }
 
 -- Below the top level the account reaches (levelling)? The level and the top, for /ckreminder
 local function Levelling()
@@ -759,18 +763,20 @@ local function Levelling()
 	return level > 0 and level < top, level, top
 end
 
--- A dungeon or raid far below you: any of them while you level, or one the game gives legacy
--- loot in (two expansions back or more, outlevelled) unless it is scaled up to you
+-- A dungeon or raid that plays as the open world: any of them while you level, Timewalking,
+-- or one the game gives legacy loot in (two expansions back or more, outlevelled) unless it
+-- is scaled up to you
 local function Low()
 	if Levelling() then return true end
 	local _, _, difficultyID = GetInstanceInfo()
+	if TIMEWALKING[difficultyID] then return true end
 	if SCALED[difficultyID] then return false end
 	return C_Loot and CK.Flag(C_Loot.IsLegacyLootModeEnabled) or false
 end
 
 -- The kit's scenario; grouped players in the 12.x hub cities read as being in
 -- a dungeon of difficulty 0, which is no dungeon. A dungeon or raid far below
--- you plays as the open world: no consumables, the class reminders as there.
+-- you, or Timewalking, plays as the open world: no consumables, the class reminders as there.
 function ns.Scenario()
 	local key = CK.DetectScenario()
 	if key == "dungeon" then
@@ -965,8 +971,9 @@ function ns.Report()
 		Yes(not pulled or readyCheck or key == "raid"), math.floor(select(2, Soon(key)) / 60))
 	say("group buffs wanted on: %s; auras listened to: %s", WholeGroup() and "everyone" or "you", tostring(watching or "none"))
 	local levelling, level, top = Levelling()
-	say("far below you (plays as the open world): levelling %s (level %s of %s), legacy loot %s",
-		Yes(levelling), tostring(level), tostring(top), Yes(C_Loot and CK.Flag(C_Loot.IsLegacyLootModeEnabled)))
+	say("plays as the open world: levelling %s (level %s of %s), legacy loot %s, Timewalking %s",
+		Yes(levelling), tostring(level), tostring(top), Yes(C_Loot and CK.Flag(C_Loot.IsLegacyLootModeEnabled)),
+		Yes(TIMEWALKING[difficultyID]))
 	say("auras secret as a whole: %s; per spell (%s): flask %s, Well Fed %s", Yes(ns.AurasHidden()),
 		(C_Secrets and C_Secrets.ShouldSpellAuraBeSecret) and "asked" or "no such API",
 		Yes(ns.SpellHidden(ns.FLASK.auras[1])), Yes(ns.SpellHidden(ns.WELL_FED[1])))
